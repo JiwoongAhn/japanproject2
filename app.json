@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "japanproject",
-    "slug": "japanproject",
+    "name": "Unipas",
+    "slug": "unipas",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
