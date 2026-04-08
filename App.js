@@ -1,20 +1,14 @@
+import 'react-native-gesture-handler';   // React Navigation 필수 — 반드시 최상단에 위치해야 함
+import 'react-native-get-random-values'; // 암호화 난수 생성 — 반드시 최상단에 위치해야 함
+import 'react-native-url-polyfill/auto'; // React Native URL 호환
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import AppNavigator from './src/navigation/AppNavigator';
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <Text>ホーム</Text>
-      <StatusBar style="auto" />
-    </View>
+    <>
+      <StatusBar style="dark" />
+      <AppNavigator />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
