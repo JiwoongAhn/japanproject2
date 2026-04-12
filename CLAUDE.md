@@ -1,29 +1,34 @@
-# 프로젝트 개요
-일본 대학생을 위한 대학별 커뮤니티 앱 (에브리타임 일본판)
-- iOS / Android 동시 지원 (React Native 사용)
-- 대학별 게시판, 시간표, 익명 커뮤니티 기능 목표
+# 프로젝트 기본 정보
+- 앱 이름: Unipas
+- 목적: 일본 대학생을 위한 학교 생활 앱
+- 기술 스택: React Native / Expo / JavaScript
+- 백엔드: Supabase (API 키 미입력, 구조만 준비된 상태)
+- 저장소: github.com/JiwoongAhn/japanproject2
 
-# 기술 스택
-- Framework: React Native (Expo)
-- 언어: JavaScript
-- 버전 관리: Git + GitHub
+# 코드 컨벤션
+- 변수명: camelCase 영어
+- 주석: 한국어
+- 초보자도 이해할 수 있게 설명 포함
 
-# 코딩 규칙
-- 변수명/함수명: 영어로 작성 (camelCase)
-- 주석: 한국어로 작성
-- 컴포넌트는 역할별로 파일을 분리해서 관리
+# 현재 완료된 것
+- 회원가입 / 로그인 (인증)
+- 하단 탭 네비게이션 4개 구조
+- Supabase 테이블 구조 설계
 
-# Claude에게 부탁할 것
-- 나는 개발 초보자야. 항상 쉽게 설명해줘
-- 코드 작성 시 왜 이렇게 짰는지 이유도 같이 설명해줘
-- 에러가 나면 원인과 해결 방법을 단계별로 알려줘
-- 모르는 건 모른다고 솔직하게 말해줘
+# MVP 확정 범위
+1단계: Supabase 연결 (API 키는 직접 입력 예정)
+2단계: 시간표 (추가/삭제/그리드 표시) - 시간 겹침 감지 제외
+3단계: 과제 (등록/상태 토글 3단계/D-day) - 푸시 알림 제외
+4단계: 홈 화면 (오늘 수업 카드 + D-3 이하 과제 카드)
+Post-MVP: 커뮤니티, WebView
 
-# 진행 상황
-- Expo blank 템플릿으로 프로젝트 초기화 완료
-- 경로: /Users/jiwoong/claudeproject/japanproject
-- Expo Go 연결은 아직 미완료 (나중에 진행 예정)
+# 현재 개발 환경
+- 웹 브라우저로 개발 중
+- 목표: Expo Go QR 연결로 전환
 
-# 다음 할 일
-- npx expo start 실행 후 Expo Go QR 코드 연결
-- 이후 화면 구성 시작
+# Compact Instructions
+/compact 실행 시 다음을 반드시 보존해줘:
+- 현재 MVP 몇 단계 작업 중인지
+- 작업 중인 화면/컴포넌트 이름
+- 미완성이거나 에러 중인 항목과 시도한 방법
+- 다음에 할 작업 목록

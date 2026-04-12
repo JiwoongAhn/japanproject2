@@ -2,9 +2,9 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
-import TimetableScreen from '../screens/timetable/TimetableScreen';
-import AssignmentScreen from '../screens/AssignmentScreen';
-import PostListScreen from '../screens/community/PostListScreen';
+import TimetableStack from './TimetableStack';
+import AssignmentStack from './AssignmentStack';
+import CommunityStack from './CommunityStack';
 import { colors } from '../constants/colors';
 
 const Tab = createBottomTabNavigator();
@@ -40,7 +40,7 @@ export default function MainTab() {
       />
       <Tab.Screen
         name="Timetable"
-        component={TimetableScreen}
+        component={TimetableStack}
         options={{
           tabBarLabel: '時間割',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>📅</Text>,
@@ -48,7 +48,7 @@ export default function MainTab() {
       />
       <Tab.Screen
         name="Assignment"
-        component={AssignmentScreen}
+        component={AssignmentStack}
         options={{
           tabBarLabel: '課題',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>📝</Text>,
@@ -56,7 +56,7 @@ export default function MainTab() {
       />
       <Tab.Screen
         name="Community"
-        component={PostListScreen}
+        component={CommunityStack}
         options={{
           tabBarLabel: '掲示板',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>💬</Text>,

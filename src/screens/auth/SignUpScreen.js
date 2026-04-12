@@ -35,24 +35,36 @@ export default function SignUpScreen({ navigation, route }) {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
 
-    setLoading(false);
+      if (error) {
+        Alert.alert('登録失敗', error.message);
+        return;
+      }
 
-    if (error) {
-      Alert.alert('登録失敗', error.message);
-      return;
+      // 회원가입 직후 profiles 테이블에 사용자 정보 직접 생성
+      if (data.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          university: university?.name ?? '国士舘大学',
+        });
+      }
+
+      // 이메일 인증 OFF: data.session 존재 → onAuthStateChange가 자동으로 MainTab 전환
+      // 이메일 인증 ON:  data.session 없음  → Login 화면으로 이동
+      if (!data.session) {
+        navigation.navigate('Login', { university });
+      }
+    } catch (e) {
+      Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
+    } finally {
+      // 성공/실패 관계없이 반드시 로딩 해제
+      setLoading(false);
     }
-
-    // 가입 성공 — Supabase 대시보드에서 이메일 인증 ON/OFF 설정 가능
-    Alert.alert(
-      '登録完了',
-      '確認メールを送信しました。メールを確認してログインしてください。',
-      [{ text: 'OK', onPress: () => navigation.navigate('Login', { university }) }]
-    );
   };
 
   return (

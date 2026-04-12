@@ -24,17 +24,21 @@ export default function LoginScreen({ navigation, route }) {
 
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password,
-    });
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    setLoading(false);
-
-    if (error) {
-      Alert.alert('ログイン失敗', error.message);
+      if (error) {
+        Alert.alert('ログイン失敗', error.message);
+      }
+      // 로그인 성공 시 AppNavigator가 세션 감지 후 자동으로 MainTab으로 전환
+    } catch (e) {
+      Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
+    } finally {
+      setLoading(false);
     }
-    // 로그인 성공 시 AppNavigator가 세션 감지 후 자동으로 MainTab으로 전환
   };
 
   return (
