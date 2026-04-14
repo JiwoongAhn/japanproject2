@@ -30,6 +30,8 @@ CREATE TABLE profiles (
   -- auth.users의 id와 연결. 회원 탈퇴 시 자동 삭제
   university  TEXT NOT NULL DEFAULT '国士舘大学',
   -- 소속 대학교 이름
+  nickname    TEXT UNIQUE,
+  -- 공강맞추기에서 친구 ID로 사용하는 닉네임 (이메일 @ 앞부분 자동 생성)
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -99,8 +101,9 @@ CREATE TABLE assignments (
 -- profiles RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "본인 프로필만 조회 가능" ON profiles
-  FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "닉네임으로 다른 프로필 조회 가능" ON profiles
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+  -- 인증된 사용자라면 누구든 프로필 조회 가능 (공강맞추기 친구 검색용)
 
 CREATE POLICY "본인 프로필만 수정 가능" ON profiles
   FOR UPDATE USING (auth.uid() = id);
@@ -109,8 +112,9 @@ CREATE POLICY "본인 프로필만 수정 가능" ON profiles
 -- courses RLS
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "본인 수업만 조회 가능" ON courses
-  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "인증된 사용자는 모든 시간표 조회 가능" ON courses
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+  -- 인증된 사용자라면 누구든 시간표 조회 가능 (공강맞추기용)
 
 CREATE POLICY "본인 수업만 추가 가능" ON courses
   FOR INSERT WITH CHECK (auth.uid() = user_id);

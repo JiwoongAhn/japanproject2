@@ -10,7 +10,7 @@ import { colors } from '../../constants/colors';
 // 선택한 대학 정보는 로그인 화면으로 전달됨
 export default function UniversitySelectScreen({ navigation }) {
   const handleSelect = (university) => {
-    navigation.navigate('Login', { university });
+    navigation.navigate('SchoolPortalAuth', { university });
   };
 
   const renderItem = ({ item }) => (

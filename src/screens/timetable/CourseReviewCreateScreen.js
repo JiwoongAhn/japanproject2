@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
+import { toggleTag as toggleTagFn, addCustomTag as addCustomTagFn } from '../../utils/review';
 
 // 미리 정의된 태그 추천 목록
 const SUGGESTED_TAGS = [
@@ -66,17 +67,16 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
 
   // 태그 토글
   const toggleTag = (tag) => {
-    setSelectedTags(prev =>
-      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-    );
+    setSelectedTags(prev => toggleTagFn(tag, prev));
   };
 
   // 커스텀 태그 추가
   const addCustomTag = () => {
-    const tag = customTag.trim();
-    if (!tag || selectedTags.includes(tag) || selectedTags.length >= 8) return;
-    setSelectedTags(prev => [...prev, tag]);
-    setCustomTag('');
+    const next = addCustomTagFn(customTag, selectedTags);
+    if (next !== selectedTags) {
+      setSelectedTags(next);
+      setCustomTag('');
+    }
   };
 
   // Supabase에 강의평가 저장

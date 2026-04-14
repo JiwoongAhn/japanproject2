@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { colors } from '../../constants/colors';
+import { formatDueDate, isAssignmentFormValid } from '../../utils/assignment';
 
 // 상태 선택지
 const STATUS_OPTIONS = [
@@ -25,23 +26,11 @@ export default function AssignmentAddScreen({ navigation }) {
   const [status, setStatus]           = useState('pending');  // 상태 (기본: 미제출)
 
   // 필수 항목이 모두 채워졌는지 확인
-  const isFormValid =
-    courseName.trim().length > 0 &&
-    title.trim().length > 0 &&
-    /^\d{4}-\d{2}-\d{2}$/.test(dueDate.trim());  // YYYY-MM-DD 형식 검사
+  const isFormValid = isAssignmentFormValid(courseName, title, dueDate);
 
   // 마감일 입력 시 자동으로 - 붙여주기
-  // 예: "20260415" → "2026-04-15"
   const handleDueDateChange = (text) => {
-    const digits = text.replace(/\D/g, '');
-    let formatted = digits;
-    if (digits.length >= 5) {
-      formatted = `${digits.slice(0, 4)}-${digits.slice(4)}`;
-    }
-    if (digits.length >= 7) {
-      formatted = `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
-    }
-    setDueDate(formatted);
+    setDueDate(formatDueDate(text));
   };
 
   // 저장 버튼 — 목업 단계: 실제 저장 없이 화면만 돌아가요

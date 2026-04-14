@@ -48,9 +48,12 @@ export default function SignUpScreen({ navigation, route }) {
 
       // 회원가입 직후 profiles 테이블에 사용자 정보 직접 생성
       if (data.user) {
+        // 닉네임: 이메일 @ 앞부분 사용 (공강맞추기에서 친구 ID로 활용)
+        const baseNickname = email.trim().split('@')[0];
         await supabase.from('profiles').upsert({
           id: data.user.id,
           university: university?.name ?? '国士舘大学',
+          nickname: baseNickname,
         });
       }
 

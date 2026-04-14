@@ -13,27 +13,13 @@ import {
 import { colors } from '../../constants/colors';
 import { BOARD_CATEGORIES, getCategoryInfo } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
+import { formatTimeAgo } from '../../utils/community';
 
 // 전체 보기 탭 + 카테고리 탭 합치기
 const ALL_TABS = [
   { key: 'all', label: '全体', color: colors.textSecondary },
   ...BOARD_CATEGORIES,
 ];
-
-// 시간 경과 표시 (예: "10分前", "2時間前")
-function formatTimeAgo(timestamp) {
-  const now = new Date();
-  const past = new Date(timestamp);
-  const diffMs = now - past;
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMs / 3600000);
-  const diffDays = Math.floor(diffMs / 86400000);
-
-  if (diffMins < 1) return 'たった今';
-  if (diffMins < 60) return `${diffMins}分前`;
-  if (diffHours < 24) return `${diffHours}時間前`;
-  return `${diffDays}日前`;
-}
 
 export default function PostListScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState('all');

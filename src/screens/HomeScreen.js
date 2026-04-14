@@ -13,53 +13,12 @@ import {
 import { colors } from '../constants/colors';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { supabase } from '../lib/supabase';
-
-// 국사관대학 교시별 시작·종료 시간 (분 단위로 변환해두면 비교 쉬움)
-// period → { startMin, endMin }  (자정 기준 분수)
-const PERIOD_RANGES = {
-  1: { start: 9 * 60,       end: 10 * 60 + 30  }, // 9:00 ~ 10:30
-  2: { start: 10 * 60 + 45, end: 12 * 60 + 15  }, // 10:45 ~ 12:15
-  3: { start: 12 * 60 + 55, end: 14 * 60 + 25  }, // 12:55 ~ 14:25
-  4: { start: 14 * 60 + 40, end: 16 * 60 + 10  }, // 14:40 ~ 16:10
-  5: { start: 16 * 60 + 25, end: 17 * 60 + 55  }, // 16:25 ~ 17:55
-  6: { start: 18 * 60 + 10, end: 19 * 60 + 40  }, // 18:10 ~ 19:40
-  7: { start: 19 * 60 + 55, end: 21 * 60 + 25  }, // 19:55 ~ 21:25
-  8: { start: 21 * 60 + 40, end: 23 * 60 + 10  }, // 21:40 ~ 23:10
-};
-
-// 현재 시각(분)을 기준으로 수업 상태 반환
-function getCourseStatus(period, nowMin, todayCoursesSorted) {
-  const range = PERIOD_RANGES[period];
-  if (!range) return '未開始';
-
-  if (nowMin >= range.start && nowMin < range.end) return '進行中';
-  if (nowMin >= range.end) return '終了';
-
-  // 아직 시작 전 — 오늘 수업 중 다음 교시인지 판단
-  const sortedPeriods = todayCoursesSorted.map(c => c.period);
-  const futureIdx = sortedPeriods.filter(p => PERIOD_RANGES[p]?.start > nowMin);
-  if (futureIdx.length > 0 && futureIdx[0] === period) return '次の授業';
-  return '未開始';
-}
+import { getCourseStatus, PERIOD_RANGES } from '../utils/timetable';
+import { getDdayColor } from '../utils/assignment';
+import { getTodayStr } from '../utils/date';
 
 // 컬러 팔레트 (수업 카드 왼쪽 컬러 바)
 const COURSE_COLORS = ['#4E95F5', '#F97316', '#A855F7', '#05C072', '#EF4444', '#F59E0B', '#14B8A6', '#EC4899'];
-
-// D-day 배지 색상
-function getDdayColor(dday) {
-  if (dday <= 1) return colors.warning;
-  if (dday <= 3) return colors.primary;
-  return colors.textSecondary;
-}
-
-// 오늘 날짜를 'YYYY-MM-DD' 문자열로 반환 (JST 기준)
-function getTodayStr() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 export default function HomeScreen({ navigation }) {
   const [todayCourses, setTodayCourses] = useState([]);

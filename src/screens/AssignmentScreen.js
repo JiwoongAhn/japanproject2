@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { colors } from '../constants/colors';
+import { calcDday } from '../utils/assignment';
 
 // ── 상태별 디자인 설정 ─────────────────────────────────────────────────────
 // 각 상태에 맞는 배지 색상, 텍스트를 한 곳에서 관리해요.
@@ -28,23 +29,6 @@ const STATUS_CONFIG = {
     text: colors.danger,
   },
 };
-
-// ── D-day 계산 함수 ──────────────────────────────────────────────────────────
-// dueDateStr: 'YYYY-MM-DD' 형식의 마감일
-// 반환값: { label: 'D-3', color: ..., isUrgent: true/false }
-function calcDday(dueDateStr) {
-  const today = new Date();
-  // 시간 부분 제거 — 날짜만 비교해요
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(dueDateStr);
-  due.setHours(0, 0, 0, 0);
-  const diff = Math.round((due - today) / (1000 * 60 * 60 * 24));
-
-  if (diff < 0)  return { label: `D+${Math.abs(diff)}`, color: colors.danger,  isUrgent: true };
-  if (diff === 0) return { label: 'D-Day',               color: colors.danger,  isUrgent: true };
-  if (diff <= 3)  return { label: `D-${diff}`,           color: colors.warning, isUrgent: true };
-  return           { label: `D-${diff}`,                 color: colors.textSecondary, isUrgent: false };
-}
 
 // ── 목업 데이터 (가짜 데이터) ──────────────────────────────────────────
 // 실제 Supabase 연결 전에 화면을 확인하기 위한 임시 데이터예요.
