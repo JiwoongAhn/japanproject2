@@ -14,20 +14,22 @@ import {
 // 国士舘大学 シラバス URL
 // ※ ログインが必要な場合はポータルURL (https://portal.kokushikan.ac.jp/) に変更してください
 const SYLLABUS_URL = 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { getCourseColor } from '../../constants/courseColors';
 import CourseDetailModal from './CourseDetailModal';
+import { TODAY_COLOR_KEY } from '../ProfileScreen';
 
 // 요일 레이블 (일본어)
 const DAYS = ['月', '火', '水', '木', '金'];
-// 교시 목록 (1~8교시)
-const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
+// 교시 목록 (1~6교시)
+const PERIODS = [1, 2, 3, 4, 5, 6];
 // 교시 열(가장 왼쪽) 너비 — 시간 텍스트 공간 확보
 const PERIOD_COL_WIDTH = 42;
 // 행 높이
 const ROW_HEIGHT = 80;
-// 교시별 시작 시간 (국사관대학 기준: 1.5h 수업, 15분 휴식, 점심 12:15~12:55)
+// 교시별 시작 시간 (국사관대학 기준)
 const PERIOD_TIMES = {
   1: '9:00',
   2: '10:45',
@@ -35,14 +37,18 @@ const PERIOD_TIMES = {
   4: '14:40',
   5: '16:25',
   6: '18:10',
-  7: '19:55',
-  8: '21:40',
 };
+
+// 오늘 요일 → 시간표 열 인덱스 (월=0 ~ 금=4, 주말=-1)
+// JS: 0=일, 1=월 ... 6=토
+const jsDay = new Date().getDay();
+const TODAY_COL = (jsDay >= 1 && jsDay <= 5) ? jsDay - 1 : -1;
 
 export default function TimetableScreen({ navigation }) {
   const [courses, setCourses] = useState([]);    // 수업 목록
   const [loading, setLoading] = useState(true);  // 로딩 상태
   const [selectedCourse, setSelectedCourse] = useState(null); // 모달에 표시할 수업
+  const [todayColor, setTodayColor] = useState(colors.primary); // 오늘 요일 강조 색상
 
   // Supabase에서 수업 목록 불러오기
   const fetchCourses = useCallback(async () => {
@@ -64,8 +70,13 @@ export default function TimetableScreen({ navigation }) {
 
   useEffect(() => {
     fetchCourses();
-    // 이 화면으로 다시 돌아올 때마다 목록 새로고침
-    const unsubscribe = navigation.addListener('focus', fetchCourses);
+
+    // 화면 포커스 시 수업 목록 + 색상 설정 새로고침
+    const unsubscribe = navigation.addListener('focus', async () => {
+      fetchCourses();
+      const saved = await AsyncStorage.getItem(TODAY_COLOR_KEY);
+      if (saved) setTodayColor(saved);
+    });
     return unsubscribe;
   }, [navigation, fetchCourses]);
 
@@ -112,11 +123,26 @@ export default function TimetableScreen({ navigation }) {
           <View style={styles.dayHeaderRow}>
             {/* 교시 열 공간 확보 */}
             <View style={{ width: PERIOD_COL_WIDTH }} />
-            {DAYS.map((day, i) => (
-              <View key={i} style={styles.dayHeaderCell}>
-                <Text style={styles.dayHeaderText}>{day}</Text>
-              </View>
-            ))}
+            {DAYS.map((day, i) => {
+              const isToday = i === TODAY_COL;
+              return (
+                <View
+                  key={i}
+                  style={[
+                    styles.dayHeaderCell,
+                    isToday && { backgroundColor: todayColor + '18', borderRadius: 8, marginHorizontal: 2 },
+                  ]}
+                >
+                  <Text style={[
+                    styles.dayHeaderText,
+                    isToday && { color: todayColor, fontWeight: '800' },
+                  ]}>
+                    {day}
+                  </Text>
+                  {isToday && <View style={[styles.todayDot, { backgroundColor: todayColor }]} />}
+                </View>
+              );
+            })}
           </View>
 
           {/* ── 교시별 행 (1~8교시) ── */}
@@ -301,11 +327,18 @@ const styles = StyleSheet.create({
   dayHeaderCell: {
     flex: 1,
     alignItems: 'center',
+    paddingVertical: 2,
   },
   dayHeaderText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
+  },
+  todayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    marginTop: 2,
   },
 
   // 교시 행

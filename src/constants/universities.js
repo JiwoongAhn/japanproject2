@@ -7,6 +7,10 @@ export const universities = [
     nameKo: '국사관대학교',
     location: '東京都世田谷区',
     portalUrl: 'https://portal.kokushikan.ac.jp',
+    homepageUrl: 'https://www.kokushikan.ac.jp',
+    manabaUrl:   'https://kokushikan.manaba.jp/ct/login',
+    kaedeUrl:    'https://kaedei.kokushikan.ac.jp',
+    syllabusUrl: 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx',
   },
   // 추후 대학 추가 예시:
   // {
@@ -15,5 +19,9 @@ export const universities = [
   //   nameKo: '와세다대학교',
   //   location: '東京都新宿区',
   //   portalUrl: 'https://portal.waseda.jp',
+  //   homepageUrl: 'https://www.waseda.jp',
+  //   manabaUrl:   'https://manaba.waseda.jp',
+  //   kaedeUrl:    '',
+  //   syllabusUrl: 'https://www.waseda.jp/syllabus/',
   // },
 ];

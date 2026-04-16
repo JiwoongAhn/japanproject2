@@ -162,6 +162,10 @@ export default function CourseReviewScreen({ navigation }) {
                   key={index}
                   style={styles.reviewCard}
                   activeOpacity={0.75}
+                  onPress={() => navigation.navigate('CourseReviewDetail', {
+                    courseName: item.courseName,
+                    professorName: item.professorName,
+                  })}
                 >
                   {/* 수업명 + 별점 */}
                   <View style={styles.cardHeader}>

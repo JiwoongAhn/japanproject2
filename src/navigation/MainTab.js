@@ -5,6 +5,7 @@ import HomeScreen from '../screens/HomeScreen';
 import TimetableStack from './TimetableStack';
 import AssignmentStack from './AssignmentStack';
 import CommunityStack from './CommunityStack';
+import ProfileScreen from '../screens/ProfileScreen';
 import { colors } from '../constants/colors';
 
 const Tab = createBottomTabNavigator();
@@ -60,6 +61,14 @@ export default function MainTab() {
         options={{
           tabBarLabel: '掲示板',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>💬</Text>,
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarLabel: 'マイページ',
+          tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>👤</Text>,
         }}
       />
     </Tab.Navigator>

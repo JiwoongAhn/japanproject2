@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import TimetableScreen from '../screens/timetable/TimetableScreen';
 import CourseAddScreen from '../screens/timetable/CourseAddScreen';
 import CourseReviewScreen from '../screens/timetable/CourseReviewScreen';
+import CourseReviewDetailScreen from '../screens/timetable/CourseReviewDetailScreen';
 import CourseReviewCreateScreen from '../screens/timetable/CourseReviewCreateScreen';
 import FreeTimeScreen from '../screens/timetable/FreeTimeScreen';
 
@@ -20,6 +21,8 @@ export default function TimetableStack() {
       <Stack.Screen name="CourseAdd" component={CourseAddScreen} />
       {/* 강의평가 목록 화면 */}
       <Stack.Screen name="CourseReview" component={CourseReviewScreen} />
+      {/* 강의평가 상세 화면 (수업별 전체 리뷰 목록) */}
+      <Stack.Screen name="CourseReviewDetail" component={CourseReviewDetailScreen} />
       {/* 강의평가 작성 화면 */}
       <Stack.Screen name="CourseReviewCreate" component={CourseReviewCreateScreen} />
       {/* 공강맞추기 화면 */}

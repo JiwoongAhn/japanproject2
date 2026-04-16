@@ -20,7 +20,7 @@ export function calculateFreePeriods(courses) {
   const occupied = new Set(courses.map(c => `${c.day_of_week}-${c.period}`));
   const free = [];
   for (let day = 0; day <= 4; day++) {
-    for (let period = 1; period <= 8; period++) {
+    for (let period = 1; period <= 6; period++) {
       if (!occupied.has(`${day}-${period}`)) {
         free.push({ day, period });
       }

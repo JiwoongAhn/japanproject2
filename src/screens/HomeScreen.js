@@ -16,9 +16,16 @@ import { supabase } from '../lib/supabase';
 import { getCourseStatus, PERIOD_RANGES } from '../utils/timetable';
 import { getDdayColor } from '../utils/assignment';
 import { getTodayStr } from '../utils/date';
+import { universities } from '../constants/universities';
 
 // 컬러 팔레트 (수업 카드 왼쪽 컬러 바)
 const COURSE_COLORS = ['#4E95F5', '#F97316', '#A855F7', '#05C072', '#EF4444', '#F59E0B', '#14B8A6', '#EC4899'];
+
+// 로그인한 사용자의 대학 ID로 대학 정보 찾기 (없으면 국사관 기본값)
+function getUniversityInfo(email) {
+  const domainPart = email?.split('@')?.[1]?.split('.')?.[0] ?? '';
+  return universities.find(u => u.id === domainPart) ?? universities[0];
+}
 
 export default function HomeScreen({ navigation }) {
   const [todayCourses, setTodayCourses] = useState([]);
@@ -27,6 +34,7 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [universityInfo, setUniversityInfo] = useState(universities[0]);
 
   // 날짜/인사말 계산
   const now = new Date();
@@ -37,49 +45,56 @@ export default function HomeScreen({ navigation }) {
 
   // 모든 데이터 한 번에 로드
   const fetchAll = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.email) setUserEmail(user.email);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        setUserEmail(user.email);
+        setUniversityInfo(getUniversityInfo(user.email));
+      }
 
-    // 오늘 요일 → DB day_of_week (0=월, 4=금 / JS: 0=일, 1=월 ... 6=토)
-    const jsDay = now.getDay(); // 0=일, 1=월 ... 6=토
-    const dbDay = jsDay - 1;   // 0=월, 4=금, 토일은 -1, 6
+      // 오늘 요일 → DB day_of_week (0=월, 4=금 / JS: 0=일, 1=월 ... 6=토)
+      const jsDay = now.getDay(); // 0=일, 1=월 ... 6=토
+      const dbDay = jsDay - 1;   // 0=월, 4=금, 토일은 -1, 6
 
-    const todayStr = getTodayStr();
-    const d3Str = (() => {
-      const d = new Date(now);
-      d.setDate(d.getDate() + 3);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    })();
+      const todayStr = getTodayStr();
+      const d3Str = (() => {
+        const d = new Date(now);
+        d.setDate(d.getDate() + 3);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })();
 
-    const [coursesRes, assignmentsRes, postsRes] = await Promise.all([
-      // 오늘 수업 (평일일 때만)
-      dbDay >= 0 && dbDay <= 4
-        ? supabase.from('courses').select('*').eq('day_of_week', dbDay).order('period')
-        : Promise.resolve({ data: [] }),
+      const [coursesRes, assignmentsRes, postsRes] = await Promise.all([
+        // 오늘 수업 (평일일 때만)
+        dbDay >= 0 && dbDay <= 4
+          ? supabase.from('courses').select('*').eq('day_of_week', dbDay).order('period')
+          : Promise.resolve({ data: [] }),
 
-      // D-3 이내 미제출 과제
-      supabase
-        .from('assignments')
-        .select('*, courses(name)')
-        .eq('status', 'pending')
-        .gte('due_date', todayStr)
-        .lte('due_date', d3Str)
-        .order('due_date'),
+        // D-3 이내 미제출 과제
+        supabase
+          .from('assignments')
+          .select('*, courses(name)')
+          .eq('status', 'pending')
+          .gte('due_date', todayStr)
+          .lte('due_date', d3Str)
+          .order('due_date'),
 
-      // 최신 게시글 3개
-      supabase
-        .from('posts')
-        .select('*, post_comments(count)')
-        .order('created_at', { ascending: false })
-        .limit(3),
-    ]);
+        // 최신 게시글 3개
+        supabase
+          .from('posts')
+          .select('*, post_comments(count)')
+          .order('created_at', { ascending: false })
+          .limit(3),
+      ]);
 
-    if (coursesRes.data) setTodayCourses(coursesRes.data);
-    if (assignmentsRes.data) setUpcomingAssignments(assignmentsRes.data);
-    if (postsRes.data) setRecentPosts(postsRes.data);
-
-    setLoading(false);
-    setRefreshing(false);
+      if (coursesRes.data) setTodayCourses(coursesRes.data);
+      if (assignmentsRes.data) setUpcomingAssignments(assignmentsRes.data);
+      if (postsRes.data) setRecentPosts(postsRes.data);
+    } catch {
+      // 네트워크 에러 등 — 빈 상태로 표시
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -278,11 +293,10 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.sectionTitle}>学校情報</Text>
           <View style={styles.schoolGrid}>
             {[
-              { icon: '📢', label: 'お知らせ', url: 'https://www.kokushikan.ac.jp/news/' },
-              { icon: '📅', label: '学事日程', url: 'https://www.kokushikan.ac.jp/campuslife/calendars/' },
-              { icon: '📖', label: 'シラバス', url: 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx' },
-              { icon: '🏫', label: 'ポータル', url: 'https://portal.kokushikan.ac.jp/' },
-            ].map((item) => (
+              { icon: '📚', label: 'manaba',       url: universityInfo.manabaUrl   },
+              { icon: '📅', label: 'kaede-i',      url: universityInfo.kaedeUrl    },
+              { icon: '🏫', label: 'ホームページ', url: universityInfo.homepageUrl },
+            ].filter(item => item.url).map((item) => (
               <TouchableOpacity
                 key={item.label}
                 style={styles.schoolCard}
@@ -546,20 +560,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   schoolCard: {
-    width: '47.5%',
+    flex: 1,
     backgroundColor: colors.background,
     borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
   schoolIcon: {
     fontSize: 20,
   },
   schoolLabel: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textPrimary,
+    textAlign: 'center',
   },
 });
