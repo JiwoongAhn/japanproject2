@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,9 @@ import { BOARD_CATEGORIES, getCategoryInfo } from '../../constants/boardCategori
 import { supabase } from '../../lib/supabase';
 import { formatTimeAgo } from '../../utils/community';
 
+// 한 번에 로드하는 게시글 수
+const PAGE_SIZE = 20;
+
 // 전체 보기 탭 + 카테고리 탭 합치기
 const ALL_TABS = [
   { key: 'all', label: '全体', color: colors.textSecondary },
@@ -26,46 +29,79 @@ export default function PostListScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  // pageRef: 현재 로드된 페이지 (0부터 시작). 렌더링 트리거 없이 관리
+  const pageRef = useRef(0);
 
   // Supabase에서 게시글 불러오기
-  const fetchPosts = useCallback(async () => {
-    const { data, error } = await supabase
+  // reset=true면 처음부터 다시 로드 (카테고리/검색 변경, 새로고침)
+  const fetchPosts = useCallback(async ({ reset = false } = {}) => {
+    if (reset) {
+      pageRef.current = 0;
+    }
+
+    const from = pageRef.current * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    if (reset) setLoading(true);
+    else setLoadingMore(true);
+
+    // 쿼리 빌드
+    let query = supabase
       .from('posts')
       .select('*, post_comments(count)')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    // 카테고리 필터 (서버 사이드)
+    if (selectedCategory !== 'all') {
+      query = query.eq('category', selectedCategory);
+    }
+
+    // 검색어 필터 (서버 사이드 ilike)
+    const q = searchText.trim();
+    if (q) {
+      query = query.or(`title.ilike.%${q}%,body.ilike.%${q}%`);
+    }
+
+    const { data, error } = await query;
 
     if (!error && data) {
-      setPosts(data);
+      setPosts(prev => reset ? data : [...prev, ...data]);
+      setHasMore(data.length === PAGE_SIZE);
+      pageRef.current += 1;
     }
+
     setLoading(false);
+    setLoadingMore(false);
     setRefreshing(false);
-  }, []);
+  }, [selectedCategory, searchText]);
+
+  // 카테고리 또는 검색어 변경 시 목록 리셋
+  useEffect(() => {
+    fetchPosts({ reset: true });
+  }, [selectedCategory, searchText]);
 
   useEffect(() => {
-    fetchPosts();
     // PostCreate에서 돌아올 때마다 목록 새로고침
-    const unsubscribe = navigation.addListener('focus', fetchPosts);
+    const unsubscribe = navigation.addListener('focus', () => fetchPosts({ reset: true }));
     return unsubscribe;
   }, [navigation, fetchPosts]);
 
   // 당겨서 새로고침
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchPosts();
+    fetchPosts({ reset: true });
   }, [fetchPosts]);
 
-  // 카테고리 + 검색어 동시 필터링
-  const filteredPosts = posts
-    .filter(post => selectedCategory === 'all' || post.category === selectedCategory)
-    .filter(post => {
-      if (!searchText.trim()) return true;
-      const q = searchText.trim().toLowerCase();
-      return (
-        post.title.toLowerCase().includes(q) ||
-        (post.body && post.body.toLowerCase().includes(q))
-      );
-    });
+  // 더 보기 버튼
+  const loadMore = useCallback(() => {
+    if (!loadingMore && hasMore) {
+      fetchPosts({ reset: false });
+    }
+  }, [fetchPosts, loadingMore, hasMore]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -147,12 +183,12 @@ export default function PostListScreen({ navigation }) {
           {/* ── 검색 결과 카운트 ── */}
           {searchText.trim() !== '' && (
             <Text style={styles.searchResultCount}>
-              「{searchText}」の検索結果 {filteredPosts.length}件
+              「{searchText}」の検索結果
             </Text>
           )}
 
           {/* ── 게시글 없을 때 ── */}
-          {filteredPosts.length === 0 ? (
+          {posts.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{searchText ? '🔍' : '📭'}</Text>
               <Text style={styles.emptyText}>
@@ -163,45 +199,63 @@ export default function PostListScreen({ navigation }) {
               )}
             </View>
           ) : (
-            filteredPosts.map((post) => {
-              const catInfo = getCategoryInfo(post.category);
-              const commentCount = post.post_comments?.[0]?.count ?? 0;
-              return (
+            <>
+              {posts.map((post) => {
+                const catInfo = getCategoryInfo(post.category);
+                const commentCount = post.post_comments?.[0]?.count ?? 0;
+                return (
+                  <TouchableOpacity
+                    key={post.id}
+                    style={styles.postCard}
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+                  >
+                    <View style={styles.postMeta}>
+                      <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
+                        <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
+                      </View>
+                      <Text style={styles.postAnon}>
+                        {post.is_anonymous ? '匿名' : '実名'}
+                      </Text>
+                      <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
+                    </View>
+
+                    <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
+
+                    {post.body ? (
+                      <Text style={styles.postBody} numberOfLines={1}>{post.body}</Text>
+                    ) : null}
+
+                    <View style={styles.postFooter}>
+                      <View style={styles.reactionItem}>
+                        <Text style={styles.reactionIcon}>♡</Text>
+                        <Text style={styles.reactionCount}>{post.like_count}</Text>
+                      </View>
+                      <View style={styles.reactionItem}>
+                        <Text style={styles.reactionIcon}>□</Text>
+                        <Text style={styles.reactionCount}>{commentCount}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {/* ── 더 보기 버튼 ── */}
+              {hasMore && (
                 <TouchableOpacity
-                  key={post.id}
-                  style={styles.postCard}
+                  style={styles.loadMoreButton}
+                  onPress={loadMore}
+                  disabled={loadingMore}
                   activeOpacity={0.7}
-                  onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
                 >
-                  <View style={styles.postMeta}>
-                    <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
-                      <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
-                    </View>
-                    <Text style={styles.postAnon}>
-                      {post.is_anonymous ? '匿名' : '実名'}
-                    </Text>
-                    <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
-                  </View>
-
-                  <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
-
-                  {post.body ? (
-                    <Text style={styles.postBody} numberOfLines={1}>{post.body}</Text>
-                  ) : null}
-
-                  <View style={styles.postFooter}>
-                    <View style={styles.reactionItem}>
-                      <Text style={styles.reactionIcon}>♡</Text>
-                      <Text style={styles.reactionCount}>{post.like_count}</Text>
-                    </View>
-                    <View style={styles.reactionItem}>
-                      <Text style={styles.reactionIcon}>□</Text>
-                      <Text style={styles.reactionCount}>{commentCount}</Text>
-                    </View>
-                  </View>
+                  {loadingMore ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : (
+                    <Text style={styles.loadMoreText}>もっと見る</Text>
+                  )}
                 </TouchableOpacity>
-              );
-            })
+              )}
+            </>
           )}
 
           <View style={{ height: 32 }} />
@@ -378,6 +432,22 @@ const styles = StyleSheet.create({
   reactionCount: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+
+  // 더 보기 버튼
+  loadMoreButton: {
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
 
   // 빈 상태

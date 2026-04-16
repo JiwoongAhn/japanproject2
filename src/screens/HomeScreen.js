@@ -12,14 +12,12 @@ import {
 } from 'react-native';
 import { colors } from '../constants/colors';
 import { getCategoryInfo } from '../constants/boardCategories';
+import { getCourseColor } from '../constants/courseColors';
 import { supabase } from '../lib/supabase';
 import { getCourseStatus, PERIOD_RANGES } from '../utils/timetable';
 import { getDdayColor } from '../utils/assignment';
 import { getTodayStr } from '../utils/date';
 import { universities } from '../constants/universities';
-
-// 컬러 팔레트 (수업 카드 왼쪽 컬러 바)
-const COURSE_COLORS = ['#4E95F5', '#F97316', '#A855F7', '#05C072', '#EF4444', '#F59E0B', '#14B8A6', '#EC4899'];
 
 // 로그인한 사용자의 대학 ID로 대학 정보 찾기 (없으면 국사관 기본값)
 function getUniversityInfo(email) {
@@ -34,6 +32,7 @@ export default function HomeScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userEmail, setUserEmail] = useState('');
+  const [nickname, setNickname] = useState('');
   const [universityInfo, setUniversityInfo] = useState(universities[0]);
 
   // 날짜/인사말 계산
@@ -41,7 +40,8 @@ export default function HomeScreen({ navigation }) {
   const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
   const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${weekdays[now.getDay()]}曜日`;
   const hour = now.getHours();
-  const greeting = hour < 11 ? 'おはようございます 👋' : hour < 18 ? 'こんにちは 👋' : 'こんばんは 🌙';
+  const greetSuffix = hour < 11 ? 'おはようございます！👋' : hour < 18 ? 'こんにちは！👋' : 'こんばんは！🌙';
+  const greeting = nickname ? `${nickname}さん、${greetSuffix}` : greetSuffix;
 
   // 모든 데이터 한 번에 로드
   const fetchAll = useCallback(async () => {
@@ -50,6 +50,14 @@ export default function HomeScreen({ navigation }) {
       if (user?.email) {
         setUserEmail(user.email);
         setUniversityInfo(getUniversityInfo(user.email));
+
+        // 학번(nickname) 조회
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nickname')
+          .eq('id', user.id)
+          .single();
+        if (profile?.nickname) setNickname(profile.nickname);
       }
 
       // 오늘 요일 → DB day_of_week (0=월, 4=금 / JS: 0=일, 1=월 ... 6=토)
@@ -111,8 +119,12 @@ export default function HomeScreen({ navigation }) {
   // 현재 분(자정 기준)
   const nowMin = now.getHours() * 60 + now.getMinutes();
 
-  // 아바타 이니셜: 이메일 첫 글자
-  const avatarLetter = userEmail ? userEmail[0].toUpperCase() : 'A';
+  // 아바타 이니셜: 학번 첫 글자 (없으면 이메일 첫 글자)
+  const avatarLetter = nickname
+    ? nickname[0].toUpperCase()
+    : userEmail
+      ? userEmail[0].toUpperCase()
+      : 'A';
 
   if (loading) {
     return (
@@ -164,7 +176,7 @@ export default function HomeScreen({ navigation }) {
           ) : (
             todayCourses.map((course, index) => {
               const status = getCourseStatus(course.period, nowMin, todayCourses);
-              const barColor = COURSE_COLORS[index % COURSE_COLORS.length];
+              const barColor = getCourseColor(course.id).accent;
               const range = PERIOD_RANGES[course.period];
               const startH = Math.floor(range.start / 60);
               const startM = range.start % 60;

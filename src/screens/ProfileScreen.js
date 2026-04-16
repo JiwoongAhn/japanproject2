@@ -8,6 +8,7 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../constants/colors';
@@ -28,14 +29,16 @@ const HIGHLIGHT_COLORS = [
 export const TODAY_COLOR_KEY = 'unipas_today_highlight_color';
 
 export default function ProfileScreen({ navigation }) {
-  const [userEmail, setUserEmail]       = useState('');
-  const [nickname, setNickname]         = useState('');
+  const [userEmail, setUserEmail]           = useState('');
+  const [nickname, setNickname]             = useState('');
   const [universityName, setUniversityName] = useState('');
-  const [loading, setLoading]           = useState(true);
-  const [loggingOut, setLoggingOut]     = useState(false);
-  const [todayColor, setTodayColor]     = useState(HIGHLIGHT_COLORS[0].value);
-  const [myPosts, setMyPosts]           = useState([]);  // 내가 올린 게시글 목록
-  const [postsLoading, setPostsLoading] = useState(false);
+  const [loading, setLoading]               = useState(true);
+  const [loggingOut, setLoggingOut]         = useState(false);
+  const [todayColor, setTodayColor]         = useState(HIGHLIGHT_COLORS[0].value);
+  const [myPosts, setMyPosts]               = useState([]);
+  const [postsLoading, setPostsLoading]     = useState(false);
+  const [shareTimetable, setShareTimetable] = useState(false); // 공강맞추기 공개 여부
+  const [userId, setUserId]                 = useState(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -43,19 +46,21 @@ export default function ProfileScreen({ navigation }) {
       if (!user) return;
 
       setUserEmail(user.email ?? '');
+      setUserId(user.id);
 
       // 대학 이름 추출 (이메일 도메인에서)
       const domainPart = user.email?.split('@')?.[1]?.split('.')?.[0] ?? '';
       const uni = universities.find(u => u.id === domainPart) ?? universities[0];
       setUniversityName(uni.name);
 
-      // 닉네임(학적번호) 조회
+      // 닉네임 + 공강 공유 설정 조회
       const { data: profile } = await supabase
         .from('profiles')
-        .select('nickname')
+        .select('nickname, share_timetable')
         .eq('id', user.id)
         .maybeSingle();
       setNickname(profile?.nickname ?? '');
+      setShareTimetable(profile?.share_timetable ?? false);
 
       // 저장된 오늘 강조 색상 불러오기
       const saved = await AsyncStorage.getItem(TODAY_COLOR_KEY);
@@ -81,6 +86,16 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // 공강맞추기 공개 여부 토글
+  const handleShareTimetableToggle = async (value) => {
+    if (!userId) return;
+    setShareTimetable(value);
+    await supabase
+      .from('profiles')
+      .update({ share_timetable: value })
+      .eq('id', userId);
+  };
 
   // 오늘 강조 색상 변경
   const handleColorChange = async (colorValue) => {
@@ -215,6 +230,27 @@ export default function ProfileScreen({ navigation }) {
               })}
             </View>
           )}
+        </View>
+
+        {/* ── 공강맞추기 공유 설정 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>空き時間合わせ設定</Text>
+          <View style={styles.infoCard}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>時間割を公開する</Text>
+                <Text style={styles.toggleHint}>
+                  ONにすると、友達があなたの空き時間を確認できます
+                </Text>
+              </View>
+              <Switch
+                value={shareTimetable}
+                onValueChange={handleShareTimetableToggle}
+                trackColor={{ false: colors.border, true: colors.primary + '80' }}
+                thumbColor={shareTimetable ? colors.primary : colors.textDisabled}
+              />
+            </View>
+          </View>
         </View>
 
         {/* ── 표시 설정 — 오늘 요일 강조 색상 ── */}
@@ -425,6 +461,28 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: colors.textDisabled,
     lineHeight: 22,
+  },
+
+  // 공강 공유 토글
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    gap: 12,
+  },
+  toggleInfo: {
+    flex: 1,
+  },
+  toggleLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textPrimary,
+    marginBottom: 3,
+  },
+  toggleHint: {
+    fontSize: 12,
+    color: colors.textDisabled,
+    lineHeight: 16,
   },
 
   // 표시 설정

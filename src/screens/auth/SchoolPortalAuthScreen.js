@@ -41,30 +41,17 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
         return;
       }
 
-      // 2. 로그인 실패 = 처음 접속 → 자동 회원가입
+      // 2. 로그인 실패 = 처음 접속 → 학교 ac.jp 이메일 인증 화면으로 이동
       if (
         signInError.message.includes('Invalid login credentials') ||
         signInError.message.includes('invalid_credentials')
       ) {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
+        // 학적번호·비밀번호를 다음 화면에 전달 (학교 이메일 가입 시 사용)
+        navigation.navigate('AcEmailInput', {
+          university,
+          studentId: id,
           password,
         });
-
-        if (signUpError) {
-          Alert.alert('登録失敗', signUpError.message);
-          return;
-        }
-
-        // 프로필 생성 (학적번호를 닉네임으로 사용)
-        if (data.user) {
-          await supabase.from('profiles').upsert({
-            id: data.user.id,
-            university: university?.name ?? '国士舘大学',
-            nickname: id,
-          });
-        }
-        // 회원가입 성공 → onAuthStateChange가 MainTab으로 이동
       } else {
         Alert.alert('ログイン失敗', signInError.message);
       }

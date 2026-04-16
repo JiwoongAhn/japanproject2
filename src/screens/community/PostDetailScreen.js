@@ -63,21 +63,63 @@ export default function PostDetailScreen({ navigation, route }) {
     fetchData();
   }, [fetchData]);
 
-  // 좋아요 토글
+  // 좋아요 (RPC로 처리: RLS 제약 없이 like_count 증가)
   const handleLike = async () => {
     if (liking || !post) return;
     setLiking(true);
 
-    const newCount = (post.like_count || 0) + 1;
-    const { error } = await supabase
-      .from('posts')
-      .update({ like_count: newCount })
-      .eq('id', postId);
+    const { error } = await supabase.rpc('increment_like', { post_id: postId });
 
     if (!error) {
-      setPost(prev => ({ ...prev, like_count: newCount }));
+      setPost(prev => ({ ...prev, like_count: (prev.like_count || 0) + 1 }));
     }
     setLiking(false);
+  };
+
+  // 신고 기능
+  const handleReport = () => {
+    Alert.alert(
+      '投稿を通報する',
+      '通報する理由を選択してください',
+      [
+        {
+          text: '侮辱・嫌がらせ',
+          onPress: () => submitReport('insult'),
+        },
+        {
+          text: '暴言・脅迫',
+          onPress: () => submitReport('abuse'),
+        },
+        {
+          text: '誹謗中傷',
+          onPress: () => submitReport('defamation'),
+        },
+        { text: 'キャンセル', style: 'cancel' },
+      ]
+    );
+  };
+
+  const submitReport = async (reason) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('エラー', 'ログインが必要です');
+      return;
+    }
+
+    const { error } = await supabase
+      .from('post_reports')
+      .insert({ post_id: postId, user_id: user.id, reason });
+
+    if (error) {
+      if (error.code === '23505') {
+        // UNIQUE 제약 위반 → 이미 신고한 게시글
+        Alert.alert('通報済み', 'この投稿はすでに通報しています');
+      } else {
+        Alert.alert('エラー', '通報に失敗しました');
+      }
+    } else {
+      Alert.alert('通報完了', '通報を受け付けました。ありがとうございます。');
+    }
   };
 
   // 댓글 작성
@@ -150,7 +192,9 @@ export default function PostDetailScreen({ navigation, route }) {
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>投稿</Text>
-        <View style={{ width: 36 }} />
+        <TouchableOpacity onPress={handleReport} style={styles.reportButton}>
+          <Text style={styles.reportButtonText}>通報</Text>
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView
@@ -299,6 +343,16 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     color: colors.textPrimary,
+  },
+  reportButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reportButtonText: {
+    fontSize: 12,
+    color: colors.textSecondary,
   },
 
   scrollContent: {

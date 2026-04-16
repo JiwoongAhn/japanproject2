@@ -13,6 +13,16 @@ export const PERIOD_RANGES = {
   8: { start: 21 * 60 + 40, end: 23 * 60 + 10  }, // 21:40 ~ 23:10
 };
 
+// 교시 번호 → 시작 시간 문자열 반환 (예: 1 → '9:00')
+// PERIOD_RANGES 기반으로 계산하므로 PERIOD_TIMES 상수를 별도로 유지할 필요 없음
+export function getPeriodStartTimeStr(period) {
+  const range = PERIOD_RANGES[period];
+  if (!range) return '';
+  const h = Math.floor(range.start / 60);
+  const m = range.start % 60;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
 // 수업 목록에서 공강(빈 교시) 목록 계산
 // courses: [{ day_of_week: 0~4, period: 1~8 }, ...]
 // 반환값: [{ day: 0~4, period: 1~8 }, ...]

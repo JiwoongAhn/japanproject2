@@ -19,6 +19,7 @@ import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { getCourseColor } from '../../constants/courseColors';
 import CourseDetailModal from './CourseDetailModal';
+import { getPeriodStartTimeStr } from '../../utils/timetable';
 import { TODAY_COLOR_KEY } from '../ProfileScreen';
 
 // 요일 레이블 (일본어)
@@ -29,15 +30,6 @@ const PERIODS = [1, 2, 3, 4, 5, 6];
 const PERIOD_COL_WIDTH = 42;
 // 행 높이
 const ROW_HEIGHT = 80;
-// 교시별 시작 시간 (국사관대학 기준)
-const PERIOD_TIMES = {
-  1: '9:00',
-  2: '10:45',
-  3: '12:55',
-  4: '14:40',
-  5: '16:25',
-  6: '18:10',
-};
 
 // 오늘 요일 → 시간표 열 인덱스 (월=0 ~ 금=4, 주말=-1)
 // JS: 0=일, 1=월 ... 6=토
@@ -151,7 +143,7 @@ export default function TimetableScreen({ navigation }) {
               {/* 교시 번호 + 시간 */}
               <View style={styles.periodLabelCell}>
                 <Text style={styles.periodLabelText}>{period}</Text>
-                <Text style={styles.periodTimeText}>{PERIOD_TIMES[period]}</Text>
+                <Text style={styles.periodTimeText}>{getPeriodStartTimeStr(period)}</Text>
               </View>
 
               {/* 요일별 셀 */}

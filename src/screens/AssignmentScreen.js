@@ -45,10 +45,27 @@ function getDisplayStatus(assignment) {
   return 'pending';
 }
 
+// 필터 탭 설정
+const FILTER_TABS = [
+  { key: 'all',      label: '全体' },
+  { key: 'pending',  label: '未提出' },
+  { key: 'submitted', label: '提出済' },
+  { key: 'overdue',  label: '期限超過' },
+];
+
+// 필터 탭별 빈 상태 메시지
+const EMPTY_STATE = {
+  all:       { emoji: '📝', title: '課題がありません',          subtitle: '右上の「＋ 追加」から\n課題を登録してみよう', showButton: true },
+  pending:   { emoji: '🎉', title: '未提出の課題はありません',   subtitle: '全部提出済みです！お疲れ様！', showButton: false },
+  submitted: { emoji: '📋', title: 'まだ提出した課題がありません', subtitle: 'タップで「提出済」に切り替えられます', showButton: false },
+  overdue:   { emoji: '✅', title: '期限超過の課題はありません',  subtitle: '全て期限内で提出できています！', showButton: false },
+};
+
 export default function AssignmentScreen({ navigation }) {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedFilter, setSelectedFilter] = useState('all');
 
   // Supabase에서 과제 목록 불러오기
   const fetchAssignments = useCallback(async () => {
@@ -132,7 +149,13 @@ export default function AssignmentScreen({ navigation }) {
     );
   };
 
-  const isEmpty = !loading && assignments.length === 0;
+  // 선택된 필터로 과제 목록 필터링
+  const filteredAssignments = selectedFilter === 'all'
+    ? assignments
+    : assignments.filter(a => getDisplayStatus(a) === selectedFilter);
+
+  const isEmpty = !loading && filteredAssignments.length === 0;
+  const emptyInfo = EMPTY_STATE[selectedFilter] ?? EMPTY_STATE.all;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -148,21 +171,45 @@ export default function AssignmentScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
+      {/* ── 필터 탭 ── */}
+      <View style={styles.filterTabBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterTabScroll}>
+          {FILTER_TABS.map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              style={styles.filterTab}
+              onPress={() => setSelectedFilter(tab.key)}
+              activeOpacity={0.7}
+            >
+              <Text style={[
+                styles.filterTabText,
+                selectedFilter === tab.key && { color: colors.primary, fontWeight: '700' },
+              ]}>
+                {tab.label}
+              </Text>
+              {selectedFilter === tab.key && <View style={styles.filterTabIndicator} />}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* ── 로딩 중 ── */}
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : isEmpty ? (
-        /* ── 빈 상태: 과제가 없을 때 ── */
+        /* ── 빈 상태: 필터별 다른 메시지 ── */
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>📝</Text>
-          <Text style={styles.emptyTitle}>課題がありません</Text>
-          <Text style={styles.emptySubtitle}>右上の「＋ 追加」から{'\n'}課題を登録してみよう</Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
-            onPress={() => navigation.navigate('AssignmentAdd')}
-          >
-            <Text style={styles.emptyButtonText}>＋ 課題を追加する</Text>
-          </TouchableOpacity>
+          <Text style={styles.emptyEmoji}>{emptyInfo.emoji}</Text>
+          <Text style={styles.emptyTitle}>{emptyInfo.title}</Text>
+          <Text style={styles.emptySubtitle}>{emptyInfo.subtitle}</Text>
+          {emptyInfo.showButton && (
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => navigation.navigate('AssignmentAdd')}
+            >
+              <Text style={styles.emptyButtonText}>＋ 課題を追加する</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         /* ── 과제 목록 ── */
@@ -176,7 +223,7 @@ export default function AssignmentScreen({ navigation }) {
           {/* 탭으로 제출 상태 전환, 길게 누르면 삭제 안내 */}
           <Text style={styles.hint}>タップで状態切替 / 長押しで削除</Text>
 
-          {assignments.map((assignment) => {
+          {filteredAssignments.map((assignment) => {
             const displayStatus = getDisplayStatus(assignment);
             const statusCfg = STATUS_CONFIG[displayStatus] ?? STATUS_CONFIG.pending;
             const dday = calcDday(assignment.due_date);
@@ -256,6 +303,36 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '600',
+  },
+
+  // 필터 탭
+  filterTabBar: {
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  filterTabScroll: {
+    paddingHorizontal: 4,
+  },
+  filterTab: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    position: 'relative',
+    alignItems: 'center',
+  },
+  filterTabText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  filterTabIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    left: 8,
+    right: 8,
+    height: 2,
+    backgroundColor: colors.primary,
+    borderRadius: 1,
   },
 
   // 빈 상태 화면
