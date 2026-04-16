@@ -1,122 +1,133 @@
 # 프로젝트 기본 정보
-- 앱 이름: Unipas
-- 목적: 일본 대학생을 위한 학교 생활 앱
-- 기술 스택: React Native / Expo / JavaScript
-- 백엔드: Supabase (API 키 미입력, 구조만 준비된 상태)
-- 저장소: github.com/JiwoongAhn/japanproject2
+- **앱 이름:** Unipas (ユニパス)
+- **목적:** 일본 대학생을 위한 학교 생활 앱 (에브리타임 일본판)
+- **기술 스택:** React Native (Expo SDK 54) / JavaScript / Supabase
+- **저장소:** github.com/JiwoongAhn/japanproject2
+- **UI 스타일:** 토스 스타일 (primary #3182F6, background #F2F4F6)
+- **하단 탭:** 홈 / 시간표 / 과제 / 게시판 / マイページ (5개)
 
-# 코드 컨벤션
+---
+
+# 개발 환경
+
+```bash
+cd /Users/jiwoong/claudeproject/japanproject
+npx expo start --web --port 8083
+```
+웹 브라우저(localhost:8083)로 개발 중. Expo Go 앱으로 실기기 확인도 가능.
+
+---
+
+# 파일 구조
+
+```
+japanproject/
+├── src/
+│   ├── screens/
+│   │   ├── auth/         UniversitySelectScreen, SchoolPortalAuthScreen, AcEmailInputScreen, EmailVerificationPendingScreen, SplashScreen
+│   │   ├── timetable/    TimetableScreen, CourseAddScreen, CourseDetailModal, CourseReviewScreen, CourseReviewCreateScreen, CourseReviewDetailScreen, FreeTimeScreen
+│   │   ├── assignment/   AssignmentScreen, AssignmentAddScreen
+│   │   ├── community/    PostListScreen, PostDetailScreen, PostCreateScreen
+│   │   ├── HomeScreen.js
+│   │   └── ProfileScreen.js
+│   ├── utils/            timetable.js, assignment.js, auth.js, review.js, date.js, community.js
+│   ├── constants/        colors.js, courseColors.js, boardCategories.js, universities.js
+│   ├── lib/              supabase.js, AuthProvider.js, LargeSecureStore (AES-256 암호화)
+│   └── navigation/       AppNavigator.js, MainTab.js, AuthStack.js, TimetableStack.js, AssignmentStack.js, CommunityStack.js
+├── __tests__/            Jest 유닛 테스트 (66개 케이스, 8개 파일)
+├── e2e/                  Playwright E2E 테스트
+├── schema.sql            Supabase DB 스키마 + RLS 정책 전체
+└── App.js
+```
+
+---
+
+# Supabase
+
+- **Project ID:** `rexnpusrxezuztxmkaex`
+- **학교 인증 이메일 형식:** `{학적번호}@{대학ID}.unipas` (예: `A1234567@kokushikan.unipas`)
+- **MCP:** `~/.claude.json` 에 등록됨 — Supabase MCP 툴로 DB 조작 가능
+
+---
+
+# 구현 완료된 기능 (2026-04-16 기준)
+
+| 탭 | 기능 |
+|---|---|
+| 공통 | 학교 선택 → 포털 로그인 → ac.jp 이메일 인증 (3단계 인증 플로우) |
+| 공통 | AuthProvider / useAuth 훅, LargeSecureStore 세션 암호화 저장 |
+| 홈 | 오늘 수업·D-3 과제·최신 게시글 실시간 표시, 학번 포함 인사말 |
+| 홈 | 学校情報 그리드 (manaba/kaede-i/홈페이지 실제 URL 연결) |
+| 시간표 | 요일×6교시 그리드, 수업 추가/삭제, 오늘 요일 강조 |
+| 시간표 | 강의평가 목록·상세·작성 (별점·태그·코멘트, Supabase 연결) |
+| 시간표 | 공강맞추기 (5×6 터치 그리드, 친구 ID 비교) |
+| 과제 | 목록·추가·상태 토글·삭제, 인라인 달력 날짜 선택, 필터별 빈 상태 UX |
+| 게시판 | 글 목록 (카테고리·검색·20개씩 페이지네이션), 작성·상세·댓글, 익명 토글 |
+| 게시판 | 신고 기능 (post_reports 테이블), 좋아요 (increment_like RPC) |
+| マイページ | 프로필 카드, 요일 강조 색상 설정, 내가 올린 게시글 목록, 로그아웃 |
+
+---
+
+# 미실행 Supabase 마이그레이션
+
+Supabase SQL Editor에서 직접 실행 필요한 항목:
+
+```sql
+-- 1. 카테고리 제약조건 변경
+ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_category_check;
+ALTER TABLE posts ADD CONSTRAINT posts_category_check
+  CHECK (category IN ('qa', 'free', 'secret', 'info'));
+
+-- 2. 시간표 opt-in 공유
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS share_timetable BOOLEAN NOT NULL DEFAULT false;
+
+-- 3. increment_like RPC (좋아요 RLS 우회)
+CREATE OR REPLACE FUNCTION increment_like(post_id UUID)
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  UPDATE posts SET like_count = like_count + 1 WHERE id = post_id;
+END;
+$$;
+
+-- 4. post_reports 테이블 (신고 기능)
+CREATE TABLE IF NOT EXISTS post_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL CHECK (reason IN ('insult', 'abuse', 'defamation')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (post_id, user_id)
+);
+ALTER TABLE post_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "로그인 사용자 신고 가능" ON post_reports FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "본인 신고 내역 조회" ON post_reports FOR SELECT USING (auth.uid() = user_id);
+```
+
+---
+
+# 코딩 규칙
+
 - 변수명: camelCase 영어
-- 주석: 한국어
-- 초보자도 이해할 수 있게 설명 포함
-
-# 현재 완료된 것
-- 회원가입 / 로그인 (인증)
-- 하단 탭 네비게이션 4개 구조
-- Supabase 테이블 구조 설계
-
-# MVP 확정 범위
-1단계: Supabase 연결 (API 키는 직접 입력 예정)
-2단계: 시간표 (추가/삭제/그리드 표시) - 시간 겹침 감지 제외
-3단계: 과제 (등록/상태 토글 3단계/D-day) - 푸시 알림 제외
-4단계: 홈 화면 (오늘 수업 카드 + D-3 이하 과제 카드)
-Post-MVP: 커뮤니티, WebView
-
-# 현재 개발 환경
-- 웹 브라우저로 개발 중
-- 목표: Expo Go QR 연결로 전환
-
-# 테스트 구조
-
-## 유닛 테스트 (Jest)
-
-- **실행:** `npm test`
-- **위치:** `__tests__/`
-- **대상:** `src/utils/` 와 `src/constants/`, `src/lib/` 의 순수 함수
-- **총 케이스:** 66개 (8개 파일)
-
-```
-__tests__/
-├── utils/
-│   ├── timetable.test.js       (11개) calculateFreePeriods, getCourseStatus
-│   ├── assignment.test.js      (22개) calcDday, getDdayColor, formatDueDate, isAssignmentFormValid
-│   ├── date.test.js            (2개)  getTodayStr
-│   ├── community.test.js       (7개)  formatTimeAgo
-│   ├── auth.test.js            (4개)  buildEmail
-│   └── review.test.js          (8개)  toggleTag, addCustomTag
-├── constants/
-│   └── boardCategories.test.js (5개)  getCategoryInfo
-└── lib/
-    └── LargeSecureStore.test.js (7개)  setItem, getItem, removeItem
-```
-
-화면 컴포넌트에 있던 순수 함수들은 `src/utils/` 로 분리되어 있음.
-원본 화면 파일은 `import` 로 연결되어 동작은 동일하게 유지됨.
+- 주석: 한국어 (초보자도 이해할 수 있게 코드 의도 설명)
+- 순수 함수는 `src/utils/`에 분리, 화면 컴포넌트는 `import`로 연결
 
 ---
 
-## E2E 테스트 (Playwright)
+# 테스트
 
-- **실행:** `npm run e2e`
-- **UI 모드:** `npm run e2e:ui` (디버깅 편함)
-- **리포트:** `npm run e2e:report`
-- **위치:** `e2e/`
-- **대상:** `expo start --web --port 8083` 으로 띄운 웹 버전
-
-### 폴더 구조
-
+```bash
+npm test          # Jest 유닛 테스트 (66개)
+npm run e2e       # Playwright E2E (앱 서버가 8083에서 실행 중이어야 함)
+npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 ```
-e2e/
-├── playwright.config.js    Chromium + 모바일 뷰포트(Pixel7, iPhone15) 설정
-├── pages/                  Page Object Model — 화면별 선택자·액션 캡슐화
-│   ├── BasePage.js         공통 기반 (탭 이동, waitForText 등)
-│   ├── auth/               UniversitySelectPage, SchoolPortalAuthPage
-│   ├── home/               HomePage
-│   ├── timetable/          TimetablePage, CourseAddPage, CourseReviewPage
-│   ├── assignment/         AssignmentPage, AssignmentAddPage
-│   └── community/          PostListPage, PostDetailPage, PostCreatePage
-├── tests/                  시나리오 파일 (spec)
-│   ├── auth/login.spec.js
-│   ├── home/home.spec.js
-│   ├── timetable/timetable.spec.js, review.spec.js
-│   ├── assignment/assignment.spec.js
-│   └── community/community.spec.js
-├── fixtures/
-│   ├── testData.js         테스트용 계정·과제·게시글·수업 데이터 상수
-│   └── auth.fixture.js     로그인 상태를 재사용하는 커스텀 fixture
-└── helpers/
-    ├── loginHelper.js      학교 선택 → 포털 로그인 공통 함수
-    └── supabaseHelper.js   테스트 전후 DB seed / cleanup
-```
-
-### Page Object Model 패턴
-
-버튼 위치나 선택자가 바뀌어도 `pages/` 파일 하나만 수정하면 모든 테스트에 반영됨.
-
-```
-tests/*.spec.js  →  pages/*.js (어떤 버튼인지)  →  실제 화면
-```
-
-### 나중에 모바일(Maestro 등)로 전환 시
-
-| 폴더 | 재사용 여부 | 이유 |
-|---|---|---|
-| `tests/*.spec.js` | 95% 재사용 | 시나리오 흐름은 동일 |
-| `fixtures/testData.js` | 100% 재사용 | 플랫폼 무관 |
-| `helpers/supabaseHelper.js` | 100% 재사용 | DB 연동은 플랫폼 무관 |
-| `pages/*.js` | 새로 작성 | CSS 선택자 → 네이티브 접근성 ID로 교체 필요 |
-
-### 테스트 실행 전제 조건
-
-1. `npx expo start --web --port 8083` 으로 앱 서버 실행
-2. Supabase 연결 확인 (`.env` 파일에 키 입력)
-3. `E2E_STUDENT_ID`, `E2E_PASSWORD` 환경변수 설정 (테스트 계정)
 
 ---
 
-# Compact Instructions
-/compact 실행 시 다음을 반드시 보존해줘:
-- 현재 MVP 몇 단계 작업 중인지
-- 작업 중인 화면/컴포넌트 이름
-- 미완성이거나 에러 중인 항목과 시도한 방법
-- 다음에 할 작업 목록
+# 향후 예정 작업
+- **RevenueCAT MCP** — 프리미엄 기능 개발 시작 전에 추가할 것 (작업 전 사용자에게 먼저 확인)
+
+---
+
+# 국사관대학 교시 시간표
+
+1限 9:00~10:30 / 2限 10:45~12:15 / 3限 12:55~14:25 / 4限 14:40~16:10 / 5限 16:25~17:55 / 6限 18:10~19:40

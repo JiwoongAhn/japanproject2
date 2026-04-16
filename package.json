@@ -30,6 +30,7 @@
     "@supabase/supabase-js": "^2.102.1",
     "aes-js": "^3.1.2",
     "expo": "~54.0.0",
+    "expo-linking": "~8.0.11",
     "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",

@@ -5,11 +5,13 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { buildEmail } from '../../utils/auth';
 import { colors } from '../../constants/colors';
 
 // 학교 ac.jp 이메일 입력 화면
 // SchoolPortalAuthScreen에서 신규 가입자로 판단될 때 이 화면으로 이동
-// 학교 이메일(@ac.jp)을 입력 → 인증 메일 발송 → EmailVerificationPendingScreen으로 이동
+// 학교 이메일(@ac.jp)을 입력 → profiles에 저장 → 바로 로그인
+// ※ Supabase 계정은 @unipas 내부 이메일로 생성 (이메일 인증 불필요)
 export default function AcEmailInputScreen({ navigation, route }) {
   const { university, studentId, password } = route.params ?? {};
 
@@ -23,7 +25,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
     return email.trim().toLowerCase().endsWith(`@${domain}`);
   };
 
-  const handleSendVerification = async () => {
+  const handleRegister = async () => {
     const trimmedEmail = email.trim().toLowerCase();
 
     if (!trimmedEmail) {
@@ -31,7 +33,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
       return;
     }
 
-    // 이메일 기본 형식 검증 (@ 포함, . 포함)
+    // 이메일 기본 형식 검증
     if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
       Alert.alert('エラー', '正しいメールアドレスを入力してください');
       return;
@@ -50,10 +52,12 @@ export default function AcEmailInputScreen({ navigation, route }) {
     setLoading(true);
 
     try {
-      // Supabase에 신규 계정 생성 (학교 ac.jp 이메일 사용)
-      // Supabase 이메일 인증이 ON이면 인증 메일이 자동 발송됨
+      // Supabase 계정은 내부 @unipas 이메일로 생성
+      // (로그인 시 buildEmail()과 동일한 이메일 → 매번 재사용 가능)
+      const internalEmail = buildEmail(studentId, university?.id);
+
       const { data, error } = await supabase.auth.signUp({
-        email: trimmedEmail,
+        email: internalEmail,
         password,
         options: {
           data: {
@@ -64,12 +68,16 @@ export default function AcEmailInputScreen({ navigation, route }) {
       });
 
       if (error) {
-        // 이미 가입된 이메일인 경우
-        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
+        // 이미 가입된 경우 (재시도 등)
+        if (
+          error.message.includes('already registered') ||
+          error.message.includes('already been registered') ||
+          error.message.includes('User already registered')
+        ) {
           Alert.alert(
             'すでに登録済み',
-            'このメールアドレスはすでに使用されています。\n学籍番号とパスワードで再度お試しください。',
-            [{ text: '戻る', onPress: () => navigation.goBack() }]
+            'このアカウントはすでに登録されています。\n学籍番号とパスワードでログインしてください。',
+            [{ text: 'ログインへ', onPress: () => navigation.navigate('SchoolPortalAuth', { university }) }]
           );
           return;
         }
@@ -77,20 +85,22 @@ export default function AcEmailInputScreen({ navigation, route }) {
         return;
       }
 
-      // 프로필 생성 (학적번호를 닉네임으로)
+      // 프로필에 학적번호(닉네임)와 학교 이메일 저장
       if (data.user) {
         await supabase.from('profiles').upsert({
           id: data.user.id,
           university: university?.name ?? '国士舘大学',
-          nickname: studentId ?? trimmedEmail.split('@')[0],
+          nickname: studentId ?? '',
+          school_email: trimmedEmail, // ac.jp 이메일 보관
         });
       }
 
-      // 인증 메일 발송 완료 화면으로 이동
-      navigation.navigate('EmailVerificationPending', {
-        email: trimmedEmail,
-        university,
-      });
+      // 가입 완료 → AuthProvider가 세션 감지하여 자동으로 메인 화면 진입
+      Alert.alert(
+        '登録完了',
+        'アカウントが作成されました！',
+        [{ text: 'OK' }]
+      );
     } catch (e) {
       Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
     } finally {
@@ -150,23 +160,23 @@ export default function AcEmailInputScreen({ navigation, route }) {
 
           {/* 안내 박스 */}
           <View style={styles.infoBox}>
-            <Text style={styles.infoIcon}>📧</Text>
+            <Text style={styles.infoIcon}>🎓</Text>
             <Text style={styles.infoText}>
-              入力したメールアドレスに確認メールが届きます。{'\n'}
-              メール内のリンクをクリックして認証を完了してください。
+              在学生確認のため、大学から発行された学校メールアドレスを入力してください。{'\n'}
+              入力後すぐにアプリを使い始めることができます。
             </Text>
           </View>
 
-          {/* 발송 버튼 */}
+          {/* 등록 버튼 */}
           <TouchableOpacity
             style={[styles.button, (!email.trim() || loading) && styles.buttonDisabled]}
-            onPress={handleSendVerification}
+            onPress={handleRegister}
             disabled={!email.trim() || loading}
             activeOpacity={0.8}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>確認メールを送る</Text>
+              : <Text style={styles.buttonText}>アカウント作成</Text>
             }
           </TouchableOpacity>
         </ScrollView>
