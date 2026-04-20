@@ -5,18 +5,16 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { buildEmail } from '../../utils/auth';
 import { colors } from '../../constants/colors';
 
 // 학교 ac.jp 이메일 + 닉네임 입력 화면
-// SchoolPortalAuthScreen에서 신규 가입자로 판단될 때 이 화면으로 이동
-// ※ Supabase 계정은 @unipas 내부 이메일로 생성 (이메일 인증 불필요)
+// 검증 순서: 이메일 도메인 → 닉네임 중복 → OTP 발송 → OtpVerificationScreen으로 이동
 export default function AcEmailInputScreen({ navigation, route }) {
   const { university, studentId, password } = route.params ?? {};
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [nickname, setNickname] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
 
   // 이메일 도메인 검증
   const isValidDomain = () => {
@@ -31,11 +29,10 @@ export default function AcEmailInputScreen({ navigation, route }) {
     return t.length >= 2 && t.length <= 10 && !/\s/.test(t);
   };
 
-  const handleRegister = async () => {
+  const handleNext = async () => {
     const trimmedEmail    = email.trim().toLowerCase();
     const trimmedNickname = nickname.trim();
 
-    // 입력값 검증
     if (!trimmedEmail) {
       Alert.alert('エラー', 'メールアドレスを入力してください');
       return;
@@ -69,52 +66,38 @@ export default function AcEmailInputScreen({ navigation, route }) {
 
       if (existing) {
         Alert.alert('ニックネーム重複', `「${trimmedNickname}」はすでに使われています。\n別のニックネームを入力してください。`);
-        setLoading(false);
         return;
       }
 
-      // Supabase 계정은 내부 @unipas 이메일로 생성
-      const internalEmail = buildEmail(studentId, university?.id);
-
-      const { data, error } = await supabase.auth.signUp({
-        email: internalEmail,
-        password,
-        options: {
-          data: {
-            student_id: studentId,
-            university: university?.name ?? '',
+      // OTP 발송 Edge Function 호출
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/send-school-otp`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
           },
-        },
+          body: JSON.stringify({ email: trimmedEmail }),
+        }
+      );
+
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        Alert.alert('送信エラー', result.error ?? 'コードの送信に失敗しました。もう一度お試しください。');
+        return;
+      }
+
+      // OTP 입력 화면으로 이동 (모든 가입 정보 전달)
+      navigation.navigate('OtpVerification', {
+        email: trimmedEmail,
+        nickname: trimmedNickname,
+        university,
+        studentId,
+        password,
       });
 
-      if (error) {
-        if (
-          error.message.includes('already registered') ||
-          error.message.includes('already been registered') ||
-          error.message.includes('User already registered')
-        ) {
-          Alert.alert(
-            'すでに登録済み',
-            'このアカウントはすでに登録されています。\n学籍番号とパスワードでログインしてください。',
-            [{ text: 'ログインへ', onPress: () => navigation.navigate('SchoolPortalAuth', { university }) }]
-          );
-          return;
-        }
-        Alert.alert('エラー', error.message);
-        return;
-      }
-
-      // 프로필에 닉네임 + 학교 이메일 저장
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          university: university?.name ?? '国士舘大学',
-          nickname: trimmedNickname,
-          school_email: trimmedEmail,
-        });
-      }
-
-      // 가입 완료 → AuthProvider가 세션 감지하여 자동으로 메인 화면 진입
     } catch (e) {
       Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
     } finally {
@@ -122,7 +105,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
     }
   };
 
-  const domain = university?.emailDomain;
+  const domain    = university?.emailDomain;
   const canSubmit = email.trim() && isValidNickname(nickname) && !loading;
 
   return (
@@ -136,12 +119,10 @@ export default function AcEmailInputScreen({ navigation, route }) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* 뒤로가기 */}
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backText}>‹ 戻る</Text>
           </TouchableOpacity>
 
-          {/* 헤더 */}
           <View style={styles.header}>
             <View style={styles.universityBadge}>
               <Text style={styles.universityBadgeText}>{university?.name ?? '大学'}</Text>
@@ -152,7 +133,6 @@ export default function AcEmailInputScreen({ navigation, route }) {
             </Text>
           </View>
 
-          {/* 입력 폼 */}
           <View style={styles.form}>
             {/* 학교 이메일 */}
             <View style={styles.inputGroup}>
@@ -168,7 +148,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
                 autoCorrect={false}
               />
               {domain && (
-                <Text style={styles.domainHint}>@{domain} のアドレスのみ使用可能</Text>
+                <Text style={styles.hint}>@{domain} のアドレスのみ使用可能</Text>
               )}
             </View>
 
@@ -185,31 +165,27 @@ export default function AcEmailInputScreen({ navigation, route }) {
                 autoCorrect={false}
                 maxLength={10}
               />
-              <Text style={styles.domainHint}>
-                空き時間合わせで友達があなたを検索するときに使います
-              </Text>
+              <Text style={styles.hint}>空き時間合わせで友達があなたを検索するIDになります</Text>
             </View>
           </View>
 
-          {/* 안내 박스 */}
           <View style={styles.infoBox}>
-            <Text style={styles.infoIcon}>🎓</Text>
+            <Text style={styles.infoIcon}>📧</Text>
             <Text style={styles.infoText}>
-              入力後すぐにアプリを使い始めることができます。{'\n'}
-              ニックネームはマイページからいつでも変更できます。
+              入力したメールアドレスに6桁の認証コードを送信します。{'\n'}
+              学校のメールボックスを確認してください。
             </Text>
           </View>
 
-          {/* 등록 버튼 */}
           <TouchableOpacity
             style={[styles.button, !canSubmit && styles.buttonDisabled]}
-            onPress={handleRegister}
+            onPress={handleNext}
             disabled={!canSubmit}
             activeOpacity={0.8}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>アカウント作成</Text>
+              : <Text style={styles.buttonText}>認証コードを送信</Text>
             }
           </TouchableOpacity>
         </ScrollView>
@@ -219,107 +195,43 @@ export default function AcEmailInputScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.surface,
-  },
-  scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
-  backButton: {
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  backText: {
-    fontSize: 15,
-    color: colors.primary,
-    fontWeight: '600',
-  },
-  header: {
-    marginTop: 16,
-    marginBottom: 36,
-  },
+  container:     { flex: 1, backgroundColor: colors.surface },
+  scrollContent: { paddingHorizontal: 24, paddingBottom: 40 },
+  backButton:    { marginTop: 16, marginBottom: 8 },
+  backText:      { fontSize: 15, color: colors.primary, fontWeight: '600' },
+  header:        { marginTop: 16, marginBottom: 36 },
   universityBadge: {
     alignSelf: 'flex-start',
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginBottom: 16,
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 20, marginBottom: 16,
   },
-  universityBadgeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.primary,
-  },
+  universityBadgeText: { fontSize: 13, fontWeight: '700', color: colors.primary },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-    lineHeight: 34,
-    marginBottom: 10,
+    fontSize: 26, fontWeight: '800', color: colors.textPrimary,
+    letterSpacing: -0.5, lineHeight: 34, marginBottom: 10,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  form: {
-    gap: 20,
-    marginBottom: 20,
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-  },
+  subtitle:   { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+  form:       { gap: 20, marginBottom: 20 },
+  inputGroup: { gap: 8 },
+  label:      { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   input: {
     backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 15,
-    color: colors.textPrimary,
+    borderRadius: 12, padding: 16,
+    fontSize: 15, color: colors.textPrimary,
   },
-  domainHint: {
-    fontSize: 12,
-    color: colors.primary,
-    marginTop: 2,
-  },
+  hint: { fontSize: 12, color: colors.primary, marginTop: 2 },
   infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
+    flexDirection: 'row', alignItems: 'flex-start',
     backgroundColor: colors.primaryLight,
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-    marginBottom: 24,
+    borderRadius: 12, padding: 14, gap: 10, marginBottom: 24,
   },
-  infoIcon: {
-    fontSize: 16,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 12,
-    color: colors.primary,
-    lineHeight: 18,
-  },
+  infoIcon: { fontSize: 16 },
+  infoText:   { flex: 1, fontSize: 12, color: colors.primary, lineHeight: 18 },
   button: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
-    padding: 18,
-    alignItems: 'center',
+    borderRadius: 14, padding: 18, alignItems: 'center',
   },
-  buttonDisabled: {
-    opacity: 0.4,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-  },
+  buttonDisabled: { opacity: 0.4 },
+  buttonText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
