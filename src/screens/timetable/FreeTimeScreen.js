@@ -124,12 +124,21 @@ export default function FreeTimeScreen({ navigation }) {
     try {
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('id, nickname')
+        .select('id, nickname, share_timetable')
         .eq('nickname', input)
         .single();
 
       if (profileError || !profile) {
         Alert.alert('見つかりません', `「${input}」というIDのユーザーが見つかりませんでした`);
+        return;
+      }
+
+      // 친구가 시간표 공개를 OFF로 설정한 경우 비교 불가
+      if (!profile.share_timetable) {
+        Alert.alert(
+          '非公開',
+          `${profile.nickname}さんは時間割を公開していません。\n友達に時間割の公開をお願いしてください。`
+        );
         return;
       }
 

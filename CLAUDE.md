@@ -12,9 +12,19 @@
 
 ```bash
 cd /Users/jiwoong/claudeproject/japanproject
-npx expo start --web --port 8083
+npx expo start          # 모바일(Expo Go) + 웹 동시 지원 ← 권장
+npx expo start --web --port 8083   # 웹 브라우저만
 ```
-웹 브라우저(localhost:8083)로 개발 중. Expo Go 앱으로 실기기 확인도 가능.
+
+**모바일 테스트 (Expo Go):**
+1. 폰에 Expo Go 설치 (App Store / Google Play)
+2. `npx expo start` 실행 → QR코드 스캔
+3. 아이폰: 기본 카메라 앱으로 스캔 / 안드로이드: Expo Go 앱 내 스캔
+4. 코드 수정 시 폰에 자동 반영 (Hot Reload)
+
+**다른 사람 테스트 공유:**
+- Vercel URL로 컴퓨터/모바일 브라우저에서 바로 접속 가능
+- Vercel 대시보드 → japanproject → 배포 URL 확인
 
 ---
 
@@ -50,17 +60,18 @@ japanproject/
 
 ---
 
-# 구현 완료된 기능 (2026-04-16 기준)
+# 구현 완료된 기능 (2026-04-20 기준)
 
 | 탭 | 기능 |
 |---|---|
-| 공통 | 학교 선택 → 포털 로그인 → ac.jp 이메일 인증 (3단계 인증 플로우) |
+| 공통 | 학교 선택 → 포털 로그인 → ac.jp 이메일 입력 (학생 증명, profiles에 저장) |
+| 공통 | Supabase 계정은 @unipas 내부 이메일로 생성 (이메일 인증 불필요) |
 | 공통 | AuthProvider / useAuth 훅, LargeSecureStore 세션 암호화 저장 |
 | 홈 | 오늘 수업·D-3 과제·최신 게시글 실시간 표시, 학번 포함 인사말 |
 | 홈 | 学校情報 그리드 (manaba/kaede-i/홈페이지 실제 URL 연결) |
 | 시간표 | 요일×6교시 그리드, 수업 추가/삭제, 오늘 요일 강조 |
 | 시간표 | 강의평가 목록·상세·작성 (별점·태그·코멘트, Supabase 연결) |
-| 시간표 | 공강맞추기 (5×6 터치 그리드, 친구 ID 비교) |
+| 시간표 | 공강맞추기 (5×6 터치 그리드, 친구 ID 비교, share_timetable 비공개 차단) |
 | 과제 | 목록·추가·상태 토글·삭제, 인라인 달력 날짜 선택, 필터별 빈 상태 UX |
 | 게시판 | 글 목록 (카테고리·검색·20개씩 페이지네이션), 작성·상세·댓글, 익명 토글 |
 | 게시판 | 신고 기능 (post_reports 테이블), 좋아요 (increment_like RPC) |
@@ -68,40 +79,14 @@ japanproject/
 
 ---
 
-# 미실행 Supabase 마이그레이션
+# Supabase 설정 완료 현황 (2026-04-20 기준)
 
-Supabase SQL Editor에서 직접 실행 필요한 항목:
-
-```sql
--- 1. 카테고리 제약조건 변경
-ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_category_check;
-ALTER TABLE posts ADD CONSTRAINT posts_category_check
-  CHECK (category IN ('qa', 'free', 'secret', 'info'));
-
--- 2. 시간표 opt-in 공유
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS share_timetable BOOLEAN NOT NULL DEFAULT false;
-
--- 3. increment_like RPC (좋아요 RLS 우회)
-CREATE OR REPLACE FUNCTION increment_like(post_id UUID)
-RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
-BEGIN
-  UPDATE posts SET like_count = like_count + 1 WHERE id = post_id;
-END;
-$$;
-
--- 4. post_reports 테이블 (신고 기능)
-CREATE TABLE IF NOT EXISTS post_reports (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  reason TEXT NOT NULL CHECK (reason IN ('insult', 'abuse', 'defamation')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (post_id, user_id)
-);
-ALTER TABLE post_reports ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "로그인 사용자 신고 가능" ON post_reports FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "본인 신고 내역 조회" ON post_reports FOR SELECT USING (auth.uid() = user_id);
-```
+- [x] Authentication → Email → **"Confirm email" OFF** 완료
+- [x] `profiles.school_email` 컬럼 추가 완료
+- [x] `profiles.share_timetable` 컬럼 추가 완료
+- [x] `posts_category_check` 제약조건 (qa/free/secret/info) 변경 완료
+- [x] `increment_like` RPC 함수 생성 완료
+- [x] `post_reports` 테이블 + RLS 정책 생성 완료
 
 ---
 

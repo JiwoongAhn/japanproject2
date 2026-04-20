@@ -9,18 +9,18 @@ describe('getCategoryInfo', () => {
     expect(result.label).toBe('質問');
   });
 
-  // B-02: 'free' 키 조회
-  it('B-02: getCategoryInfo("free") → key="free", label="フリー"인 객체 반환', () => {
+  // B-02: 'free' 키 조회 (label은 '자유' → '自由'로 변경됨)
+  it('B-02: getCategoryInfo("free") → key="free", label="自由"인 객체 반환', () => {
     const result = getCategoryInfo('free');
     expect(result.key).toBe('free');
-    expect(result.label).toBe('フリー');
+    expect(result.label).toBe('自由');
   });
 
-  // B-03: 'flea' 키 조회
-  it('B-03: getCategoryInfo("flea") → key="flea", label="フリマ"인 객체 반환', () => {
-    const result = getCategoryInfo('flea');
-    expect(result.key).toBe('flea');
-    expect(result.label).toBe('フリマ');
+  // B-03: 'secret' 키 조회 (이전 flea 카테고리 → secret/info로 교체됨)
+  it('B-03: getCategoryInfo("secret") → key="secret", label="秘密"인 객체 반환', () => {
+    const result = getCategoryInfo('secret');
+    expect(result.key).toBe('secret');
+    expect(result.label).toBe('秘密');
   });
 
   // B-04: 존재하지 않는 키는 BOARD_CATEGORIES[0] 폴백

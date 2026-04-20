@@ -5,17 +5,17 @@ import {
 } from '../../src/utils/timetable';
 
 describe('calculateFreePeriods', () => {
-  // T-01: 수업 0개 → 공강 40개 전부 (5요일 × 8교시)
-  test('T-01: 수업 없으면 공강 40개 반환', () => {
+  // T-01: 수업 0개 → 공강 30개 전부 (5요일 × 6교시)
+  test('T-01: 수업 없으면 공강 30개 반환', () => {
     const result = calculateFreePeriods([]);
-    expect(result).toHaveLength(40);
+    expect(result).toHaveLength(30);
   });
 
-  // T-02: 수업 40개 (월~금 × 1~8교시 전부) → 공강 0개
+  // T-02: 수업 30개 (월~금 × 1~6교시 전부) → 공강 0개
   test('T-02: 전체 수업 등록 시 공강 0개 반환', () => {
     const allCourses = [];
     for (let day = 0; day <= 4; day++) {
-      for (let period = 1; period <= 8; period++) {
+      for (let period = 1; period <= 6; period++) {
         allCourses.push({ day_of_week: day, period });
       }
     }
@@ -23,21 +23,21 @@ describe('calculateFreePeriods', () => {
     expect(result).toHaveLength(0);
   });
 
-  // T-03: 월요일(day_of_week:0) 1교시 수업 1개 → 39개, {day:0, period:1} 미포함
-  test('T-03: 월요일 1교시 수업 등록 시 공강 39개, 해당 칸 미포함', () => {
+  // T-03: 월요일(day_of_week:0) 1교시 수업 1개 → 29개, {day:0, period:1} 미포함
+  test('T-03: 월요일 1교시 수업 등록 시 공강 29개, 해당 칸 미포함', () => {
     const result = calculateFreePeriods([{ day_of_week: 0, period: 1 }]);
-    expect(result).toHaveLength(39);
+    expect(result).toHaveLength(29);
     expect(result).not.toContainEqual({ day: 0, period: 1 });
   });
 
-  // T-04: 같은 칸 중복 입력 시 Set으로 중복 제거 → 여전히 39개
-  test('T-04: 같은 칸 중복 입력 시 Set 중복 제거 → 공강 39개', () => {
+  // T-04: 같은 칸 중복 입력 시 Set으로 중복 제거 → 여전히 29개
+  test('T-04: 같은 칸 중복 입력 시 Set 중복 제거 → 공강 29개', () => {
     const courses = [
       { day_of_week: 0, period: 1 },
       { day_of_week: 0, period: 1 },
     ];
     const result = calculateFreePeriods(courses);
-    expect(result).toHaveLength(39);
+    expect(result).toHaveLength(29);
   });
 
   // T-05: 반환 결과에 토요일(day >= 5) 없음
