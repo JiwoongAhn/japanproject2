@@ -9,6 +9,8 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  TextInput,
+  Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../constants/colors';
@@ -39,6 +41,10 @@ export default function ProfileScreen({ navigation }) {
   const [postsLoading, setPostsLoading]     = useState(false);
   const [shareTimetable, setShareTimetable] = useState(false); // 공강맞추기 공개 여부
   const [userId, setUserId]                 = useState(null);
+  // 닉네임 변경 모달
+  const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
+  const [newNickname, setNewNickname]                   = useState('');
+  const [savingNickname, setSavingNickname]             = useState(false);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -86,6 +92,56 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // 닉네임 변경
+  const handleNicknameEdit = () => {
+    setNewNickname(nickname);
+    setNicknameModalVisible(true);
+  };
+
+  const handleNicknameSave = async () => {
+    const trimmed = newNickname.trim();
+    if (trimmed.length < 2 || trimmed.length > 10 || /\s/.test(trimmed)) {
+      Alert.alert('エラー', 'ニックネームは2〜10文字で入力してください（スペース不可）');
+      return;
+    }
+    if (trimmed === nickname) {
+      setNicknameModalVisible(false);
+      return;
+    }
+
+    setSavingNickname(true);
+    try {
+      // 중복 확인
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('nickname', trimmed)
+        .maybeSingle();
+
+      if (existing) {
+        Alert.alert('重複', `「${trimmed}」はすでに使われています`);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ nickname: trimmed })
+        .eq('id', userId);
+
+      if (error) {
+        Alert.alert('エラー', '変更に失敗しました');
+        return;
+      }
+
+      setNickname(trimmed);
+      setNicknameModalVisible(false);
+    } catch {
+      Alert.alert('エラー', '通信エラーが発生しました');
+    } finally {
+      setSavingNickname(false);
+    }
+  };
 
   // 공강맞추기 공개 여부 토글
   const handleShareTimetableToggle = async (value) => {
@@ -158,11 +214,60 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.nickname}>{nickname || studentId}</Text>
+            <View style={styles.nicknameRow}>
+              <Text style={styles.nickname}>{nickname || studentId}</Text>
+              <TouchableOpacity style={styles.editBadge} onPress={handleNicknameEdit} activeOpacity={0.7}>
+                <Text style={styles.editBadgeText}>編集</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.university}>{universityName}</Text>
             <Text style={styles.studentId}>{studentId}</Text>
           </View>
         </View>
+
+        {/* ── 닉네임 변경 모달 ── */}
+        <Modal
+          visible={nicknameModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setNicknameModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>ニックネームを変更</Text>
+              <TextInput
+                style={styles.modalInput}
+                value={newNickname}
+                onChangeText={setNewNickname}
+                autoFocus
+                maxLength={10}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder="2〜10文字"
+                placeholderTextColor={colors.textDisabled}
+              />
+              <Text style={styles.modalHint}>空き時間合わせで友達があなたを検索するIDになります</Text>
+              <View style={styles.modalButtons}>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnCancel]}
+                  onPress={() => setNicknameModalVisible(false)}
+                >
+                  <Text style={styles.modalBtnCancelText}>キャンセル</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalBtn, styles.modalBtnSave]}
+                  onPress={handleNicknameSave}
+                  disabled={savingNickname}
+                >
+                  {savingNickname
+                    ? <ActivityIndicator color="#fff" size="small" />
+                    : <Text style={styles.modalBtnSaveText}>保存</Text>
+                  }
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* ── 계정 정보 ── */}
         <View style={styles.section}>
@@ -348,11 +453,27 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
   },
+  nicknameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 3,
+  },
   nickname: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
-    marginBottom: 3,
+  },
+  editBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  editBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
   university: {
     fontSize: 13,
@@ -523,6 +644,68 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textDisabled,
     paddingBottom: 14,
+  },
+
+  // 닉네임 변경 모달
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 360,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 16,
+  },
+  modalInput: {
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 15,
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  modalHint: {
+    fontSize: 12,
+    color: colors.textDisabled,
+    marginBottom: 20,
+    lineHeight: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  modalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalBtnCancel: {
+    backgroundColor: colors.background,
+  },
+  modalBtnCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  modalBtnSave: {
+    backgroundColor: colors.primary,
+  },
+  modalBtnSaveText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
   },
 
   // 로그아웃 버튼

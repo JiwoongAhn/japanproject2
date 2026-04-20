@@ -149,7 +149,7 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.headerLeft}>
             <Text style={styles.dateText}>{dateStr}</Text>
             <Text style={styles.greetingText}>{greeting}</Text>
-            <Text style={styles.universityText}>國士舘大学</Text>
+            <Text style={styles.universityText}>{universityInfo.name}</Text>
           </View>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{avatarLetter}</Text>

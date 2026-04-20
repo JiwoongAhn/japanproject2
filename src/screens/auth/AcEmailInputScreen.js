@@ -8,38 +8,42 @@ import { supabase } from '../../lib/supabase';
 import { buildEmail } from '../../utils/auth';
 import { colors } from '../../constants/colors';
 
-// 학교 ac.jp 이메일 입력 화면
+// 학교 ac.jp 이메일 + 닉네임 입력 화면
 // SchoolPortalAuthScreen에서 신규 가입자로 판단될 때 이 화면으로 이동
-// 학교 이메일(@ac.jp)을 입력 → profiles에 저장 → 바로 로그인
 // ※ Supabase 계정은 @unipas 내부 이메일로 생성 (이메일 인증 불필요)
 export default function AcEmailInputScreen({ navigation, route }) {
   const { university, studentId, password } = route.params ?? {};
 
   const [email, setEmail] = useState('');
+  const [nickname, setNickname] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 입력된 이메일이 해당 대학 도메인인지 검증
+  // 이메일 도메인 검증
   const isValidDomain = () => {
     const domain = university?.emailDomain;
-    if (!domain) return true; // 도메인 정보 없으면 검증 생략
+    if (!domain) return true;
     return email.trim().toLowerCase().endsWith(`@${domain}`);
   };
 
-  const handleRegister = async () => {
-    const trimmedEmail = email.trim().toLowerCase();
+  // 닉네임 형식 검증 (2~10자, 공백 불가)
+  const isValidNickname = (v) => {
+    const t = v.trim();
+    return t.length >= 2 && t.length <= 10 && !/\s/.test(t);
+  };
 
+  const handleRegister = async () => {
+    const trimmedEmail    = email.trim().toLowerCase();
+    const trimmedNickname = nickname.trim();
+
+    // 입력값 검증
     if (!trimmedEmail) {
       Alert.alert('エラー', 'メールアドレスを入力してください');
       return;
     }
-
-    // 이메일 기본 형식 검증
     if (!trimmedEmail.includes('@') || !trimmedEmail.includes('.')) {
       Alert.alert('エラー', '正しいメールアドレスを入力してください');
       return;
     }
-
-    // 학교 도메인 검증
     if (!isValidDomain()) {
       const domain = university?.emailDomain ?? 'ac.jp';
       Alert.alert(
@@ -48,12 +52,28 @@ export default function AcEmailInputScreen({ navigation, route }) {
       );
       return;
     }
+    if (!isValidNickname(trimmedNickname)) {
+      Alert.alert('ニックネームエラー', 'ニックネームは2〜10文字で入力してください（スペース不可）');
+      return;
+    }
 
     setLoading(true);
 
     try {
+      // 닉네임 중복 확인
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('nickname', trimmedNickname)
+        .maybeSingle();
+
+      if (existing) {
+        Alert.alert('ニックネーム重複', `「${trimmedNickname}」はすでに使われています。\n別のニックネームを入力してください。`);
+        setLoading(false);
+        return;
+      }
+
       // Supabase 계정은 내부 @unipas 이메일로 생성
-      // (로그인 시 buildEmail()과 동일한 이메일 → 매번 재사용 가능)
       const internalEmail = buildEmail(studentId, university?.id);
 
       const { data, error } = await supabase.auth.signUp({
@@ -68,7 +88,6 @@ export default function AcEmailInputScreen({ navigation, route }) {
       });
 
       if (error) {
-        // 이미 가입된 경우 (재시도 등)
         if (
           error.message.includes('already registered') ||
           error.message.includes('already been registered') ||
@@ -85,22 +104,17 @@ export default function AcEmailInputScreen({ navigation, route }) {
         return;
       }
 
-      // 프로필에 학적번호(닉네임)와 학교 이메일 저장
+      // 프로필에 닉네임 + 학교 이메일 저장
       if (data.user) {
         await supabase.from('profiles').upsert({
           id: data.user.id,
           university: university?.name ?? '国士舘大学',
-          nickname: studentId ?? '',
-          school_email: trimmedEmail, // ac.jp 이메일 보관
+          nickname: trimmedNickname,
+          school_email: trimmedEmail,
         });
       }
 
       // 가입 완료 → AuthProvider가 세션 감지하여 자동으로 메인 화면 진입
-      Alert.alert(
-        '登録完了',
-        'アカウントが作成されました！',
-        [{ text: 'OK' }]
-      );
     } catch (e) {
       Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
     } finally {
@@ -109,6 +123,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
   };
 
   const domain = university?.emailDomain;
+  const canSubmit = email.trim() && isValidNickname(nickname) && !loading;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -131,14 +146,15 @@ export default function AcEmailInputScreen({ navigation, route }) {
             <View style={styles.universityBadge}>
               <Text style={styles.universityBadgeText}>{university?.name ?? '大学'}</Text>
             </View>
-            <Text style={styles.title}>学校メールアドレスで{'\n'}本人確認</Text>
+            <Text style={styles.title}>アカウント情報を{'\n'}入力してください</Text>
             <Text style={styles.subtitle}>
-              在学生確認のため、大学から発行された学校メールアドレスを入力してください。
+              在学生確認のため学校メールアドレスを入力し、アプリで使うニックネームを設定してください。
             </Text>
           </View>
 
           {/* 입력 폼 */}
           <View style={styles.form}>
+            {/* 학교 이메일 */}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>学校メールアドレス</Text>
               <TextInput
@@ -151,10 +167,27 @@ export default function AcEmailInputScreen({ navigation, route }) {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              {/* 도메인 힌트 표시 */}
               {domain && (
                 <Text style={styles.domainHint}>@{domain} のアドレスのみ使用可能</Text>
               )}
+            </View>
+
+            {/* 닉네임 */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>ニックネーム</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="例: たろう（2〜10文字）"
+                placeholderTextColor={colors.textDisabled}
+                value={nickname}
+                onChangeText={setNickname}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={10}
+              />
+              <Text style={styles.domainHint}>
+                空き時間合わせで友達があなたを検索するときに使います
+              </Text>
             </View>
           </View>
 
@@ -162,16 +195,16 @@ export default function AcEmailInputScreen({ navigation, route }) {
           <View style={styles.infoBox}>
             <Text style={styles.infoIcon}>🎓</Text>
             <Text style={styles.infoText}>
-              在学生確認のため、大学から発行された学校メールアドレスを入力してください。{'\n'}
-              入力後すぐにアプリを使い始めることができます。
+              入力後すぐにアプリを使い始めることができます。{'\n'}
+              ニックネームはマイページからいつでも変更できます。
             </Text>
           </View>
 
           {/* 등록 버튼 */}
           <TouchableOpacity
-            style={[styles.button, (!email.trim() || loading) && styles.buttonDisabled]}
+            style={[styles.button, !canSubmit && styles.buttonDisabled]}
             onPress={handleRegister}
-            disabled={!email.trim() || loading}
+            disabled={!canSubmit}
             activeOpacity={0.8}
           >
             {loading

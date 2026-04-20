@@ -21,9 +21,12 @@ const PERIODS = [1, 2, 3, 4, 5, 6];
 // 교시 열 너비
 const PERIOD_COL_WIDTH = 36;
 // 화면 너비 기반으로 셀 너비 계산
+// 32 = ScrollView padding (16 * 2)
+// 28 = gridSection card padding (14 * 2)
+// 10 = gap:2 × 5칸 사이 공간
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 32 - PERIOD_COL_WIDTH) / 5);
-const CELL_HEIGHT = 46;
+const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 32 - 28 - PERIOD_COL_WIDTH - 10) / 5);
+const CELL_HEIGHT = 48;
 
 export default function FreeTimeScreen({ navigation }) {
   const [myNickname, setMyNickname] = useState('');
