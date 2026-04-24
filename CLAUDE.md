@@ -108,6 +108,10 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 
 ---
 
+# 인프라 설정 완료 현황
+
+- [x] `.github/workflows/keep-supabase-alive.yml` — 매일 오전 9시(JST) Supabase 자동 핑, 무료 플랜 일시 중지 방지
+
 # 향후 예정 작업
 - **RevenueCAT MCP** — 프리미엄 기능 개발 시작 전에 추가할 것 (작업 전 사용자에게 먼저 확인)
 
