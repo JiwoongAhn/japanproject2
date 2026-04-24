@@ -1,16 +1,29 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Text } from 'react-native';
 import HomeScreen from '../screens/HomeScreen';
 import TimetableStack from './TimetableStack';
 import AssignmentStack from './AssignmentStack';
 import CommunityStack from './CommunityStack';
 import ProfileScreen from '../screens/ProfileScreen';
+import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import { colors } from '../constants/colors';
 
 const Tab = createBottomTabNavigator();
+const ProfileStack = createNativeStackNavigator();
 
-// 로그인 후 보이는 하단 탭 4개
+// 마이페이지 탭: ProfileScreen + PrivacyPolicyScreen 스택
+function ProfileStackNavigator() {
+  return (
+    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+      <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+    </ProfileStack.Navigator>
+  );
+}
+
+// 로그인 후 보이는 하단 탭 5개
 export default function MainTab() {
   return (
     <Tab.Navigator
@@ -65,7 +78,7 @@ export default function MainTab() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfileScreen}
+        component={ProfileStackNavigator}
         options={{
           tabBarLabel: 'マイページ',
           tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>👤</Text>,

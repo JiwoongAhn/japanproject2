@@ -159,6 +159,65 @@ export default function ProfileScreen({ navigation }) {
     await AsyncStorage.setItem(TODAY_COLOR_KEY, colorValue);
   };
 
+  // 탈퇴 (2단계 확인)
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      '退会する',
+      '退会すると、時間割・課題・投稿などすべてのデータが削除されます。\n本当に退会しますか？',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '退会する',
+          style: 'destructive',
+          onPress: () => {
+            // 2단계 최종 확인
+            Alert.alert(
+              '本当に退会しますか？',
+              'この操作は取り消せません。すべてのデータが完全に削除されます。',
+              [
+                { text: 'キャンセル', style: 'cancel' },
+                {
+                  text: '退会する',
+                  style: 'destructive',
+                  onPress: confirmDeleteAccount,
+                },
+              ]
+            );
+          },
+        },
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/delete-account`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      const result = await res.json();
+
+      if (!res.ok || result.error) {
+        Alert.alert('エラー', '退会処理に失敗しました。しばらくしてからもう一度お試しください。');
+        return;
+      }
+
+      // 계정 삭제 성공 → 세션 정리 → 자동으로 로그인 화면 이동
+      await supabase.auth.signOut();
+    } catch (e) {
+      Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
+    }
+  };
+
   // 로그아웃
   const handleLogout = () => {
     Alert.alert(
@@ -397,6 +456,20 @@ export default function ProfileScreen({ navigation }) {
               ? <ActivityIndicator color={colors.danger} />
               : <Text style={styles.logoutText}>ログアウト</Text>
             }
+          </TouchableOpacity>
+        </View>
+
+        {/* ── 개인정보처리방침 + 탈퇴 ── */}
+        <View style={styles.footerLinks}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('PrivacyPolicy')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.footerLinkText}>プライバシーポリシー</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerDivider}>|</Text>
+          <TouchableOpacity onPress={handleDeleteAccount} activeOpacity={0.7}>
+            <Text style={styles.deleteAccountText}>退会する</Text>
           </TouchableOpacity>
         </View>
 
@@ -721,5 +794,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: colors.danger,
+  },
+
+  // 개인정보처리방침 + 탈퇴 링크
+  footerLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+  },
+  footerLinkText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
+  },
+  footerDivider: {
+    fontSize: 12,
+    color: colors.textDisabled,
+  },
+  deleteAccountText: {
+    fontSize: 13,
+    color: colors.textDisabled,
+    textDecorationLine: 'underline',
   },
 });
