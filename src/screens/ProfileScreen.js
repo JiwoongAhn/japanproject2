@@ -473,7 +473,7 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -802,7 +802,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 16,
+    marginHorizontal: 16,
+    marginTop: 4,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
   },
   footerLinkText: {
     fontSize: 13,
@@ -815,7 +819,7 @@ const styles = StyleSheet.create({
   },
   deleteAccountText: {
     fontSize: 13,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     textDecorationLine: 'underline',
   },
 });
