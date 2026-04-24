@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { buildEmail } from '../../utils/auth';
 import { colors } from '../../constants/colors';
 
 // 학교 이메일 OTP 인증 화면
@@ -33,25 +32,16 @@ export default function OtpVerificationScreen({ navigation, route }) {
     return () => clearInterval(timerRef.current);
   }, []);
 
-  // OTP 재발송
+  // OTP 재발송 (Supabase 내장 SMTP)
   const handleResend = async () => {
     if (resendCooldown > 0) return;
     try {
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/send-school-otp`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ email }),
-        }
-      );
-      const result = await res.json();
-      if (result.success) {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true },
+      });
+      if (!error) {
         Alert.alert('再送信完了', `${email} に新しいコードを送りました`);
-        // 쿨다운 재시작
         setResendCooldown(60);
         clearInterval(timerRef.current);
         timerRef.current = setInterval(() => {
@@ -61,14 +51,14 @@ export default function OtpVerificationScreen({ navigation, route }) {
           });
         }, 1000);
       } else {
-        Alert.alert('エラー', result.error ?? '再送信に失敗しました');
+        Alert.alert('エラー', '再送信に失敗しました');
       }
     } catch (e) {
       Alert.alert('エラー', '通信エラーが発生しました');
     }
   };
 
-  // OTP 확인 + 가입
+  // OTP 확인 + 가입 (Supabase 내장 OTP)
   const handleVerify = async () => {
     const trimmedCode = code.trim();
     if (trimmedCode.length !== 6) {
@@ -78,69 +68,24 @@ export default function OtpVerificationScreen({ navigation, route }) {
 
     setLoading(true);
     try {
-      // 1. OTP 검증
-      const verifyRes = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/verify-school-otp`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({ email, code: trimmedCode }),
-        }
-      );
-      const verifyResult = await verifyRes.json();
+      // 1. Supabase OTP 검증 → 성공 시 자동으로 계정 생성 + 세션 시작
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token: trimmedCode,
+        type: 'email',
+      });
 
-      if (!verifyResult.valid) {
-        const msg =
-          verifyResult.reason === 'expired'
-            ? 'コードの有効期限が切れました。再送信ボタンで新しいコードを取得してください。'
-            : 'コードが正しくありません。もう一度確認してください。';
+      if (verifyError) {
+        const msg = verifyError.message.includes('expired')
+          ? 'コードの有効期限が切れました。再送信ボタンで新しいコードを取得してください。'
+          : 'コードが正しくありません。もう一度確認してください。';
         Alert.alert('認証失敗', msg);
         return;
       }
 
-      // 2. OTP 인증 성공 → Supabase 계정 생성
-      const internalEmail = buildEmail(studentId, university?.id);
-
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: internalEmail,
-        password,
-        options: {
-          data: {
-            student_id: studentId,
-            university: university?.name ?? '',
-          },
-        },
-      });
-
-      if (signUpError) {
-        if (
-          signUpError.message.includes('already registered') ||
-          signUpError.message.includes('User already registered')
-        ) {
-          Alert.alert(
-            'すでに登録済み',
-            'このアカウントはすでに登録されています。\nログイン画面からログインしてください。',
-            [{ text: 'ログインへ', onPress: () => navigation.navigate('SchoolPortalAuth', { university }) }]
-          );
-          return;
-        }
-        throw new Error(signUpError.message);
-      }
-
-      // 3. 프로필 저장 (닉네임 + 학교 이메일)
-      if (data.user) {
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          university: university?.name ?? '国士舘大学',
-          nickname,
-          school_email: email,
-        });
-      }
-
-      // AuthProvider가 세션 감지 → 자동으로 MainTab 이동
+      // verifyOtp 성공 → AuthProvider의 onAuthStateChange가 세션 감지
+      // 신규 회원(닉네임 없음) → AppNavigator가 자동으로 닉네임 입력 화면 표시
+      // 기존 회원(닉네임 있음) → AppNavigator가 자동으로 MainTab 이동
 
     } catch (e) {
       Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);

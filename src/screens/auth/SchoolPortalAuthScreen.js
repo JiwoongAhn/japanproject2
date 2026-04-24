@@ -6,55 +6,57 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
-import { buildEmail } from '../../utils/auth';
 
 // 학교 포털 인증 화면
-// 학적번호 + 포털 비밀번호로 로그인 → 최초 접속 시 자동으로 계정 생성
+// 학교 이메일로 OTP 발송 → OTP 입력 → 로그인/가입
 export default function SchoolPortalAuthScreen({ navigation, route }) {
   const { university } = route.params ?? {};
 
-  const [studentId, setStudentId] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    const id = studentId.trim();
-    if (!id || !password) {
-      Alert.alert('エラー', '学籍番号とパスワードを入力してください');
+  // 이메일 도메인 검증
+  const isValidDomain = () => {
+    const domain = university?.emailDomain;
+    if (!domain) return true;
+    return email.trim().toLowerCase().endsWith(`@${domain}`);
+  };
+
+  const handleSendOtp = async () => {
+    const trimmedEmail = email.trim().toLowerCase();
+    if (!trimmedEmail) {
+      Alert.alert('エラー', 'メールアドレスを入力してください');
+      return;
+    }
+    if (!isValidDomain()) {
+      const domain = university?.emailDomain ?? 'ac.jp';
+      Alert.alert(
+        'メールアドレスエラー',
+        `${university?.name ?? '大学'}の学校メールアドレスを入力してください。\n（例: 学籍番号@${domain}）`
+      );
       return;
     }
 
     setLoading(true);
-
-    // 이메일은 "학적번호@대학ID.unipas" 형태로 내부 생성
-    const email = buildEmail(studentId, university?.id);
-
     try {
-      // 1. 먼저 로그인 시도 (기존 회원)
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // 기존/신규 회원 관계없이 OTP 발송 (Supabase가 자동 처리)
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmedEmail,
+        options: { shouldCreateUser: true },
       });
 
-      if (!signInError) {
-        // 로그인 성공 → AppNavigator가 세션 감지 후 MainTab으로 자동 이동
+      if (error) {
+        Alert.alert('送信エラー', 'コードの送信に失敗しました。もう一度お試しください。');
         return;
       }
 
-      // 2. 로그인 실패 = 처음 접속 → 학교 ac.jp 이메일 인증 화면으로 이동
-      if (
-        signInError.message.includes('Invalid login credentials') ||
-        signInError.message.includes('invalid_credentials')
-      ) {
-        // 학적번호·비밀번호를 다음 화면에 전달 (학교 이메일 가입 시 사용)
-        navigation.navigate('AcEmailInput', {
-          university,
-          studentId: id,
-          password,
-        });
-      } else {
-        Alert.alert('ログイン失敗', signInError.message);
-      }
+      // OTP 입력 화면으로 이동 (신규/기존 구분은 인증 후 처리)
+      navigation.navigate('OtpVerification', {
+        email: trimmedEmail,
+        university,
+        studentId: '',
+        password: '',
+      });
     } catch (e) {
       Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
     } finally {
@@ -83,59 +85,51 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
             <View style={styles.universityBadge}>
               <Text style={styles.universityBadgeText}>{university?.name ?? '大学'}</Text>
             </View>
-            <Text style={styles.title}>学校アカウントで{'\n'}ログイン</Text>
+            <Text style={styles.title}>学校メールアドレスで{'\n'}ログイン</Text>
             <Text style={styles.subtitle}>
-              学校のポータルIDとパスワードを入力してください
+              学校のメールアドレスに認証コードを送信します
             </Text>
           </View>
 
           {/* 입력 폼 */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>学籍番号</Text>
+              <Text style={styles.label}>学校メールアドレス</Text>
               <TextInput
                 style={styles.input}
-                placeholder="例: A1234567"
+                placeholder={university?.emailDomain ? `例: 学籍番号@${university.emailDomain}` : 'example@university.ac.jp'}
                 placeholderTextColor={colors.textDisabled}
-                value={studentId}
-                onChangeText={setStudentId}
-                autoCapitalize="characters"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
                 autoCorrect={false}
               />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>ポータルパスワード</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="パスワードを入力"
-                placeholderTextColor={colors.textDisabled}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
+              {university?.emailDomain && (
+                <Text style={styles.hint}>@{university.emailDomain} のアドレスのみ使用可能</Text>
+              )}
             </View>
           </View>
 
           {/* 안내 박스 */}
           <View style={styles.infoBox}>
-            <Text style={styles.infoIcon}>🔒</Text>
+            <Text style={styles.infoIcon}>📧</Text>
             <Text style={styles.infoText}>
-              初めてログインする場合は自動的にアカウントが作成されます。{'\n'}
-              在学生のみご利用いただけます。
+              学校メールアドレスに6桁の認証コードを送信します。{'\n'}
+              初めての方は自動的にアカウントが作成されます。
             </Text>
           </View>
 
-          {/* 로그인 버튼 */}
+          {/* 발송 버튼 */}
           <TouchableOpacity
-            style={[styles.button, (!studentId.trim() || !password || loading) && styles.buttonDisabled]}
-            onPress={handleLogin}
-            disabled={!studentId.trim() || !password || loading}
+            style={[styles.button, (!email.trim() || loading) && styles.buttonDisabled]}
+            onPress={handleSendOtp}
+            disabled={!email.trim() || loading}
             activeOpacity={0.8}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>ログイン</Text>
+              : <Text style={styles.buttonText}>認証コードを送信</Text>
             }
           </TouchableOpacity>
         </ScrollView>
@@ -234,6 +228,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
+  hint: { fontSize: 12, color: colors.primary, marginTop: 2 },
   button: {
     backgroundColor: colors.primary,
     borderRadius: 14,

@@ -1,11 +1,15 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../lib/AuthProvider';
 import { supabase } from '../lib/supabase';
 import AuthStack from './AuthStack';
 import MainTab from './MainTab';
 import SplashScreen from '../screens/auth/SplashScreen';
+import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
+
+const NicknameStack = createNativeStackNavigator();
 
 // 앱 전체 네비게이션 진입점
 // 세션 유무에 따라 AuthStack(로그인 전) / MainTab(로그인 후) 자동 전환
@@ -19,7 +23,7 @@ const linking = {
 };
 
 export default function AppNavigator() {
-  const { session, loading } = useAuth();
+  const { session, profile, loading } = useAuth();
 
   useEffect(() => {
     // 이메일 인증 완료 후 앱으로 돌아올 때 URL에서 토큰을 꺼내 세션 설정
@@ -56,9 +60,31 @@ export default function AppNavigator() {
   // 세션 확인 중일 때 스플래시 화면 표시 (갑작스러운 화면 전환 방지)
   if (loading) return <SplashScreen />;
 
+  // 세션은 있지만 닉네임이 없으면 닉네임 입력 화면 표시 (profile이 null이면 아직 로딩 중)
+  const needsNickname = session && profile !== null && !profile?.nickname;
+
+  const renderContent = () => {
+    if (!session) return <AuthStack />;
+    if (needsNickname) {
+      return (
+        <NicknameStack.Navigator screenOptions={{ headerShown: false }}>
+          <NicknameStack.Screen
+            name="NicknameSetup"
+            component={AcEmailInputScreen}
+            initialParams={{
+              userId: session.user.id,
+              email: session.user.email,
+            }}
+          />
+        </NicknameStack.Navigator>
+      );
+    }
+    return <MainTab />;
+  };
+
   return (
     <NavigationContainer linking={linking}>
-      {session ? <MainTab /> : <AuthStack />}
+      {renderContent()}
     </NavigationContainer>
   );
 }

@@ -19,6 +19,19 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   // undefined: 아직 세션 확인 중 / null: 로그아웃 / Session 객체: 로그인 중
   const [session, setSession] = useState(undefined);
+  // null: 미확인 / 객체: 프로필 데이터
+  const [profile, setProfile] = useState(null);
+
+  // 세션이 생기면 프로필(닉네임) 확인
+  const fetchProfile = async (userId) => {
+    if (!userId) { setProfile(null); return; }
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, nickname, university, school_email')
+      .eq('id', userId)
+      .maybeSingle();
+    setProfile(data ?? null);
+  };
 
   useEffect(() => {
     // Supabase 응답이 5초 이상 없으면 로그인 화면으로 강제 이동
@@ -30,11 +43,13 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       clearTimeout(timeout);
       setSession(session ?? null);
+      fetchProfile(session?.user?.id ?? null);
     });
 
     // 이후 로그인/로그아웃 이벤트를 실시간으로 감지
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session ?? null);
+      fetchProfile(session?.user?.id ?? null);
     });
 
     return () => {
@@ -46,7 +61,9 @@ export function AuthProvider({ children }) {
   const value = {
     session,                          // 전체 세션 객체 (null이면 비로그인)
     user: session?.user ?? null,      // 현재 로그인 유저 정보
+    profile,                          // profiles 테이블 데이터 (nickname 포함)
     loading: session === undefined,   // 세션 확인 중 여부
+    refreshProfile: () => fetchProfile(session?.user?.id ?? null),
   };
 
   return (

@@ -55,7 +55,8 @@ japanproject/
 # Supabase
 
 - **Project ID:** `rexnpusrxezuztxmkaex`
-- **학교 인증 이메일 형식:** `{학적번호}@{대학ID}.unipas` (예: `A1234567@kokushikan.unipas`)
+- **학교 인증 이메일 형식:** `{학적번호}@{대학도메인}` (예: `A1234567@kokushikan.ac.jp`) — 이 이메일이 Supabase 계정 이메일
+- **인증 방식:** Supabase 내장 SMTP OTP (`signInWithOtp` + `verifyOtp`) — Edge Function / Resend API 없음
 - **MCP:** `~/.claude.json` 에 등록됨 — Supabase MCP 툴로 DB 조작 가능
 
 ---
@@ -64,9 +65,9 @@ japanproject/
 
 | 탭 | 기능 |
 |---|---|
-| 공통 | 학교 선택 → 포털 로그인 → ac.jp 이메일 입력 (학생 증명, profiles에 저장) |
-| 공통 | Supabase 계정은 @unipas 내부 이메일로 생성 (이메일 인증 불필요) |
-| 공통 | AuthProvider / useAuth 훅, LargeSecureStore 세션 암호화 저장 |
+| 공통 | 학교 선택 → 학교 이메일 입력 → Supabase OTP 인증 → 신규 회원은 닉네임 설정 |
+| 공통 | Supabase 계정 = 학교 ac.jp 이메일 (내부 @unipas 이메일 제거, OTP 로그인) |
+| 공통 | AuthProvider / useAuth 훅 (session + profile + refreshProfile), LargeSecureStore 세션 암호화 저장 |
 | 홈 | 오늘 수업·D-3 과제·최신 게시글 실시간 표시, 학번 포함 인사말 |
 | 홈 | 学校情報 그리드 (manaba/kaede-i/홈페이지 실제 URL 연결) |
 | 시간표 | 요일×6교시 그리드, 수업 추가/삭제, 오늘 요일 강조 |
@@ -79,14 +80,29 @@ japanproject/
 
 ---
 
-# Supabase 설정 완료 현황 (2026-04-20 기준)
+# Supabase 설정 완료 현황 (2026-04-24 기준)
 
-- [x] Authentication → Email → **"Confirm email" OFF** 완료
+- [x] Authentication → Email → **"Confirm email" ON** (OTP 인증 활성화, 2026-04-24 변경)
 - [x] `profiles.school_email` 컬럼 추가 완료
+- [x] `profiles.student_id` 컬럼 추가 완료 (SQL Editor에서 직접 추가 필요)
 - [x] `profiles.share_timetable` 컬럼 추가 완료
 - [x] `posts_category_check` 제약조건 (qa/free/secret/info) 변경 완료
 - [x] `increment_like` RPC 함수 생성 완료
 - [x] `post_reports` 테이블 + RLS 정책 생성 완료
+
+## 인증 아키텍처 (2026-04-24 변경)
+
+**이전:** 학적번호+비밀번호 로그인 → 가입 시 Resend API Edge Function으로 OTP 발송 → `@unipas` 내부 이메일로 Supabase 계정 생성  
+**현재:** 학교 이메일 입력 → `supabase.auth.signInWithOtp()` → `supabase.auth.verifyOtp()` → 학교 이메일이 Supabase 계정
+
+**화면 흐름:**
+```
+UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(코드입력)
+  └ 신규 회원: AppNavigator가 자동으로 AcEmailInput(닉네임 입력) 표시
+  └ 기존 회원: AppNavigator가 자동으로 MainTab 이동
+```
+
+**Edge Functions:** `send-school-otp`, `verify-school-otp` — 더 이상 사용 안 함 (삭제 가능)
 
 ---
 
