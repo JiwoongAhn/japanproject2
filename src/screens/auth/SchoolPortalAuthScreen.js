@@ -46,7 +46,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
       });
 
       if (error) {
-        Alert.alert('送信エラー', 'コードの送信に失敗しました。もう一度お試しください。');
+        Alert.alert('送信エラー', error.message ?? 'コードの送信に失敗しました。');
         return;
       }
 

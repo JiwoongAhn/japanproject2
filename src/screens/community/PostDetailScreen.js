@@ -41,21 +41,43 @@ export default function PostDetailScreen({ navigation, route }) {
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [liking, setLiking] = useState(false);
+  const [liked, setLiked] = useState(false); // 내가 좋아요 눌렀는지
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [likedComments, setLikedComments] = useState({}); // { commentId: true/false }
+  const [likingComment, setLikingComment] = useState(null); // 현재 좋아요 처리 중인 댓글 ID
   const scrollViewRef = useRef(null);
 
-  // 게시글 + 댓글 한 번에 불러오기
+  // 게시글 + 댓글 + 내 좋아요 여부 한 번에 불러오기
   const fetchData = useCallback(async () => {
-    const [postRes, commentsRes] = await Promise.all([
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setCurrentUserId(user.id);
+
+    const [postRes, commentsRes, likeRes, commentLikesRes] = await Promise.all([
       supabase.from('posts').select('*').eq('id', postId).single(),
       supabase
         .from('post_comments')
         .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: true }),
+      user
+        ? supabase.from('post_likes').select('id').eq('post_id', postId).eq('user_id', user.id).maybeSingle()
+        : Promise.resolve({ data: null }),
+      user
+        ? supabase.from('comment_likes').select('comment_id').eq('user_id', user.id)
+        : Promise.resolve({ data: [] }),
     ]);
 
     if (postRes.data) setPost(postRes.data);
     if (commentsRes.data) setComments(commentsRes.data);
+    setLiked(!!likeRes.data);
+
+    // 내가 좋아요한 댓글 ID를 { commentId: true } 형태로 저장
+    const likedMap = {};
+    (commentLikesRes.data ?? []).forEach(row => {
+      likedMap[row.comment_id] = true;
+    });
+    setLikedComments(likedMap);
+
     setLoading(false);
   }, [postId]);
 
@@ -63,17 +85,41 @@ export default function PostDetailScreen({ navigation, route }) {
     fetchData();
   }, [fetchData]);
 
-  // 좋아요 (RPC로 처리: RLS 제약 없이 like_count 증가)
+  // 좋아요 토글 (중복 방지: toggle_like RPC)
   const handleLike = async () => {
     if (liking || !post) return;
     setLiking(true);
 
-    const { error } = await supabase.rpc('increment_like', { post_id: postId });
+    const { data: isNowLiked, error } = await supabase.rpc('toggle_like', { post_id: postId });
 
     if (!error) {
-      setPost(prev => ({ ...prev, like_count: (prev.like_count || 0) + 1 }));
+      setLiked(isNowLiked);
+      setPost(prev => ({
+        ...prev,
+        like_count: isNowLiked
+          ? (prev.like_count || 0) + 1
+          : Math.max((prev.like_count || 0) - 1, 0),
+      }));
     }
     setLiking(false);
+  };
+
+  // 댓글 좋아요 토글
+  const handleCommentLike = async (commentId) => {
+    if (likingComment === commentId) return;
+    setLikingComment(commentId);
+
+    const { data: isNowLiked, error } = await supabase.rpc('toggle_comment_like', { comment_id: commentId });
+
+    if (!error) {
+      setLikedComments(prev => ({ ...prev, [commentId]: isNowLiked }));
+      setComments(prev => prev.map(c =>
+        c.id === commentId
+          ? { ...c, like_count: isNowLiked ? (c.like_count || 0) + 1 : Math.max((c.like_count || 0) - 1, 0) }
+          : c
+      ));
+    }
+    setLikingComment(null);
   };
 
   // 신고 기능
@@ -115,7 +161,7 @@ export default function PostDetailScreen({ navigation, route }) {
         // UNIQUE 제약 위반 → 이미 신고한 게시글
         Alert.alert('通報済み', 'この投稿はすでに通報しています');
       } else {
-        Alert.alert('エラー', '通報に失敗しました');
+        Alert.alert('エラー', `通報に失敗しました\n${error.message}`);
       }
     } else {
       Alert.alert('通報完了', '通報を受け付けました。ありがとうございます。');
@@ -231,9 +277,9 @@ export default function PostDetailScreen({ navigation, route }) {
 
             {/* 좋아요 */}
             <View style={styles.postFooter}>
-              <TouchableOpacity style={styles.likeButton} onPress={handleLike} activeOpacity={0.7}>
-                <Text style={styles.likeIcon}>♡</Text>
-                <Text style={styles.likeCount}>{post.like_count || 0}</Text>
+              <TouchableOpacity style={[styles.likeButton, liked && styles.likeButtonActive]} onPress={handleLike} activeOpacity={0.7}>
+                <Text style={styles.likeIcon}>{liked ? '♥' : '♡'}</Text>
+                <Text style={[styles.likeCount, liked && styles.likeCountActive]}>{post.like_count || 0}</Text>
               </TouchableOpacity>
               <View style={styles.commentCountArea}>
                 <Text style={styles.commentCountIcon}>□</Text>
@@ -254,20 +300,38 @@ export default function PostDetailScreen({ navigation, route }) {
                 <Text style={styles.emptyCommentsSubText}>最初のコメントを書いてみよう！</Text>
               </View>
             ) : (
-              comments.map((comment, index) => (
-                <View
-                  key={comment.id}
-                  style={[styles.commentItem, index === 0 && styles.commentItemFirst]}
-                >
-                  <View style={styles.commentHeader}>
-                    <Text style={styles.commentAuthor}>
-                      {comment.is_anonymous ? `匿名${index + 1}` : '実名'}
-                    </Text>
-                    <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
+              comments.map((comment, index) => {
+                const isCommentLiked = !!likedComments[comment.id];
+                return (
+                  <View
+                    key={comment.id}
+                    style={[styles.commentItem, index === 0 && styles.commentItemFirst]}
+                  >
+                    <View style={styles.commentHeader}>
+                      <Text style={styles.commentAuthor}>
+                        {comment.is_anonymous ? `匿名${index + 1}` : '実名'}
+                      </Text>
+                      <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
+                    </View>
+                    <Text style={styles.commentBody}>{comment.body}</Text>
+                    {/* 댓글 좋아요 버튼 */}
+                    <TouchableOpacity
+                      style={styles.commentLikeButton}
+                      onPress={() => handleCommentLike(comment.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={[styles.commentLikeIcon, isCommentLiked && styles.commentLikeIconActive]}>
+                        {isCommentLiked ? '♥' : '♡'}
+                      </Text>
+                      {(comment.like_count || 0) > 0 && (
+                        <Text style={[styles.commentLikeCount, isCommentLiked && styles.commentLikeCountActive]}>
+                          {comment.like_count}
+                        </Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
-                  <Text style={styles.commentBody}>{comment.body}</Text>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
 
@@ -421,6 +485,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  likeButtonActive: {
+    borderColor: '#EF4444',
+    backgroundColor: '#FEF2F2',
+  },
   likeIcon: {
     fontSize: 14,
     color: colors.textSecondary,
@@ -428,6 +496,9 @@ const styles = StyleSheet.create({
   likeCount: {
     fontSize: 13,
     color: colors.textSecondary,
+  },
+  likeCountActive: {
+    color: '#EF4444',
   },
   commentCountArea: {
     flexDirection: 'row',
@@ -496,6 +567,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textPrimary,
     lineHeight: 20,
+    marginBottom: 6,
+  },
+  commentLikeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+  },
+  commentLikeIcon: {
+    fontSize: 13,
+    color: colors.textDisabled,
+  },
+  commentLikeIconActive: {
+    color: '#EF4444',
+  },
+  commentLikeCount: {
+    fontSize: 12,
+    color: colors.textDisabled,
+  },
+  commentLikeCountActive: {
+    color: '#EF4444',
   },
 
   // 댓글 입력창

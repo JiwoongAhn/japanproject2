@@ -230,8 +230,8 @@ export default function ProfileScreen({ navigation }) {
           style: 'destructive',
           onPress: async () => {
             setLoggingOut(true);
-            await supabase.auth.signOut();
-            // AppNavigator가 session=null 감지 후 AuthStack으로 자동 이동
+            // scope: 'local' → 서버 요청 실패해도 로컬 세션 강제 삭제
+            await supabase.auth.signOut({ scope: 'local' });
           },
         },
       ]
