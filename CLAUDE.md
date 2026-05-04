@@ -80,15 +80,16 @@ japanproject/
 
 ---
 
-# Supabase 설정 완료 현황 (2026-04-24 기준)
+# Supabase 설정 완료 현황 (2026-05-05 기준)
 
-- [x] Authentication → Email → **"Confirm email" ON** (OTP 인증 활성화, 2026-04-24 변경)
-- [x] `profiles.school_email` 컬럼 추가 완료
-- [x] `profiles.student_id` 컬럼 추가 완료 (SQL Editor에서 직접 추가 필요)
-- [x] `profiles.share_timetable` 컬럼 추가 완료
+- [x] Authentication → Email → **"Confirm email" ON** (OTP 인증 활성화)
+- [x] `profiles.school_email` / `student_id` / `share_timetable` 컬럼 추가 완료
 - [x] `posts_category_check` 제약조건 (qa/free/secret/info) 변경 완료
-- [x] `increment_like` RPC 함수 생성 완료
+- [x] `post_likes` 테이블 + `toggle_like` RPC 생성 완료 (좋아요 중복 방지)
 - [x] `post_reports` 테이블 + RLS 정책 생성 완료
+- [x] `comment_likes` 테이블 + `toggle_comment_like` RPC 생성 완료 (댓글 좋아요)
+- [x] OTP 토큰 자리수 6자리로 설정 완료
+- [x] 이메일 템플릿 수정 완료 — Magic Link + Confirm signup 모두 `{{ .Token }}` 6자리 코드 표시
 
 ## 인증 아키텍처 (2026-04-24 변경)
 
@@ -127,6 +128,9 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 # 인프라 설정 완료 현황
 
 - [x] `.github/workflows/keep-supabase-alive.yml` — 매일 오전 9시(JST) Supabase 자동 핑, 무료 플랜 일시 중지 방지
+- [x] DNS — Namecheap → **Cloudflare** 이전 완료 (2026-05-05, Namecheap `/` 버그로 인한 이전)
+- [x] Resend SMTP 설정 완료 — 도메인 `unipas.app` Verified, 발신 주소 `noreply@unipas.app`
+- [x] Supabase SMTP 연결 — Host: `smtp.resend.com`, Port: `465`, Username: `resend`
 
 # 향후 예정 작업
 - **RevenueCAT MCP** — 프리미엄 기능 개발 시작 전에 추가할 것 (작업 전 사용자에게 먼저 확인)
@@ -135,8 +139,8 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 
 # 작업 묶음 진행 현황 (2026-05-05 기준)
 
-## 🔴 묶음 1 — 핵심 버그 수정
-- [ ] OTP 이메일 코드 발송 (Resend DNS 연결 중 — unipas.app 도메인, Namecheap DNS 설정 완료, Pending 상태)
+## 🔴 묶음 1 — 핵심 버그 수정 ✅ 완료
+- [x] OTP 이메일 6자리 코드 발송 — Resend SMTP + Cloudflare DNS + 이메일 템플릿 수정 완료
 - [x] 로그아웃 버그 수정 — signOut({ scope: 'local' })로 변경
 - [x] 신고 기능 버그 — 에러 메시지 개선 완료 (실제 error.message 표시)
 - [x] 좋아요 중복 방지 — post_likes 테이블 + toggle_like RPC + UI(♡/♥) 업데이트 완료
@@ -147,16 +151,16 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 - [x] 댓글 좋아요 기능 — comment_likes 테이블 + toggle_comment_like RPC + UI(♡/♥) 완료
 - [x] 과제 삭제 기능 — 이미 구현되어 있음 (길게 누르기 → 삭제)
 
-## 테스트 대기 항목 (Resend DNS 확인 후 한번에 테스트)
-- [ ] OTP 이메일 발송 및 6자리 코드 수신 확인
-- [ ] 신규 회원 닉네임 입력 화면 표시 확인
-- [ ] 신고 기능 실제 작동 확인 (post_reports 테이블에 저장되는지)
-- [ ] 좋아요 중복 방지 확인 (같은 글 두 번 누르면 취소되는지)
-- [ ] 댓글 좋아요 작동 확인 (♡/♥ 토글, 숫자 증감)
+## 묶음 1·2 테스트 결과 (2026-05-05 완료)
+- [x] OTP 이메일 6자리 코드 수신 ✅
+- [x] 신규 회원 닉네임 입력 화면 표시 ✅
+- [x] 신고 기능 작동 (post_reports 저장 확인) ✅
+- [x] 좋아요 중복 방지 (♥→♡ 취소) ✅
+- [x] 댓글 좋아요 (♡/♥ 토글, 숫자 증감) ✅
 
 ## 🟡 묶음 3 — 계정 관련 기능
-- [ ] 닉네임 변경 기능
-- [ ] 탈퇴 기능
+- [ ] 닉네임 변경 기능 (ProfileScreen에 모달 이미 있음 — 작동 테스트 필요)
+- [ ] 탈퇴 기능 (delete-account Edge Function — 작동 테스트 완료, 재가입 후 닉네임 화면 확인)
 
 ## 🟢 묶음 4 — 콘텐츠 확장
 - [ ] 학교 15곳 추가 (국사관 편차치 기준, 캠퍼스 구분 포함)
