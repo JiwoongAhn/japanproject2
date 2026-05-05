@@ -42,13 +42,17 @@ export default function TimetableScreen({ navigation }) {
   const [selectedCourse, setSelectedCourse] = useState(null); // 모달에 표시할 수업
   const [todayColor, setTodayColor] = useState(colors.primary); // 오늘 요일 강조 색상
 
-  // Supabase에서 수업 목록 불러오기
+  // Supabase에서 본인 수업 목록 불러오기
   const fetchCourses = useCallback(async () => {
     setLoading(true);
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setLoading(false); return; }
 
     const { data, error } = await supabase
       .from('courses')
       .select('*')
+      .eq('user_id', user.id)
       .order('day_of_week')
       .order('period');
 
@@ -291,7 +295,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.textPrimary,
   },

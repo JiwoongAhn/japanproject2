@@ -72,9 +72,9 @@ export default function HomeScreen({ navigation }) {
       })();
 
       const [coursesRes, assignmentsRes, postsRes] = await Promise.all([
-        // 오늘 수업 (평일일 때만)
-        dbDay >= 0 && dbDay <= 4
-          ? supabase.from('courses').select('*').eq('day_of_week', dbDay).order('period')
+        // 오늘 수업 (평일일 때만, 본인 수업만)
+        dbDay >= 0 && dbDay <= 4 && user
+          ? supabase.from('courses').select('*').eq('user_id', user.id).eq('day_of_week', dbDay).order('period')
           : Promise.resolve({ data: [] }),
 
         // D-3 이내 미제출 과제

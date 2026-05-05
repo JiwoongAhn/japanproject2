@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.textPrimary,
   },
@@ -324,13 +324,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   categoryTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
     position: 'relative',
     alignItems: 'center',
   },
   categoryTabText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textSecondary,
     fontWeight: '500',
   },

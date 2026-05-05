@@ -15,6 +15,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../constants/colors';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/AuthProvider';
 import { universities } from '../constants/universities';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
@@ -31,6 +32,7 @@ const HIGHLIGHT_COLORS = [
 export const TODAY_COLOR_KEY = 'unipas_today_highlight_color';
 
 export default function ProfileScreen({ navigation }) {
+  const { refreshProfile } = useAuth();
   const [userEmail, setUserEmail]           = useState('');
   const [nickname, setNickname]             = useState('');
   const [universityName, setUniversityName] = useState('');
@@ -76,10 +78,10 @@ export default function ProfileScreen({ navigation }) {
       setPostsLoading(true);
       const { data: posts } = await supabase
         .from('posts')
-        .select('id, title, category, created_at, like_count, comment_count')
+        .select('id, title, category, created_at, like_count, post_comments(count)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(6); // 5개 초과 여부 확인용으로 6개 조회
       setMyPosts(posts ?? []);
     } catch {
       // 조용히 실패
@@ -92,6 +94,21 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // MyPosts에서 돌아왔을 때 게시글 목록만 재조회
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', async () => {
+      if (!userId) return;
+      const { data: posts } = await supabase
+        .from('posts')
+        .select('id, title, category, created_at, like_count, post_comments(count)')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(6);
+      setMyPosts(posts ?? []);
+    });
+    return unsubscribe;
+  }, [navigation, userId]);
 
   // 닉네임 변경
   const handleNicknameEdit = () => {
@@ -136,6 +153,8 @@ export default function ProfileScreen({ navigation }) {
 
       setNickname(trimmed);
       setNicknameModalVisible(false);
+      // AuthProvider 프로필 상태도 최신으로 동기화
+      await refreshProfile();
     } catch {
       Alert.alert('エラー', '通信エラーが発生しました');
     } finally {
@@ -273,15 +292,13 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <View style={styles.nicknameRow}>
-              <Text style={styles.nickname}>{nickname || studentId}</Text>
-              <TouchableOpacity style={styles.editBadge} onPress={handleNicknameEdit} activeOpacity={0.7}>
-                <Text style={styles.editBadgeText}>編集</Text>
-              </TouchableOpacity>
-            </View>
+            <Text style={styles.nickname}>{nickname || studentId}</Text>
             <Text style={styles.university}>{universityName}</Text>
             <Text style={styles.studentId}>{studentId}</Text>
           </View>
+          <TouchableOpacity style={styles.editButton} onPress={handleNicknameEdit} activeOpacity={0.7}>
+            <Text style={styles.editButtonText}>編集</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── 닉네임 변경 모달 ── */}
@@ -351,7 +368,18 @@ export default function ProfileScreen({ navigation }) {
 
         {/* ── 내가 올린 게시글 ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>投稿した掲示物</Text>
+          {/* 섹션 타이틀 + 전체보기 버튼 */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>投稿した掲示物</Text>
+            {myPosts.length > 0 && (
+              <TouchableOpacity
+                onPress={() => navigation.navigate('MyPosts')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.seeAllText}>すべて見る ›</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {postsLoading ? (
             <ActivityIndicator style={{ paddingVertical: 24 }} color={colors.primary} />
@@ -362,7 +390,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
           ) : (
             <View style={styles.postListCard}>
-              {myPosts.map((post, idx) => {
+              {myPosts.slice(0, 5).map((post, idx) => {
                 const cat = getCategoryInfo(post.category);
                 return (
                   <React.Fragment key={post.id}>
@@ -383,7 +411,7 @@ export default function ProfileScreen({ navigation }) {
                         <Text style={styles.postMeta}>
                           {formatTimeAgo(post.created_at)}
                           {post.like_count > 0 && `  ♡ ${post.like_count}`}
-                          {post.comment_count > 0 && `  💬 ${post.comment_count}`}
+                          {(post.post_comments?.[0]?.count ?? 0) > 0 && `  💬 ${post.post_comments[0].count}`}
                         </Text>
                       </View>
 
@@ -392,6 +420,20 @@ export default function ProfileScreen({ navigation }) {
                   </React.Fragment>
                 );
               })}
+              {/* 5개 초과 시 전체보기 행 */}
+              {myPosts.length > 5 && (
+                <>
+                  <View style={styles.divider} />
+                  <TouchableOpacity
+                    style={styles.seeAllRow}
+                    onPress={() => navigation.navigate('MyPosts')}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.seeAllRowText}>投稿をすべて見る</Text>
+                    <Text style={styles.chevron}>›</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           )}
         </View>
@@ -496,7 +538,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   pageTitle: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '700',
     color: colors.textPrimary,
   },
@@ -526,26 +568,21 @@ const styles = StyleSheet.create({
   profileInfo: {
     flex: 1,
   },
-  nicknameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 3,
-  },
   nickname: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.textPrimary,
+    marginBottom: 3,
   },
-  editBadge: {
+  editButton: {
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 10,
   },
-  editBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
+  editButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
     color: colors.primary,
   },
   university: {
@@ -563,12 +600,34 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    paddingLeft: 4,
+  },
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textSecondary,
-    marginBottom: 8,
-    paddingLeft: 4,
+  },
+  seeAllText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  seeAllRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+  },
+  seeAllRowText: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
   },
 
   // 정보 카드

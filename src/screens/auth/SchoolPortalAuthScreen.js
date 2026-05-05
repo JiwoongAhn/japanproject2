@@ -97,7 +97,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
               <Text style={styles.label}>学校メールアドレス</Text>
               <TextInput
                 style={styles.input}
-                placeholder={university?.emailDomain ? `例: 学籍番号@${university.emailDomain}` : 'example@university.ac.jp'}
+                placeholder={university?.emailDomain ? `学籍番号@${university.emailDomain}` : '学籍番号@university.ac.jp'}
                 placeholderTextColor={colors.textDisabled}
                 value={email}
                 onChangeText={setEmail}
@@ -207,6 +207,7 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 15,
     color: colors.textPrimary,
+    letterSpacing: 0,
   },
 
   infoBox: {

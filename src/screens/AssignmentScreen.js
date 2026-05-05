@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: colors.textPrimary,
   },
@@ -316,12 +316,12 @@ const styles = StyleSheet.create({
   },
   filterTab: {
     paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingVertical: 14,
     position: 'relative',
     alignItems: 'center',
   },
   filterTabText: {
-    fontSize: 14,
+    fontSize: 16,
     color: colors.textSecondary,
     fontWeight: '500',
   },

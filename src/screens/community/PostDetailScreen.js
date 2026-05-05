@@ -122,6 +122,54 @@ export default function PostDetailScreen({ navigation, route }) {
     setLikingComment(null);
   };
 
+  // ··· 메뉴 (내 글: 수정/삭제 / 타인 글: 신고)
+  const handleMenu = () => {
+    const isMyPost = post && currentUserId && post.user_id === currentUserId;
+    if (isMyPost) {
+      Alert.alert('投稿の管理', '', [
+        {
+          text: '編集する',
+          onPress: () => navigation.navigate('PostEdit', {
+            postId: post.id,
+            title: post.title,
+            body: post.body ?? '',
+          }),
+        },
+        {
+          text: '削除する',
+          style: 'destructive',
+          onPress: handleDeletePost,
+        },
+        { text: 'キャンセル', style: 'cancel' },
+      ]);
+    } else {
+      handleReport();
+    }
+  };
+
+  // 내 게시글 삭제
+  const handleDeletePost = () => {
+    Alert.alert(
+      '投稿を削除',
+      'この投稿を削除しますか？\nこの操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除する',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.from('posts').delete().eq('id', post.id);
+            if (error) {
+              Alert.alert('エラー', '削除に失敗しました');
+            } else {
+              navigation.goBack();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // 신고 기능
   const handleReport = () => {
     Alert.alert(
@@ -238,8 +286,8 @@ export default function PostDetailScreen({ navigation, route }) {
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>投稿</Text>
-        <TouchableOpacity onPress={handleReport} style={styles.reportButton}>
-          <Text style={styles.reportButtonText}>通報</Text>
+        <TouchableOpacity onPress={handleMenu} style={styles.reportButton}>
+          <Text style={styles.reportButtonText}>···</Text>
         </TouchableOpacity>
       </View>
 
@@ -415,8 +463,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   reportButtonText: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    letterSpacing: 2,
   },
 
   scrollContent: {

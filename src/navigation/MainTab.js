@@ -8,16 +8,20 @@ import AssignmentStack from './AssignmentStack';
 import CommunityStack from './CommunityStack';
 import ProfileScreen from '../screens/ProfileScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import MyPostsScreen from '../screens/community/MyPostsScreen';
+import PostEditScreen from '../screens/community/PostEditScreen';
 import { colors } from '../constants/colors';
 
 const Tab = createBottomTabNavigator();
 const ProfileStack = createNativeStackNavigator();
 
-// 마이페이지 탭: ProfileScreen + PrivacyPolicyScreen 스택
+// 마이페이지 탭: Profile + MyPosts + PostEdit + PrivacyPolicy 스택
 function ProfileStackNavigator() {
   return (
     <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
+      <ProfileStack.Screen name="MyPosts" component={MyPostsScreen} />
+      <ProfileStack.Screen name="PostEdit" component={PostEditScreen} />
       <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </ProfileStack.Navigator>
   );

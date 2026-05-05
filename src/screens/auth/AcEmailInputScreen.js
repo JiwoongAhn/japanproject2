@@ -84,7 +84,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
             <Text style={styles.title}>ニックネームを{'\n'}設定してください</Text>
             <Text style={styles.subtitle}>
               空き時間合わせで友達があなたを検索するIDになります。{'\n'}
-              後から変更はできません。
+              後からいつでも変更できます。
             </Text>
           </View>
 
@@ -93,14 +93,13 @@ export default function AcEmailInputScreen({ navigation, route }) {
               <Text style={styles.label}>ニックネーム</Text>
               <TextInput
                 style={styles.input}
-                placeholder="例: たろう（2〜10文字）"
+                placeholder="例：たろう"
                 placeholderTextColor={colors.textDisabled}
                 value={nickname}
                 onChangeText={setNickname}
                 autoCapitalize="none"
                 autoCorrect={false}
                 maxLength={10}
-                autoFocus
               />
               <Text style={styles.hint}>2〜10文字、スペース不可</Text>
             </View>
@@ -146,6 +145,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 12, padding: 16,
     fontSize: 15, color: colors.textPrimary,
+    letterSpacing: 0,
   },
   hint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
   button: {
