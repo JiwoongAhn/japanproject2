@@ -24,8 +24,8 @@ test.describe('시간표', () => {
     // 수업 추가 버튼 클릭
     await timetable.clickAddCourse();
 
-    // 수업 추가 화면 열림 확인
-    await expect(page.getByText('授業を追加')).toBeVisible({ timeout: 5000 });
+    // 수업 추가 화면 열림 확인 (exact: true — '＋ 授業を追加する' 등과 구분)
+    await expect(page.getByText('授業を追加', { exact: true })).toBeVisible({ timeout: 5000 });
 
     // 폼 입력
     await courseAdd.fillCourseName(TEST_COURSE.name);
@@ -35,11 +35,11 @@ test.describe('시간표', () => {
     // 저장 버튼 클릭
     await courseAdd.submit();
 
-    // 시간표 화면으로 돌아옴 확인 (헤더 타이틀 .first())
-    await expect(page.getByText('時間割').first()).toBeVisible({ timeout: 10000 });
+    // 수업 추가 화면이 닫힐 때까지 대기 (exact: true — 화면 헤더만 매칭)
+    await expect(page.getByText('授業を追加', { exact: true })).not.toBeVisible({ timeout: 10000 });
 
-    // 추가한 수업이 그리드에 표시되는지 확인
-    await expect(page.getByText(TEST_COURSE.name)).toBeVisible({ timeout: 5000 });
+    // fetchCourses()가 완료된 후 그리드에 수업이 표시되는지 확인
+    await expect(page.getByText(TEST_COURSE.name)).toBeVisible({ timeout: 10000 });
   });
 
   test('T-3: 필수 항목(과목명, 요일, 교시) 미입력 시 저장 버튼이 비활성화된다', async ({ loggedInPage }) => {
@@ -49,7 +49,7 @@ test.describe('시간표', () => {
     // 시간표 탭으로 이동 후 수업 추가 화면 열기
     await timetable.goToTimetableTab();
     await timetable.clickAddCourse();
-    await expect(page.getByText('授業を追加')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('授業を追加', { exact: true })).toBeVisible({ timeout: 5000 });
 
     // React Native Web: disabled 버튼은 opacity 0.5 적용 (toBeDisabled() 미지원)
     const getSaveBtnOpacity = () =>

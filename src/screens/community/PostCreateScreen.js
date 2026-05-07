@@ -13,8 +13,10 @@ import {
 import { colors } from '../../constants/colors';
 import { BOARD_CATEGORIES } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../lib/AuthProvider';
 
 export default function PostCreateScreen({ navigation }) {
+  const { session, profile } = useAuth();
   const [category, setCategory] = useState('');        // 선택한 카테고리
   const [title, setTitle] = useState('');              // 제목
   const [body, setBody] = useState('');                // 본문
@@ -29,16 +31,15 @@ export default function PostCreateScreen({ navigation }) {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
 
-    // 현재 로그인된 사용자 확인
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    if (!session?.user) {
       Alert.alert('エラー', 'ログインが必要です');
       setSubmitting(false);
       return;
     }
 
     const { error } = await supabase.from('posts').insert({
-      user_id: user.id,
+      user_id: session.user.id,
+      university: profile.university,  // 학교별 격리: 게시글에 소속 대학 저장
       category,
       title: title.trim(),
       body: body.trim() || null,

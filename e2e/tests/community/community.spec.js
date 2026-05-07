@@ -26,8 +26,8 @@ test.describe('게시판', () => {
     // 게시글 작성 화면 열림 확인 (제목 입력창으로 판단)
     await expect(page.getByPlaceholder('タイトルを入力してください')).toBeVisible({ timeout: 5000 });
 
-    // 카테고리 선택 (フリー)
-    await postCreate.selectCategory('フリー');
+    // 카테고리 선택 (自由 — boardCategories.js의 실제 label)
+    await postCreate.selectCategory('自由');
 
     // 제목 입력
     await postCreate.fillTitle(TEST_POST.title);

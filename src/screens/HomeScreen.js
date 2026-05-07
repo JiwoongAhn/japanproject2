@@ -14,16 +14,11 @@ import { colors } from '../constants/colors';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { getCourseColor } from '../constants/courseColors';
 import { supabase } from '../lib/supabase';
-import { getCourseStatus, PERIOD_RANGES } from '../utils/timetable';
+import { getCourseStatus, getPeriodRanges } from '../utils/timetable';
 import { getDdayColor } from '../utils/assignment';
 import { getTodayStr } from '../utils/date';
+import { getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { universities } from '../constants/universities';
-
-// 로그인한 사용자의 대학 ID로 대학 정보 찾기 (없으면 국사관 기본값)
-function getUniversityInfo(email) {
-  const domainPart = email?.split('@')?.[1]?.split('.')?.[0] ?? '';
-  return universities.find(u => u.id === domainPart) ?? universities[0];
-}
 
 export default function HomeScreen({ navigation }) {
   const [todayCourses, setTodayCourses] = useState([]);
@@ -118,6 +113,8 @@ export default function HomeScreen({ navigation }) {
 
   // 현재 분(자정 기준)
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  // 현재 학교의 URL 정보
+  const links = getUniversityLinks(universityInfo?.id);
 
   // 아바타 이니셜: 학번 첫 글자 (없으면 이메일 첫 글자)
   const avatarLetter = nickname
@@ -175,9 +172,9 @@ export default function HomeScreen({ navigation }) {
             </View>
           ) : (
             todayCourses.map((course, index) => {
-              const status = getCourseStatus(course.period, nowMin, todayCourses);
+              const status = getCourseStatus(course.period, nowMin, todayCourses, universityInfo);
               const barColor = getCourseColor(course.id).accent;
-              const range = PERIOD_RANGES[course.period];
+              const range = getPeriodRanges(universityInfo)[course.period];
               const startH = Math.floor(range.start / 60);
               const startM = range.start % 60;
               const endH = Math.floor(range.end / 60);
@@ -305,9 +302,9 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.sectionTitle}>学校情報</Text>
           <View style={styles.schoolGrid}>
             {[
-              { icon: '📚', label: 'manaba',       url: universityInfo.manabaUrl   },
-              { icon: '📅', label: 'kaede-i',      url: universityInfo.kaedeUrl    },
-              { icon: '🏫', label: 'ホームページ', url: universityInfo.homepageUrl },
+              { icon: '📚', label: 'manaba',       url: links.manabaUrl   },
+              { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl    },
+              { icon: '🏫', label: 'ホームページ', url: links.homepageUrl },
             ].filter(item => item.url).map((item) => (
               <TouchableOpacity
                 key={item.label}

@@ -1,7 +1,7 @@
 // 시간표 관련 순수 함수
 // 테스트 대상: timetable.test.js
 
-// 국사관대학 교시별 시작·종료 시간 (자정 기준 분수)
+// 국사관대학 교시 시간 — 다른 학교에 periodRanges가 없을 경우 기본값으로 사용
 export const PERIOD_RANGES = {
   1: { start: 9 * 60,       end: 10 * 60 + 30  }, // 9:00 ~ 10:30
   2: { start: 10 * 60 + 45, end: 12 * 60 + 15  }, // 10:45 ~ 12:15
@@ -13,10 +13,14 @@ export const PERIOD_RANGES = {
   8: { start: 21 * 60 + 40, end: 23 * 60 + 10  }, // 21:40 ~ 23:10
 };
 
+// 학교별 교시 시간 반환 (universities.js의 periodRanges 필드 사용, 없으면 국사관 기본값)
+export function getPeriodRanges(university) {
+  return university?.periodRanges ?? PERIOD_RANGES;
+}
+
 // 교시 번호 → 시작 시간 문자열 반환 (예: 1 → '9:00')
-// PERIOD_RANGES 기반으로 계산하므로 PERIOD_TIMES 상수를 별도로 유지할 필요 없음
-export function getPeriodStartTimeStr(period) {
-  const range = PERIOD_RANGES[period];
+export function getPeriodStartTimeStr(period, university) {
+  const range = getPeriodRanges(university)[period];
   if (!range) return '';
   const h = Math.floor(range.start / 60);
   const m = range.start % 60;
@@ -43,9 +47,11 @@ export function calculateFreePeriods(courses) {
 // period: 교시 번호 (1~8)
 // nowMin: 자정 기준 현재 분수 (예: 9시30분 = 570)
 // todayCoursesSorted: 오늘 수업 목록 (period 오름차순 정렬)
+// university: 학교 객체 (없으면 국사관 기본값)
 // 반환값: '進行中' | '次の授業' | '終了' | '未開始'
-export function getCourseStatus(period, nowMin, todayCoursesSorted) {
-  const range = PERIOD_RANGES[period];
+export function getCourseStatus(period, nowMin, todayCoursesSorted, university) {
+  const ranges = getPeriodRanges(university);
+  const range = ranges[period];
   if (!range) return '未開始';
 
   if (nowMin >= range.start && nowMin < range.end) return '進行中';
@@ -53,7 +59,7 @@ export function getCourseStatus(period, nowMin, todayCoursesSorted) {
 
   // 아직 시작 전 — 오늘 수업 중 다음 교시인지 판단
   const sortedPeriods = todayCoursesSorted.map(c => c.period);
-  const futureIdx = sortedPeriods.filter(p => PERIOD_RANGES[p]?.start > nowMin);
+  const futureIdx = sortedPeriods.filter(p => ranges[p]?.start > nowMin);
   if (futureIdx.length > 0 && futureIdx[0] === period) return '次の授業';
   return '未開始';
 }

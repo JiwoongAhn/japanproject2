@@ -120,24 +120,26 @@ function CalendarPicker({ selectedDate, onSelectDate }) {
           return (
             <TouchableOpacity
               key={idx}
-              style={[
-                calStyles.cell,
-                isSelected && calStyles.cellSelected,
-                isToday && !isSelected && calStyles.cellToday,
-              ]}
+              style={calStyles.cell}
               onPress={() => onSelectDate(dateStr)}
               activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  calStyles.dayText,
-                  col === 0 && { color: '#EF4444' },
-                  col === 6 && { color: '#3182F6' },
-                  isSelected && calStyles.dayTextSelected,
-                ]}
-              >
-                {day}
-              </Text>
+              <View style={[
+                calStyles.dayCircle,
+                isSelected && calStyles.dayCircleSelected,
+                isToday && !isSelected && calStyles.dayCircleToday,
+              ]}>
+                <Text
+                  style={[
+                    calStyles.dayText,
+                    col === 0 && { color: '#EF4444' },
+                    col === 6 && { color: '#3182F6' },
+                    isSelected && calStyles.dayTextSelected,
+                  ]}
+                >
+                  {day}
+                </Text>
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -203,19 +205,19 @@ const calStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cellSelected: {
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    margin: 2,
-    width: undefined,
-    aspectRatio: 1,
-    // 원형으로 만들기 위해 width 고정이 필요 — 부모 flex 기반이므로 paddingVertical 조정
+  dayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  cellToday: {
+  dayCircleSelected: {
+    backgroundColor: colors.primary,
+  },
+  dayCircleToday: {
     borderWidth: 1.5,
     borderColor: colors.primary,
-    borderRadius: 999,
-    margin: 2,
   },
   dayText: {
     fontSize: 13,

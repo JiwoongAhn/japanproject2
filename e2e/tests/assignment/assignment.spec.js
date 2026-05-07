@@ -25,32 +25,33 @@ test.describe('과제', () => {
     // ＋ 追加 버튼 클릭
     await assignment.clickAddAssignment();
 
-    // 과제 추가 화면 열림 확인
-    await expect(page.getByText('課題を追加')).toBeVisible({ timeout: 5000 });
+    // 과제 추가 화면 열림 확인 (exact: true — '＋ 課題を追加する'와 구분)
+    await expect(page.getByText('課題を追加', { exact: true })).toBeVisible({ timeout: 5000 });
 
     // 폼 입력
     await addPage.fillCourseName(TEST_ASSIGNMENT.courseName);
     await addPage.fillTitle(TEST_ASSIGNMENT.title);
-    // dueDate: '20271231' → formatDueDate가 '2027-12-31'로 변환
-    await addPage.fillDueDate('2027-12-31');
+    // 달력에서 내달 날짜 선택 (2026-06-15)
+    await addPage.fillDueDate('2026-06-15');
 
     // 저장 버튼 클릭
     await addPage.submit();
 
     // 과제 목록 화면으로 돌아옴 확인 (課題 헤더 텍스트 표시)
     await expect(page.getByText('課題').first()).toBeVisible({ timeout: 5000 });
-    // 과제 추가 화면이 사라짐 확인
-    await expect(page.getByText('課題を追加')).not.toBeVisible({ timeout: 3000 });
+    // 과제 추가 화면이 사라짐 확인 (exact: true — '＋ 課題を追加する'는 남아있음)
+    await expect(page.getByText('課題を追加', { exact: true })).not.toBeVisible({ timeout: 5000 });
   });
 
   test('AS-5: 필수 항목(과목명, 제목, 마감일) 미입력 시 저장 버튼이 비활성화된다', async ({ loggedInPage }) => {
     const page = loggedInPage;
     const assignment = new AssignmentPage(page);
+    const addPage = new AssignmentAddPage(page);
 
     // 과제 탭으로 이동 후 추가 화면 열기
     await assignment.goToAssignmentTab();
     await assignment.clickAddAssignment();
-    await expect(page.getByText('課題を追加')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('課題を追加', { exact: true })).toBeVisible({ timeout: 5000 });
 
     // React Native Web: disabled 버튼은 opacity 0.5 적용 (toBeDisabled() 미지원)
     const getSaveBtnOpacity = () =>
@@ -75,8 +76,8 @@ test.describe('과제', () => {
     await page.getByPlaceholder('例: 第3章 レポート提出').fill('テスト課題');
     expect(await getSaveBtnOpacity()).toBeLessThan(1);
 
-    // 마감일까지 입력 — opacity 1.0 (활성화)
-    await page.getByPlaceholder('例: 2026-04-15').fill('2027-12-31');
+    // 마감일까지 입력 — 달력에서 날짜 선택 → opacity 1.0 (활성화)
+    await addPage.fillDueDate('2026-06-15');
     expect(await getSaveBtnOpacity()).toBe(1);
   });
 });

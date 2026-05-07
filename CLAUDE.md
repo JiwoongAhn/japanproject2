@@ -80,7 +80,7 @@ japanproject/
 
 ---
 
-# Supabase 설정 완료 현황 (2026-05-05 기준)
+# Supabase 설정 완료 현황 (2026-05-07 기준)
 
 - [x] Authentication → Email → **"Confirm email" ON** (OTP 인증 활성화)
 - [x] `profiles.school_email` / `student_id` / `share_timetable` 컬럼 추가 완료
@@ -90,6 +90,14 @@ japanproject/
 - [x] `comment_likes` 테이블 + `toggle_comment_like` RPC 생성 완료 (댓글 좋아요)
 - [x] OTP 토큰 자리수 6자리로 설정 완료
 - [x] 이메일 템플릿 수정 완료 — Magic Link + Confirm signup 모두 `{{ .Token }}` 6자리 코드 표시
+- [x] `posts.university` / `course_reviews.university` 컬럼 추가 완료 (학교별 격리)
+- [x] `get_my_university()` SECURITY DEFINER 함수 생성 완료 (RLS 무한재귀 방지)
+- [x] 학교별 데이터 격리 RLS 정책 적용 완료 (2026-05-07)
+  - `profiles`: 본인 + 같은 학교 사용자만 조회
+  - `posts`: 같은 학교 게시글만 조회
+  - `post_comments`: 같은 학교 게시글의 댓글만 조회
+  - `courses`: 본인 시간표 + 같은 학교 공유 시간표만 조회
+  - `course_reviews`: 같은 학교 강의평가만 조회
 
 ## 인증 아키텍처 (2026-04-24 변경)
 
@@ -137,7 +145,7 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 
 ---
 
-# 작업 묶음 진행 현황 (2026-05-05 기준)
+# 작업 묶음 진행 현황 (2026-05-07 기준)
 
 ## 🔴 묶음 1 — 핵심 버그 수정 ✅ 완료
 - [x] OTP 이메일 6자리 코드 발송 — Resend SMTP + Cloudflare DNS + 이메일 템플릿 수정 완료
@@ -158,13 +166,42 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 - [x] 좋아요 중복 방지 (♥→♡ 취소) ✅
 - [x] 댓글 좋아요 (♡/♥ 토글, 숫자 증감) ✅
 
-## 🟡 묶음 3 — 계정 관련 기능
-- [ ] 닉네임 변경 기능 (ProfileScreen에 모달 이미 있음 — 작동 테스트 필요)
-- [ ] 탈퇴 기능 (delete-account Edge Function — 작동 테스트 완료, 재가입 후 닉네임 화면 확인)
+## 🔴 묶음 3 — 계정 관련 기능 ✅ 완료
+- [x] 닉네임 변경 모달 작동 확인 + refreshProfile() 동기화 추가
+- [x] 탈퇴 후 재가입 시 닉네임 입력 화면 정상 표시 확인
+- [x] AcEmailInputScreen 문구 수정 ("後からいつでも変更できます")
+- [x] 이메일/닉네임 입력 placeholder letterSpacing 버그 수정 (iOS 글자 간격)
+- [x] autoFocus 제거 — 닉네임 화면 부제목 표시 보장
+- [x] 편집 버튼 프로필 카드 우측 끝으로 이동 및 크기 확대
+- [x] 시간표 타인 수업 노출 버그 수정 (user_id 필터 추가)
+- [x] 홈 오늘 수업 타인 수업 노출 버그 수정
+- [x] 마이페이지 내 게시글 조회 버그 수정 (comment_count → post_comments(count))
+- [x] PostDetailScreen — 내 글이면 수정/삭제 메뉴(···), 타인 글이면 신고
+- [x] MyPostsScreen 새로 추가 — 전체 목록, 수정/삭제 버튼, 포커스 시 새로고침
+- [x] PostEditScreen 새로 추가 — 제목/본문 수정
+- [x] 마이페이지 게시글 5개 미리보기 + "すべて見る" 버튼
+- [x] ProfileScreen 포커스 리스너 추가 — MyPosts 삭제 후 목록 동기화
+- [x] 각 탭 헤더 글씨 크기 확대 (20→24, 22→26)
+- [x] 세부 탭 글씨 크기 확대 (14→16, paddingVertical 12→14)
+- [x] ··· 버튼 크기 확대 (12→22)
+- [x] 홈 최신 게시글 3개 표시 — 전체 유저 대상 이미 구현됨 확인
+- [x] 인기글 기능 판단 — 구현 가능, 사용자 증가 후 전환 예정
 
-## 🟢 묶음 4 — 콘텐츠 확장
-- [ ] 학교 15곳 추가 (국사관 편차치 기준, 캠퍼스 구분 포함)
-- [ ] 모바일 UI 최적화
+## 🔵 묶음 3.5 — 학교별 데이터 격리 ✅ 완료 (2026-05-07)
+- [x] `posts` / `course_reviews` 테이블에 `university` 컬럼 추가
+- [x] `PostCreateScreen` INSERT 시 `university` 필드 포함
+- [x] `CourseReviewCreateScreen` INSERT 시 `university` 필드 포함
+- [x] Supabase RLS 정책 전면 교체 (5개 테이블 — SECURITY DEFINER 함수로 무한재귀 방지)
+- [x] 대학 목록 확장 — 大阪国際大学(oiu.jp), 日本文理大学(nbu.ac.jp) 추가 → **총 17개 대학**
+- [x] E2E Playwright 테스트 24개 전부 통과 (Chrome / 모바일 Chrome / Safari)
+  - 달력 날짜 선택 방식으로 AS-3/AS-5 수정
+  - 카테고리 라벨 수정 (フリー → 自由) C-4
+  - strict mode 위반 수정 (T-2, T-3)
+  - supabaseHelper upsert로 테스트 계정 닉네임 보장
+
+## 🟢 묶음 4 — 콘텐츠 확장 (다음 작업 — 옵션 B: 내용 먼저 정의 후 진행)
+- [x] 학교 추가 — 17개 대학 지원 중 (묶음 3.5에서 완료)
+- [ ] 모바일 UI 최적화 (구체적 항목 정의 필요)
 
 ## 🟢 묶음 5 — 새 기능
 - [ ] 게시판 사진 업로드

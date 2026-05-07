@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../lib/AuthProvider';
 import { toggleTag as toggleTagFn, addCustomTag as addCustomTagFn } from '../../utils/review';
 
 // 미리 정의된 태그 추천 목록
@@ -52,6 +53,8 @@ const starStyles = StyleSheet.create({
 });
 
 export default function CourseReviewCreateScreen({ navigation, route }) {
+  const { session, profile } = useAuth();
+
   // 시간표 수업 셀에서 넘어온 경우 과목명/교수명 미리 채우기
   const { courseName: preCourseName = '', professorName: preProfessorName = '' } = route.params || {};
 
@@ -84,15 +87,15 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    if (!session?.user) {
       Alert.alert('エラー', 'ログインが必要です');
       setSubmitting(false);
       return;
     }
 
     const { error } = await supabase.from('course_reviews').insert({
-      user_id: user.id,
+      user_id: session.user.id,
+      university: profile.university,  // 학교별 격리: 강의평가에 소속 대학 저장
       course_name: courseName.trim(),
       professor_name: professorName.trim() || null,
       rating,

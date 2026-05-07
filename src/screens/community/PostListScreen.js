@@ -14,7 +14,7 @@ import { colors } from '../../constants/colors';
 import { BOARD_CATEGORIES, getCategoryInfo } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
 import { formatTimeAgo } from '../../utils/community';
-import { universities } from '../../constants/universities';
+import { getUniversityInfo } from '../../utils/university';
 
 // 한 번에 로드하는 게시글 수
 const PAGE_SIZE = 20;
@@ -33,15 +33,13 @@ export default function PostListScreen({ navigation }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [universityName, setUniversityName] = useState(universities[0].name);
+  const [universityName, setUniversityName] = useState('');
 
   // 로그인 유저의 대학 이름 가져오기
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user?.email) return;
-      const domainPart = user.email.split('@')?.[1]?.split('.')?.[0] ?? '';
-      const uni = universities.find(u => u.id === domainPart) ?? universities[0];
-      setUniversityName(uni.name);
+      setUniversityName(getUniversityInfo(user.email).name);
     });
   }, []);
   // pageRef: 현재 로드된 페이지 (0부터 시작). 렌더링 트리거 없이 관리

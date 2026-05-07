@@ -220,8 +220,8 @@ export default function AssignmentScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
         >
-          {/* 탭으로 제출 상태 전환, 길게 누르면 삭제 안내 */}
-          <Text style={styles.hint}>タップで状態切替 / 長押しで削除</Text>
+          {/* 탭으로 제출 상태 전환, ···버튼으로 삭제 */}
+          <Text style={styles.hint}>タップで状態切替 / ···で削除</Text>
 
           {filteredAssignments.map((assignment) => {
             const displayStatus = getDisplayStatus(assignment);
@@ -236,16 +236,23 @@ export default function AssignmentScreen({ navigation }) {
                 style={[styles.card, isOverdue && styles.cardOverdue]}
                 activeOpacity={0.75}
                 onPress={() => handleToggleStatus(assignment)}
-                onLongPress={() => handleDeleteAssignment(assignment)}
-                delayLongPress={500}
               >
-                {/* 카드 상단: 수업명 + 상태 배지 */}
+                {/* 카드 상단: 수업명 + 상태 배지 + ···버튼 */}
                 <View style={styles.cardHeader}>
                   <Text style={styles.courseName}>{courseName}</Text>
-                  <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
-                    <Text style={[styles.statusText, { color: statusCfg.text }]}>
-                      {statusCfg.label}
-                    </Text>
+                  <View style={styles.cardHeaderRight}>
+                    <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
+                      <Text style={[styles.statusText, { color: statusCfg.text }]}>
+                        {statusCfg.label}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.moreButton}
+                      onPress={() => handleDeleteAssignment(assignment)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.moreButtonText}>···</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
 
@@ -404,12 +411,17 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.danger,
   },
 
-  // 카드 상단 행: 수업명 + 상태 배지
+  // 카드 상단 행: 수업명 + 상태 배지 + ···버튼
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+  },
+  cardHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   courseName: {
     fontSize: 12,
@@ -425,6 +437,16 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  moreButton: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  moreButtonText: {
+    fontSize: 16,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    letterSpacing: 1,
   },
 
   // 과제 제목

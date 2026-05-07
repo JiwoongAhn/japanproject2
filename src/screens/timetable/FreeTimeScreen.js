@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
@@ -29,6 +31,7 @@ const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 32 - 28 - PERIOD_COL_WIDTH - 10) /
 const CELL_HEIGHT = 48;
 
 export default function FreeTimeScreen({ navigation }) {
+  const scrollViewRef = useRef(null);
   const [myNickname, setMyNickname] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -208,7 +211,15 @@ export default function FreeTimeScreen({ navigation }) {
         <View style={{ width: 36 }} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+      <ScrollView
+        ref={scrollViewRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
 
         {/* ── 내 ID 카드 ── */}
         {myNickname ? (
@@ -325,6 +336,11 @@ export default function FreeTimeScreen({ navigation }) {
                   setCommonCells(new Set());
                 }
               }}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 300);
+              }}
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -362,6 +378,7 @@ export default function FreeTimeScreen({ navigation }) {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

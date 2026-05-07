@@ -1,59 +1,97 @@
 /**
- * supabaseHelper.js — 테스트용 DB 데이터 관리
+ * supabaseHelper.js — E2E 테스트용 Supabase Admin 헬퍼
  *
- * 역할:
- *  - 테스트 시작 전: 테스트 데이터를 DB에 삽입 (seed)
- *  - 테스트 종료 후: 테스트 데이터를 DB에서 삭제 (cleanup)
+ * Service Role Key로 테스트 계정을 관리하고 세션 토큰을 발급합니다.
+ * magic link 방식 대신 signInWithPassword를 사용해 redirect URL 화이트리스트 불필요.
  *
- * 이렇게 해야 테스트가 실제 사용자 데이터에 영향을 주지 않습니다.
- *
- * 나중에 모바일로 전환해도 이 파일은 그대로 재사용 가능합니다.
- * (Supabase 연동은 플랫폼 무관)
+ * 필요한 환경변수 (.env):
+ *   E2E_SUPABASE_SERVICE_ROLE_KEY  — Supabase 대시보드 > Settings > API > service_role
+ *   EXPO_PUBLIC_SUPABASE_ANON_KEY  — 이미 설정되어 있음
  */
 
-// Supabase admin 클라이언트는 service_role 키가 필요합니다.
-// 환경변수: E2E_SUPABASE_URL, E2E_SUPABASE_SERVICE_ROLE_KEY
-// (일반 anon 키로는 RLS 때문에 다른 유저 데이터 삭제 불가)
+const { createClient } = require('@supabase/supabase-js');
 
-const SUPABASE_URL = process.env.E2E_SUPABASE_URL;
+const SUPABASE_URL = 'https://rexnpusrxezuztxmkaex.supabase.co';
 const SERVICE_ROLE_KEY = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
 
-let supabase = null;
+const TEST_USER_EMAIL    = 'e2etest@kokushikan.ac.jp';
+const TEST_USER_PASSWORD = 'Unipas-E2E-2024!';
+const TEST_UNIVERSITY    = '国士館大学';
+const TEST_NICKNAME      = 'e2eテスター';
 
-function getClient() {
-  if (!supabase) {
-    // TODO: @supabase/supabase-js 를 사용하는 admin 클라이언트 초기화
-    // const { createClient } = require('@supabase/supabase-js');
-    // supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+function getAdminClient() {
+  if (!SERVICE_ROLE_KEY) {
+    throw new Error(
+      'E2E_SUPABASE_SERVICE_ROLE_KEY 환경변수가 없습니다.\n' +
+      '.env 파일에 E2E_SUPABASE_SERVICE_ROLE_KEY=... 를 추가하세요.'
+    );
   }
-  return supabase;
+  return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 
 /**
- * 테스트용 과제 데이터 삽입
- * @param {string} userId
- * @param {object} data  { course_name, title, due_date, status }
+ * 테스트 유저 + 프로필 확보 (없으면 생성, 있으면 비밀번호 동기화)
  */
-async function seedAssignment(userId, data) {
-  // TODO: 구현 필요
+async function ensureTestUser() {
+  const admin = getAdminClient();
+
+  const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  let userId;
+  const existing = users.find(u => u.email === TEST_USER_EMAIL);
+
+  if (existing) {
+    userId = existing.id;
+    // 비밀번호가 설정되지 않았을 수 있으므로 항상 동기화
+    await admin.auth.admin.updateUserById(userId, {
+      password: TEST_USER_PASSWORD,
+      email_confirm: true,
+    });
+  } else {
+    const { data: { user }, error } = await admin.auth.admin.createUser({
+      email: TEST_USER_EMAIL,
+      password: TEST_USER_PASSWORD,
+      email_confirm: true,
+    });
+    if (error) throw new Error(`createUser 실패: ${error.message}`);
+    userId = user.id;
+  }
+
+  // 프로필 upsert — nickname이 있어야 AcEmailInput 화면이 뜨지 않음
+  // (AppNavigator: profile !== null && !profile.nickname → needsNickname = true)
+  const { error: profileError } = await admin.from('profiles').upsert({
+    id: userId,
+    university: TEST_UNIVERSITY,
+    nickname: TEST_NICKNAME,
+    school_email: TEST_USER_EMAIL,
+  }, { onConflict: 'id' });
+  if (profileError) throw new Error(`profiles upsert 실패: ${profileError.message}`);
+
+  return userId;
 }
 
 /**
- * 테스트용 게시글 데이터 삽입
- * @param {string} userId
- * @param {object} data  { title, body, category, is_anonymous }
+ * 테스트 세션 발급 (access_token, refresh_token 반환)
+ * signInWithPassword를 사용하므로 redirect URL 화이트리스트 불필요
  */
-async function seedPost(userId, data) {
-  // TODO: 구현 필요
-}
+async function getTestSession() {
+  await ensureTestUser();
 
-/**
- * 테스트용 수업 데이터 삽입
- * @param {string} userId
- * @param {object} data  { name, day_of_week, period, room }
- */
-async function seedCourse(userId, data) {
-  // TODO: 구현 필요
+  const ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  if (!ANON_KEY) throw new Error('EXPO_PUBLIC_SUPABASE_ANON_KEY 환경변수가 없습니다.');
+
+  const anonClient = createClient(SUPABASE_URL, ANON_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: { session }, error } = await anonClient.auth.signInWithPassword({
+    email: TEST_USER_EMAIL,
+    password: TEST_USER_PASSWORD,
+  });
+  if (error) throw new Error(`signInWithPassword 실패: ${error.message}`);
+
+  return session;
 }
 
 /**
@@ -61,12 +99,19 @@ async function seedCourse(userId, data) {
  * @param {string} userId
  */
 async function cleanupUser(userId) {
-  // TODO: assignments, posts, courses, course_reviews 전부 삭제
+  const admin = getAdminClient();
+  await admin.from('post_comments').delete().eq('user_id', userId);
+  await admin.from('post_likes').delete().eq('user_id', userId);
+  await admin.from('posts').delete().eq('user_id', userId);
+  await admin.from('assignments').delete().eq('user_id', userId);
+  await admin.from('courses').delete().eq('user_id', userId);
+  await admin.from('course_reviews').delete().eq('user_id', userId);
 }
 
 module.exports = {
-  seedAssignment,
-  seedPost,
-  seedCourse,
+  getTestSession,
   cleanupUser,
+  TEST_USER_EMAIL,
+  TEST_UNIVERSITY,
+  TEST_NICKNAME,
 };

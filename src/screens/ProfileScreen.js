@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../constants/colors';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthProvider';
-import { universities } from '../constants/universities';
+import { getUniversityInfo } from '../utils/university';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
 
@@ -56,10 +56,8 @@ export default function ProfileScreen({ navigation }) {
       setUserEmail(user.email ?? '');
       setUserId(user.id);
 
-      // 대학 이름 추출 (이메일 도메인에서)
-      const domainPart = user.email?.split('@')?.[1]?.split('.')?.[0] ?? '';
-      const uni = universities.find(u => u.id === domainPart) ?? universities[0];
-      setUniversityName(uni.name);
+      // 대학 이름 추출
+      setUniversityName(getUniversityInfo(user.email).name);
 
       // 닉네임 + 공강 공유 설정 조회
       const { data: profile } = await supabase

@@ -11,9 +11,6 @@ import {
   Linking,
 } from 'react-native';
 
-// 国士舘大学 シラバス URL
-// ※ ログインが必要な場合はポータルURL (https://portal.kokushikan.ac.jp/) に変更してください
-const SYLLABUS_URL = 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
@@ -21,6 +18,8 @@ import { getCourseColor } from '../../constants/courseColors';
 import CourseDetailModal from './CourseDetailModal';
 import { getPeriodStartTimeStr } from '../../utils/timetable';
 import { TODAY_COLOR_KEY } from '../ProfileScreen';
+import { useAuth } from '../../lib/AuthProvider';
+import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 
 // 요일 레이블 (일본어)
 const DAYS = ['月', '火', '水', '木', '金'];
@@ -37,6 +36,11 @@ const jsDay = new Date().getDay();
 const TODAY_COL = (jsDay >= 1 && jsDay <= 5) ? jsDay - 1 : -1;
 
 export default function TimetableScreen({ navigation }) {
+  const { session } = useAuth();
+  // 현재 로그인한 대학 정보
+  const universityInfo = getUniversityInfo(session?.user?.email);
+  const links = getUniversityLinks(universityInfo.id);
+
   const [courses, setCourses] = useState([]);    // 수업 목록
   const [loading, setLoading] = useState(true);  // 로딩 상태
   const [selectedCourse, setSelectedCourse] = useState(null); // 모달에 표시할 수업
@@ -147,7 +151,7 @@ export default function TimetableScreen({ navigation }) {
               {/* 교시 번호 + 시간 */}
               <View style={styles.periodLabelCell}>
                 <Text style={styles.periodLabelText}>{period}</Text>
-                <Text style={styles.periodTimeText}>{getPeriodStartTimeStr(period)}</Text>
+                <Text style={styles.periodTimeText}>{getPeriodStartTimeStr(period, universityInfo)}</Text>
               </View>
 
               {/* 요일별 셀 */}
@@ -233,18 +237,20 @@ export default function TimetableScreen({ navigation }) {
               </View>
               <Text style={styles.menuCardChevron}>›</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.menuCard}
-              activeOpacity={0.75}
-              onPress={() => Linking.openURL(SYLLABUS_URL)}
-            >
-              <Text style={styles.menuCardIcon}>📖</Text>
-              <View style={styles.menuCardText}>
-                <Text style={styles.menuCardTitle}>シラバス</Text>
-                <Text style={styles.menuCardDesc}>國士舘大学 シラバス検索システム</Text>
-              </View>
-              <Text style={styles.menuCardChevron}>›</Text>
-            </TouchableOpacity>
+            {links.syllabusUrl ? (
+              <TouchableOpacity
+                style={styles.menuCard}
+                activeOpacity={0.75}
+                onPress={() => Linking.openURL(links.syllabusUrl)}
+              >
+                <Text style={styles.menuCardIcon}>📖</Text>
+                <View style={styles.menuCardText}>
+                  <Text style={styles.menuCardTitle}>シラバス</Text>
+                  <Text style={styles.menuCardDesc}>{universityInfo.name} シラバス検索システム</Text>
+                </View>
+                <Text style={styles.menuCardChevron}>›</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           {/* 하단 여백 */}
