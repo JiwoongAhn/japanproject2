@@ -224,7 +224,12 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 - [x] universityLinks 업데이트 — lmsUrl/lmsLabel 필드 추가 (WebClass, UNIPA, Open LMS 등)
 - [x] HomeScreen — manaba 없는 학교에 lmsLabel(WebClass 등) 표시
 - [x] CLAUDE.md — 새 학교 추가 체크리스트 추가
-- [ ] 모바일 UI 최적화 (항목 선택 후 진행)
+- [x] 모바일 UI 최적화 완료 (2026-05-10)
+  - A-4: 하단 탭바 겹침 — paddingBottom 84로 통일 (홈/과제/시간표)
+  - A-2: 키보드 가림 — PostCreateScreen, CourseReviewCreateScreen KeyboardAvoidingView 추가
+  - C-2: 긴 텍스트 줄임 — 홈/프로필/강의평가 4곳 numberOfLines 추가
+  - D-1: CourseReviewScreen key={index} 버그 수정
+  - C-3, B-2: 이미 구현 완료 확인
 
 ## 🟢 묶음 5 — 새 기능
 - [ ] 게시판 사진 업로드
