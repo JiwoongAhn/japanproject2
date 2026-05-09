@@ -170,9 +170,9 @@ export default function CourseReviewScreen({ navigation }) {
                   {/* 수업명 + 별점 */}
                   <View style={styles.cardHeader}>
                     <View style={styles.cardTitleArea}>
-                      <Text style={styles.cardCourseName}>{item.courseName}</Text>
+                      <Text style={styles.cardCourseName} numberOfLines={1}>{item.courseName}</Text>
                       {item.professorName ? (
-                        <Text style={styles.cardProfessor}>{item.professorName}</Text>
+                        <Text style={styles.cardProfessor} numberOfLines={1}>{item.professorName}</Text>
                       ) : null}
                     </View>
                     <View style={styles.ratingArea}>

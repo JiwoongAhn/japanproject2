@@ -290,7 +290,7 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.nickname}>{nickname || studentId}</Text>
+            <Text style={styles.nickname} numberOfLines={1}>{nickname || studentId}</Text>
             <Text style={styles.university}>{universityName}</Text>
             <Text style={styles.studentId}>{studentId}</Text>
           </View>

@@ -145,7 +145,7 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.dateText}>{dateStr}</Text>
-            <Text style={styles.greetingText}>{greeting}</Text>
+            <Text style={styles.greetingText} numberOfLines={1}>{greeting}</Text>
             <Text style={styles.universityText}>{universityInfo.name}</Text>
           </View>
           <View style={styles.avatar}>
@@ -185,7 +185,7 @@ export default function HomeScreen({ navigation }) {
                 <View key={course.id} style={styles.courseCard}>
                   <View style={[styles.courseColorBar, { backgroundColor: barColor }]} />
                   <View style={styles.courseInfo}>
-                    <Text style={styles.courseName}>{course.name}</Text>
+                    <Text style={styles.courseName} numberOfLines={1}>{course.name}</Text>
                     <Text style={styles.courseDetail}>
                       {timeStr}{course.room ? ` · ${course.room}` : ''}
                     </Text>
