@@ -157,9 +157,9 @@ export default function CourseReviewScreen({ navigation }) {
               <Text style={styles.listLabel}>
                 {searchText ? `「${searchText}」の検索結果` : '人気の講義評価'}
               </Text>
-              {grouped.map((item, index) => (
+              {grouped.map((item) => (
                 <TouchableOpacity
-                  key={index}
+                  key={`${item.courseName}__${item.professorName ?? ''}`}
                   style={styles.reviewCard}
                   activeOpacity={0.75}
                   onPress={() => navigation.navigate('CourseReviewDetail', {
