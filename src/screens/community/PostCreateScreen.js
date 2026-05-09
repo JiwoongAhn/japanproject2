@@ -9,6 +9,8 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { BOARD_CATEGORIES } from '../../constants/boardCategories';
@@ -57,6 +59,10 @@ export default function PostCreateScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
 
       {/* ── 헤더 ── */}
       <View style={styles.header}>
@@ -156,6 +162,7 @@ export default function PostCreateScreen({ navigation }) {
         </View>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

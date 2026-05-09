@@ -9,6 +9,8 @@ import {
   SafeAreaView,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { colors } from '../../constants/colors';
 import { supabase } from '../../lib/supabase';
@@ -113,6 +115,10 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
 
       {/* ── 헤더 ── */}
       <View style={styles.header}>
@@ -243,6 +249,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
         </View>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
