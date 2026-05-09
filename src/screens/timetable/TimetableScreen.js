@@ -23,12 +23,8 @@ import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 
 // 요일 레이블 (일본어)
 const DAYS = ['月', '火', '水', '木', '金'];
-// 교시 목록 (1~6교시)
-const PERIODS = [1, 2, 3, 4, 5, 6];
 // 교시 열(가장 왼쪽) 너비 — 시간 텍스트 공간 확보
 const PERIOD_COL_WIDTH = 42;
-// 행 높이
-const ROW_HEIGHT = 80;
 
 // 오늘 요일 → 시간표 열 인덱스 (월=0 ~ 금=4, 주말=-1)
 // JS: 0=일, 1=월 ... 6=토
@@ -40,6 +36,12 @@ export default function TimetableScreen({ navigation }) {
   // 현재 로그인한 대학 정보
   const universityInfo = getUniversityInfo(session?.user?.email);
   const links = getUniversityLinks(universityInfo.id);
+
+  // 학교별 교시 수에 맞게 그리드 동적 계산
+  const periodCount = universityInfo?.periodRanges ? Object.keys(universityInfo.periodRanges).length : 6;
+  const PERIODS = Array.from({ length: periodCount }, (_, i) => i + 1);
+  // 교시 수가 많을수록 행 높이를 줄여 화면에 맞게 조정
+  const ROW_HEIGHT = periodCount <= 5 ? 88 : periodCount <= 6 ? 80 : periodCount <= 8 ? 68 : 56;
 
   const [courses, setCourses] = useState([]);    // 수업 목록
   const [loading, setLoading] = useState(true);  // 로딩 상태
@@ -149,7 +151,7 @@ export default function TimetableScreen({ navigation }) {
           {PERIODS.map((period) => (
             <View key={period} style={styles.periodRow}>
               {/* 교시 번호 + 시간 */}
-              <View style={styles.periodLabelCell}>
+              <View style={[styles.periodLabelCell, { height: ROW_HEIGHT }]}>
                 <Text style={styles.periodLabelText}>{period}</Text>
                 <Text style={styles.periodTimeText}>{getPeriodStartTimeStr(period, universityInfo)}</Text>
               </View>
@@ -164,6 +166,7 @@ export default function TimetableScreen({ navigation }) {
                     key={dayIndex}
                     style={[
                       styles.cell,
+                      { height: ROW_HEIGHT },
                       course
                         ? {
                             backgroundColor: color.bg,
@@ -350,7 +353,6 @@ const styles = StyleSheet.create({
   },
   periodLabelCell: {
     width: PERIOD_COL_WIDTH,
-    height: ROW_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.surface,
@@ -366,10 +368,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // 수업 셀
+  // 수업 셀 (높이는 ROW_HEIGHT로 인라인 적용)
   cell: {
     flex: 1,
-    height: ROW_HEIGHT,
     marginHorizontal: 1,
     borderRadius: 6,
     padding: 5,

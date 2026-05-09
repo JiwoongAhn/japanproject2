@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { useAuth } from '../../lib/AuthProvider';
+import { getUniversityInfo } from '../../utils/university';
 
 // 요일 레이블
 const DAY_LABELS = ['月', '火', '水', '木', '金'];
-// 교시 목록 (1~6교시)
-const PERIODS = [1, 2, 3, 4, 5, 6];
 // 교시 열 너비
 const PERIOD_COL_WIDTH = 36;
 // 화면 너비 기반으로 셀 너비 계산
@@ -28,10 +28,18 @@ const PERIOD_COL_WIDTH = 36;
 // 10 = gap:2 × 5칸 사이 공간
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 32 - 28 - PERIOD_COL_WIDTH - 10) / 5);
-const CELL_HEIGHT = 48;
 
 export default function FreeTimeScreen({ navigation }) {
   const scrollViewRef = useRef(null);
+  const { session } = useAuth();
+
+  // 학교별 교시 수에 맞게 그리드 동적 계산
+  const universityInfo = getUniversityInfo(session?.user?.email);
+  const periodCount = universityInfo?.periodRanges ? Object.keys(universityInfo.periodRanges).length : 6;
+  const PERIODS = Array.from({ length: periodCount }, (_, i) => i + 1);
+  // 교시 수가 많을수록 셀 높이를 줄여 화면에 맞게 조정
+  const CELL_HEIGHT = periodCount <= 5 ? 54 : periodCount <= 6 ? 48 : periodCount <= 8 ? 40 : 34;
+
   const [myNickname, setMyNickname] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -66,10 +74,14 @@ export default function FreeTimeScreen({ navigation }) {
       const classSet = new Set(courses.map(c => `${c.day_of_week}-${c.period}`));
       setMyClassSet(classSet);
 
+      // 학교별 교시 수 계산 (fetchMyData 내부에서 직접 계산해 stale 클로저 방지)
+      const uniInfo = getUniversityInfo(user.email);
+      const pc = uniInfo?.periodRanges ? Object.keys(uniInfo.periodRanges).length : 6;
+
       // 공강 칸을 기본으로 선택 (내 시간표 기준 자동 채우기)
       const freeSet = new Set();
       for (let day = 0; day <= 4; day++) {
-        for (const period of PERIODS) {
+        for (let period = 1; period <= pc; period++) {
           if (!classSet.has(`${day}-${period}`)) {
             freeSet.add(`${day}-${period}`);
           }
@@ -153,7 +165,7 @@ export default function FreeTimeScreen({ navigation }) {
         .select('day_of_week, period')
         .eq('user_id', profile.id);
 
-      // 친구의 공강 계산
+      // 친구의 공강 계산 (현재 학교 교시 수 기준)
       const friendClassSet = new Set((friendCourses ?? []).map(c => `${c.day_of_week}-${c.period}`));
       const friendFreeSet = new Set();
       for (let day = 0; day <= 4; day++) {
@@ -161,6 +173,7 @@ export default function FreeTimeScreen({ navigation }) {
           if (!friendClassSet.has(`${day}-${period}`)) friendFreeSet.add(`${day}-${period}`);
         }
       }
+      // PERIODS는 컴포넌트 변수 — 렌더 시점 값 사용 (세션 로드 후 정확)
 
       // 내가 선택한 공강 ∩ 친구 공강 = 공통 공강
       const common = new Set([...selectedCells].filter(k => friendFreeSet.has(k)));
