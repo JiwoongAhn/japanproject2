@@ -256,8 +256,8 @@ export default function TimetableScreen({ navigation }) {
             ) : null}
           </View>
 
-          {/* 하단 여백 */}
-          <View style={{ height: 32 }} />
+          {/* 하단 여백 — 탭바(50) + 홈바(34) 클리어 */}
+          <View style={{ height: 84 }} />
         </ScrollView>
       )}
 

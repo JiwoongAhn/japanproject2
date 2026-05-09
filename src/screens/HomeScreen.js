@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingBottom: 16,
+    paddingBottom: 84,
   },
 
   // 헤더
