@@ -140,6 +140,23 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
 - [x] Resend SMTP 설정 완료 — 도메인 `unipas.app` Verified, 발신 주소 `noreply@unipas.app`
 - [x] Supabase SMTP 연결 — Host: `smtp.resend.com`, Port: `465`, Username: `resend`
 
+# 새 학교 추가 체크리스트
+
+새 학교 추가 시 아래 순서로 진행할 것:
+
+**`src/constants/universities.js`**
+- [ ] `id`, `name`, `location`, `emailDomain`, `campuses`
+- [ ] `periodRanges`: 학교 공식 홈페이지에서 "時限 時間割" 검색 → 없으면 생략 (국사관 기본값 자동 사용)
+
+**`src/constants/universityLinks.js`**
+- [ ] `homepageUrl`: 필수
+- [ ] `manabaUrl`: manaba.jp 도메인 확인된 경우에만 추가
+- [ ] `lmsUrl` + `lmsLabel`: manaba 미사용 시 추가 (WebClass, Blackboard, UNIPA 등)
+- [ ] `syllabusUrl`: 외부 공개 URL 있으면 추가 (로그인 필요 URL은 생략)
+- [ ] `kaedeUrl`, `portalUrl`: 국사관 전용 → 다른 학교는 비워둠
+
+---
+
 # 향후 예정 작업
 - **RevenueCAT MCP** — 프리미엄 기능 개발 시작 전에 추가할 것 (작업 전 사용자에게 먼저 확인)
 
@@ -199,9 +216,15 @@ npm run e2e:ui    # Playwright UI 모드 (디버깅 편함)
   - strict mode 위반 수정 (T-2, T-3)
   - supabaseHelper upsert로 테스트 계정 닉네임 보장
 
-## 🟢 묶음 4 — 콘텐츠 확장 (다음 작업 — 옵션 B: 내용 먼저 정의 후 진행)
+## 🟢 묶음 4 — 콘텐츠 확장 (진행 중)
 - [x] 학교 추가 — 17개 대학 지원 중 (묶음 3.5에서 완료)
-- [ ] 모바일 UI 최적화 (구체적 항목 정의 필요)
+- [x] 학교별 교시 시간(periodRanges) 추가 — 14개 학교 실제 시간 반영 (2026-05-10)
+  - 100분 수업: 神奈川大, 東海大 / 105분: 亜細亜大, 拓殖大 / 50분: 玉川大 등
+  - 東京電機大, 大阪国際大는 시간 미공개로 국사관 기본값 유지
+- [x] universityLinks 업데이트 — lmsUrl/lmsLabel 필드 추가 (WebClass, UNIPA, Open LMS 등)
+- [x] HomeScreen — manaba 없는 학교에 lmsLabel(WebClass 등) 표시
+- [x] CLAUDE.md — 새 학교 추가 체크리스트 추가
+- [ ] 모바일 UI 최적화 (항목 선택 후 진행)
 
 ## 🟢 묶음 5 — 새 기능
 - [ ] 게시판 사진 업로드

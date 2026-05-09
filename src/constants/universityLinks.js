@@ -44,22 +44,28 @@ export const universityLinks = {
   'teikyo-u': {
     homepageUrl: 'https://www.teikyo-u.ac.jp',
     manabaUrl:   '', // 자체 LMS 사용
+    lmsUrl:      'https://lms2017.teikyo-u.ac.jp/',
+    lmsLabel:    'LMS',
     kaedeUrl:    '',
-    syllabusUrl: '', // 캠퍼스별 URL 상이
+    syllabusUrl: 'https://activeacademy.ita.teikyo-u.ac.jp/aa_web/syllabus/faculties.aspx', // 板橋キャンパス
     portalUrl:   '',
   },
 
   // ── 배치 2 ────────────────────────────────────────────────────────────────
   'kanagawa-u': {
     homepageUrl: 'https://www.kanagawa-u.ac.jp',
-    manabaUrl:   '', // 자체 LMS 사용
+    manabaUrl:   '', // WebClass 사용
+    lmsUrl:      'https://kulms.kanagawa-u.ac.jp/',
+    lmsLabel:    'WebClass',
     kaedeUrl:    '',
     syllabusUrl: 'https://webstation-koukai.kanagawa-u.ac.jp',
     portalUrl:   '',
   },
   tokai: {
     homepageUrl: 'https://www.u-tokai.ac.jp',
-    manabaUrl:   '', // 자체 LMS 사용
+    manabaUrl:   '', // Open LMS 사용
+    lmsUrl:      'https://lms.u-tokai.ac.jp/',
+    lmsLabel:    'Open LMS',
     kaedeUrl:    '',
     syllabusUrl: 'https://www24.tsc.u-tokai.ac.jp/syllabus/SYLSCHTOP',
     portalUrl:   '',
@@ -80,7 +86,9 @@ export const universityLinks = {
   },
   'takushoku-u': {
     homepageUrl: 'https://www.takushoku-u.ac.jp',
-    manabaUrl:   '', // 미확인
+    manabaUrl:   '',
+    lmsUrl:      'https://portal.takushoku-u.ac.jp/campusweb/top.do',
+    lmsLabel:    'ポータル',
     kaedeUrl:    '',
     syllabusUrl: 'https://syllabus.takushoku-u.ac.jp/',
     portalUrl:   '',
@@ -90,27 +98,33 @@ export const universityLinks = {
   dendai: {
     homepageUrl: 'https://www.dendai.ac.jp',
     manabaUrl:   '', // DENDAI-UNIPA 자체 LMS 사용
+    lmsUrl:      'https://portal.sa.dendai.ac.jp/uprx/up/pk/pky501/Pky50101.xhtml',
+    lmsLabel:    'UNIPA',
     kaedeUrl:    '',
     syllabusUrl: 'https://www.dendai.ac.jp/about/campuslife/syllabus/',
     portalUrl:   '',
   },
   tamagawa: {
     homepageUrl: 'https://www.tamagawa.jp/university/',
-    manabaUrl:   '', // Blackboard/UNITAMA 자체 LMS 사용
+    manabaUrl:   '', // Blackboard 사용 (外部公開URLなし)
     kaedeUrl:    '',
-    syllabusUrl: '', // 외부 공개 URL 미확인
+    syllabusUrl: 'http://acweb01.adm.tamagawa.ac.jp/Syllabus.nsf',
     portalUrl:   '',
   },
   nodai: {
     homepageUrl: 'https://www.nodai.ac.jp',
-    manabaUrl:   '', // 자체 포털(農大ポータル) 사용
+    manabaUrl:   '', // WebClass 사용
+    lmsUrl:      'https://lms.nodai.ac.jp/',
+    lmsLabel:    'WebClass',
     kaedeUrl:    '',
-    syllabusUrl: '', // 포털 로그인 필요
+    syllabusUrl: 'https://ngp.nodai.ac.jp/portalv3/slbsscmr.do',
     portalUrl:   '',
   },
   tcu: {
     homepageUrl: 'https://www.tcu.ac.jp',
-    manabaUrl:   '', // 자체 포털 사용
+    manabaUrl:   '', // WebClass 사용
+    lmsUrl:      'https://webclass.tcu.ac.jp/',
+    lmsLabel:    'WebClass',
     kaedeUrl:    '',
     syllabusUrl: 'https://websrv.tcu.ac.jp/tcu_web_v3/slbsskgr.do',
     portalUrl:   '',

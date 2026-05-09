@@ -302,7 +302,13 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.sectionTitle}>学校情報</Text>
           <View style={styles.schoolGrid}>
             {[
-              { icon: '📚', label: 'manaba',       url: links.manabaUrl   },
+              // manaba 있으면 manaba, 없으면 lmsUrl(WebClass 등)로 대체
+              ...(links.manabaUrl
+                ? [{ icon: '📚', label: 'manaba', url: links.manabaUrl }]
+                : links.lmsUrl
+                  ? [{ icon: '📚', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl }]
+                  : []
+              ),
               { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl    },
               { icon: '🏫', label: 'ホームページ', url: links.homepageUrl },
             ].filter(item => item.url).map((item) => (
