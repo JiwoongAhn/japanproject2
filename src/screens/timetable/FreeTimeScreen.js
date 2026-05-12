@@ -295,7 +295,7 @@ export default function FreeTimeScreen({ navigation }) {
             {PERIODS.map((period) => (
               <View key={period} style={styles.gridRow}>
                 {/* 교시 레이블 */}
-                <View style={[styles.periodLabel, { width: PERIOD_COL_WIDTH }]}>
+                <View style={[styles.periodLabel, { width: PERIOD_COL_WIDTH, height: CELL_HEIGHT }]}>
                   <Text style={styles.periodLabelText}>{period}</Text>
                 </View>
 
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   periodLabel: {
-    height: CELL_HEIGHT,
+    // height는 컴포넌트 안에서 동적으로 적용 (학교별 교시 수에 따라 변동)
     alignItems: 'center',
     justifyContent: 'center',
   },
