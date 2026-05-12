@@ -1,39 +1,109 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, Image, TextInput, TouchableOpacity,
   StyleSheet, SafeAreaView, Alert, ActivityIndicator,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import {
+  ensureMediaLibraryPermission,
+  pickAndProcessImage,
+  uploadImageToStorage,
+  deleteImagesFromStorage,
+} from '../../utils/imageUpload';
+
+const MAX_IMAGES = 5;
 
 // 게시글 수정 화면
-// route.params: { postId, title, body }
+// route.params: { postId, title, body, imageUrls }
 export default function PostEditScreen({ navigation, route }) {
-  const { postId, title: initTitle, body: initBody } = route.params ?? {};
+  const { postId, title: initTitle, body: initBody, imageUrls: initImageUrls } = route.params ?? {};
 
   const [title, setTitle] = useState(initTitle ?? '');
   const [body, setBody] = useState(initBody ?? '');
   const [saving, setSaving] = useState(false);
+  const [picking, setPicking] = useState(false);
 
-  const canSave = title.trim().length > 0 && (
-    title.trim() !== (initTitle ?? '').trim() ||
-    body.trim() !== (initBody ?? '').trim()
-  );
+  // 이미지 목록: { type: 'existing', url } | { type: 'new', processed }
+  const initialItems = (initImageUrls ?? []).map((url) => ({ type: 'existing', url }));
+  const [images, setImages] = useState(initialItems);
+
+  const titleChanged = title.trim() !== (initTitle ?? '').trim();
+  const bodyChanged = body.trim() !== (initBody ?? '').trim();
+  const imagesChanged = (() => {
+    if (images.length !== (initImageUrls ?? []).length) return true;
+    if (images.some((i) => i.type === 'new')) return true;
+    return images.some((item, idx) => item.type === 'existing' && item.url !== initImageUrls[idx]);
+  })();
+
+  const canSave = title.trim().length > 0 && (titleChanged || bodyChanged || imagesChanged);
+
+  const handleAddImage = async () => {
+    if (images.length >= MAX_IMAGES || picking) return;
+    const granted = await ensureMediaLibraryPermission();
+    if (!granted) {
+      Alert.alert('写真へのアクセスを許可してください', '設定アプリから許可できます');
+      return;
+    }
+    setPicking(true);
+    try {
+      const processed = await pickAndProcessImage();
+      if (processed) setImages((prev) => [...prev, { type: 'new', processed }]);
+    } catch (e) {
+      Alert.alert('エラー', '画像の処理に失敗しました');
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSave = async () => {
     if (!canSave || saving) return;
     setSaving(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('not authenticated');
+
+      // 1) 새로 추가된 이미지만 업로드
+      const finalUrls = await Promise.all(
+        images.map(async (item) => {
+          if (item.type === 'existing') return item.url;
+          return uploadImageToStorage(item.processed, user.id);
+        })
+      );
+
+      // 2) 삭제된 기존 이미지 = (initImageUrls) - (남은 existing URLs)
+      const remainingExisting = images
+        .filter((i) => i.type === 'existing')
+        .map((i) => i.url);
+      const removedUrls = (initImageUrls ?? []).filter(
+        (url) => !remainingExisting.includes(url)
+      );
+
+      // 3) 게시글 update
       const { error } = await supabase
         .from('posts')
-        .update({ title: title.trim(), body: body.trim() || null })
+        .update({
+          title: title.trim(),
+          body: body.trim() || null,
+          image_urls: finalUrls,
+        })
         .eq('id', postId);
 
       if (error) {
         Alert.alert('エラー', '保存に失敗しました');
         return;
       }
+
+      // 4) Storage에서 삭제 (DB update 성공 후)
+      if (removedUrls.length > 0) {
+        await deleteImagesFromStorage(removedUrls).catch(() => {});
+      }
+
       navigation.goBack();
     } catch (e) {
       Alert.alert('エラー', `通信エラー: ${e.message}`);
@@ -92,6 +162,52 @@ export default function PostEditScreen({ navigation, route }) {
               textAlignVertical="top"
             />
           </View>
+
+          {/* 사진 첨부 */}
+          <View style={styles.inputGroup}>
+            <View style={styles.imageHeaderRow}>
+              <Text style={styles.label}>写真</Text>
+              <Text style={styles.imageCount}>{images.length}/{MAX_IMAGES}</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.imageScroll}
+            >
+              {images.length < MAX_IMAGES && (
+                <TouchableOpacity
+                  style={styles.addImageButton}
+                  onPress={handleAddImage}
+                  disabled={picking}
+                  activeOpacity={0.75}
+                >
+                  {picking ? (
+                    <ActivityIndicator size="small" color={colors.textSecondary} />
+                  ) : (
+                    <>
+                      <Text style={styles.addImagePlus}>+</Text>
+                      <Text style={styles.addImageLabel}>追加</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+              {images.map((item, idx) => {
+                const uri = item.type === 'existing' ? item.url : item.processed.uri;
+                return (
+                  <View key={idx} style={styles.thumbWrapper}>
+                    <Image source={{ uri }} style={styles.thumbImage} />
+                    <TouchableOpacity
+                      style={styles.thumbRemove}
+                      onPress={() => handleRemoveImage(idx)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Text style={styles.thumbRemoveText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -141,5 +257,70 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     minHeight: 200,
     letterSpacing: 0,
+  },
+
+  imageHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  imageCount: {
+    fontSize: 12,
+    color: colors.textDisabled,
+  },
+  imageScroll: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  addImageButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImagePlus: {
+    fontSize: 24,
+    color: colors.textSecondary,
+    fontWeight: '300',
+    lineHeight: 28,
+  },
+  addImageLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  thumbWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    position: 'relative',
+  },
+  thumbImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+  },
+  thumbRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbRemoveText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 14,
   },
 });

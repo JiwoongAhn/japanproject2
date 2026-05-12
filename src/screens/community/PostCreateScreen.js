@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -16,6 +17,13 @@ import { colors } from '../../constants/colors';
 import { BOARD_CATEGORIES } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
+import {
+  ensureMediaLibraryPermission,
+  pickAndProcessImage,
+  uploadImageToStorage,
+} from '../../utils/imageUpload';
+
+const MAX_IMAGES = 5;
 
 export default function PostCreateScreen({ navigation }) {
   const { session, profile } = useAuth();
@@ -24,9 +32,37 @@ export default function PostCreateScreen({ navigation }) {
   const [body, setBody] = useState('');                // 본문
   const [isAnonymous, setIsAnonymous] = useState(true); // 익명 여부
   const [submitting, setSubmitting] = useState(false); // 제출 중 여부
+  const [pickedImages, setPickedImages] = useState([]); // 선택된 이미지 { uri, base64, ... }[]
+  const [picking, setPicking] = useState(false);        // 이미지 처리 중 표시
 
   // 저장 버튼 활성화 조건: 카테고리 + 제목 모두 입력
   const canSubmit = category !== '' && title.trim() !== '';
+
+  // 사진 추가: 권한 확인 → 갤러리 → 리사이즈+EXIF 제거 → 목록 추가
+  const handleAddImage = async () => {
+    if (pickedImages.length >= MAX_IMAGES || picking) return;
+
+    const granted = await ensureMediaLibraryPermission();
+    if (!granted) {
+      Alert.alert('写真へのアクセスを許可してください', '設定アプリから許可できます');
+      return;
+    }
+
+    setPicking(true);
+    try {
+      const processed = await pickAndProcessImage();
+      if (processed) setPickedImages((prev) => [...prev, processed]);
+    } catch (e) {
+      Alert.alert('エラー', '画像の処理に失敗しました');
+    } finally {
+      setPicking(false);
+    }
+  };
+
+  // 선택된 이미지 1장 제거
+  const handleRemoveImage = (index) => {
+    setPickedImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // Supabase에 게시글 저장
   const handleSubmit = async () => {
@@ -39,22 +75,33 @@ export default function PostCreateScreen({ navigation }) {
       return;
     }
 
-    const { error } = await supabase.from('posts').insert({
-      user_id: session.user.id,
-      university: profile.university,  // 학교별 격리: 게시글에 소속 대학 저장
-      category,
-      title: title.trim(),
-      body: body.trim() || null,
-      is_anonymous: isAnonymous,
-    });
+    try {
+      // 1) 선택된 이미지를 Supabase Storage에 병렬 업로드 → URL 배열 획득
+      let imageUrls = [];
+      if (pickedImages.length > 0) {
+        imageUrls = await Promise.all(
+          pickedImages.map((img) => uploadImageToStorage(img, session.user.id))
+        );
+      }
 
-    if (error) {
-      Alert.alert('エラー', '投稿に失敗しました。もう一度お試しください。');
-    } else {
-      // 작성 성공 → 목록으로 돌아가기
+      // 2) 게시글 insert (image_urls 포함)
+      const { error } = await supabase.from('posts').insert({
+        user_id: session.user.id,
+        university: profile.university,
+        category,
+        title: title.trim(),
+        body: body.trim() || null,
+        is_anonymous: isAnonymous,
+        image_urls: imageUrls,
+      });
+
+      if (error) throw error;
       navigation.goBack();
+    } catch (e) {
+      Alert.alert('エラー', '投稿に失敗しました。もう一度お試しください。');
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   return (
@@ -141,6 +188,51 @@ export default function PostCreateScreen({ navigation }) {
             textAlignVertical="top"
           />
           <Text style={styles.charCount}>{body.length}/500</Text>
+        </View>
+
+        {/* ── 사진 첨부 ── */}
+        <View style={styles.section}>
+          <View style={styles.imageHeaderRow}>
+            <Text style={styles.label}>写真 <Text style={styles.optional}>(任意)</Text></Text>
+            <Text style={styles.imageCount}>{pickedImages.length}/{MAX_IMAGES}</Text>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.imageScroll}
+          >
+            {/* + 追加 버튼 (5장 미만일 때만 표시) */}
+            {pickedImages.length < MAX_IMAGES && (
+              <TouchableOpacity
+                style={styles.addImageButton}
+                onPress={handleAddImage}
+                disabled={picking}
+                activeOpacity={0.75}
+              >
+                {picking ? (
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                ) : (
+                  <>
+                    <Text style={styles.addImagePlus}>+</Text>
+                    <Text style={styles.addImageLabel}>追加</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+            {/* 선택된 이미지 썸네일 */}
+            {pickedImages.map((img, idx) => (
+              <View key={idx} style={styles.thumbWrapper}>
+                <Image source={{ uri: img.uri }} style={styles.thumbImage} />
+                <TouchableOpacity
+                  style={styles.thumbRemove}
+                  onPress={() => handleRemoveImage(idx)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.thumbRemoveText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </ScrollView>
         </View>
 
         {/* ── 익명 토글 ── */}
@@ -283,6 +375,74 @@ const styles = StyleSheet.create({
     padding: 12,
     minHeight: 140,
     lineHeight: 22,
+  },
+
+  // 사진 첨부
+  imageHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  imageCount: {
+    fontSize: 12,
+    color: colors.textDisabled,
+    marginBottom: 10,
+  },
+  imageScroll: {
+    gap: 8,
+    paddingVertical: 2,
+  },
+  addImageButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImagePlus: {
+    fontSize: 24,
+    color: colors.textSecondary,
+    fontWeight: '300',
+    lineHeight: 28,
+  },
+  addImageLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  thumbWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    position: 'relative',
+  },
+  thumbImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+  },
+  thumbRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbRemoveText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    lineHeight: 14,
   },
 
   // 익명 토글

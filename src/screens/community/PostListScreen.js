@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -213,6 +214,7 @@ export default function PostListScreen({ navigation }) {
               {posts.map((post) => {
                 const catInfo = getCategoryInfo(post.category);
                 const commentCount = post.post_comments?.[0]?.count ?? 0;
+                const hasImage = post.image_urls?.length > 0;
                 return (
                   <TouchableOpacity
                     key={post.id}
@@ -220,31 +222,51 @@ export default function PostListScreen({ navigation }) {
                     activeOpacity={0.7}
                     onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
                   >
-                    <View style={styles.postMeta}>
-                      <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
-                        <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
-                      </View>
-                      <Text style={styles.postAnon}>
-                        {post.is_anonymous ? '匿名' : '実名'}
-                      </Text>
-                      <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
-                    </View>
+                    <View style={styles.postRow}>
+                      {/* 왼쪽: 텍스트 영역 */}
+                      <View style={styles.postTextArea}>
+                        <View style={styles.postMeta}>
+                          <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
+                            <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
+                          </View>
+                          <Text style={styles.postAnon}>
+                            {post.is_anonymous ? '匿名' : '実名'}
+                          </Text>
+                          <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
+                        </View>
 
-                    <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
+                        <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
 
-                    {post.body ? (
-                      <Text style={styles.postBody} numberOfLines={1}>{post.body}</Text>
-                    ) : null}
+                        {post.body ? (
+                          <Text style={styles.postBody} numberOfLines={1}>{post.body}</Text>
+                        ) : null}
 
-                    <View style={styles.postFooter}>
-                      <View style={styles.reactionItem}>
-                        <Text style={styles.reactionIcon}>♡</Text>
-                        <Text style={styles.reactionCount}>{post.like_count}</Text>
+                        <View style={styles.postFooter}>
+                          <View style={styles.reactionItem}>
+                            <Text style={styles.reactionIcon}>♡</Text>
+                            <Text style={styles.reactionCount}>{post.like_count}</Text>
+                          </View>
+                          <View style={styles.reactionItem}>
+                            <Text style={styles.reactionIcon}>□</Text>
+                            <Text style={styles.reactionCount}>{commentCount}</Text>
+                          </View>
+                        </View>
                       </View>
-                      <View style={styles.reactionItem}>
-                        <Text style={styles.reactionIcon}>□</Text>
-                        <Text style={styles.reactionCount}>{commentCount}</Text>
-                      </View>
+
+                      {/* 오른쪽: 썸네일 (이미지 있을 때만) */}
+                      {hasImage && (
+                        <View style={styles.thumbnailWrapper}>
+                          <Image
+                            source={{ uri: post.image_urls[0] }}
+                            style={styles.thumbnail}
+                          />
+                          {post.image_urls.length > 1 && (
+                            <View style={styles.thumbnailBadge}>
+                              <Text style={styles.thumbnailBadgeText}>+{post.image_urls.length - 1}</Text>
+                            </View>
+                          )}
+                        </View>
+                      )}
                     </View>
                   </TouchableOpacity>
                 );
@@ -412,6 +434,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textDisabled,
     marginLeft: 'auto',
+  },
+  // 썸네일 (목록 카드 우측)
+  postRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+  },
+  postTextArea: {
+    flex: 1,
+  },
+  thumbnailWrapper: {
+    width: 76,
+    height: 76,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: colors.background,
+    position: 'relative',
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+  },
+  thumbnailBadge: {
+    position: 'absolute',
+    right: 4,
+    bottom: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+  },
+  thumbnailBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '600',
   },
   postTitle: {
     fontSize: 15,

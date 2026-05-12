@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
+  Image,
+  Modal,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -11,10 +13,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Dimensions,
 } from 'react-native';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 import { colors } from '../../constants/colors';
 import { getCategoryInfo } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
+import { deleteImagesFromStorage } from '../../utils/imageUpload';
 
 // 시간 경과 표시
 function formatTimeAgo(timestamp) {
@@ -45,6 +52,7 @@ export default function PostDetailScreen({ navigation, route }) {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [likedComments, setLikedComments] = useState({}); // { commentId: true/false }
   const [likingComment, setLikingComment] = useState(null); // 현재 좋아요 처리 중인 댓글 ID
+  const [viewerIndex, setViewerIndex] = useState(null); // 풀스크린 이미지 인덱스 (null이면 닫힘)
   const scrollViewRef = useRef(null);
 
   // 게시글 + 댓글 + 내 좋아요 여부 한 번에 불러오기
@@ -133,6 +141,7 @@ export default function PostDetailScreen({ navigation, route }) {
             postId: post.id,
             title: post.title,
             body: post.body ?? '',
+            imageUrls: post.image_urls ?? [],
           }),
         },
         {
@@ -162,6 +171,10 @@ export default function PostDetailScreen({ navigation, route }) {
             if (error) {
               Alert.alert('エラー', '削除に失敗しました');
             } else {
+              // 삭제 성공 후 Storage 이미지도 정리
+              if (post.image_urls?.length > 0) {
+                await deleteImagesFromStorage(post.image_urls).catch(() => {});
+              }
               navigation.goBack();
             }
           },
@@ -323,6 +336,25 @@ export default function PostDetailScreen({ navigation, route }) {
               <Text style={styles.postBody}>{post.body}</Text>
             ) : null}
 
+            {/* 첨부 이미지 */}
+            {post.image_urls && post.image_urls.length > 0 && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.imageRow}
+              >
+                {post.image_urls.map((url, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    activeOpacity={0.9}
+                    onPress={() => setViewerIndex(idx)}
+                  >
+                    <Image source={{ uri: url }} style={styles.attachedImage} />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+
             {/* 좋아요 */}
             <View style={styles.postFooter}>
               <TouchableOpacity style={[styles.likeButton, liked && styles.likeButtonActive]} onPress={handleLike} activeOpacity={0.7}>
@@ -419,6 +451,42 @@ export default function PostDetailScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* 풀스크린 이미지 뷰어 */}
+      <Modal
+        visible={viewerIndex !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setViewerIndex(null)}
+      >
+        <View style={styles.viewerBackdrop}>
+          <TouchableOpacity
+            style={styles.viewerClose}
+            onPress={() => setViewerIndex(null)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Text style={styles.viewerCloseText}>✕</Text>
+          </TouchableOpacity>
+          {viewerIndex !== null && post?.image_urls?.[viewerIndex] && (
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              contentOffset={{ x: viewerIndex * SCREEN_WIDTH, y: 0 }}
+            >
+              {post.image_urls.map((url, idx) => (
+                <View key={idx} style={styles.viewerPage}>
+                  <Image
+                    source={{ uri: url }}
+                    style={styles.viewerImage}
+                    resizeMode="contain"
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -516,6 +584,47 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     lineHeight: 22,
     marginBottom: 16,
+  },
+  imageRow: {
+    gap: 8,
+    marginBottom: 16,
+  },
+  attachedImage: {
+    width: 240,
+    height: 240,
+    borderRadius: 10,
+    backgroundColor: colors.background,
+  },
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.95)',
+  },
+  viewerClose: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 56 : 24,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  viewerCloseText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  viewerPage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_HEIGHT * 0.85,
   },
   postFooter: {
     flexDirection: 'row',
