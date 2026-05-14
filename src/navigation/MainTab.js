@@ -11,6 +11,7 @@ import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import MyPostsScreen from '../screens/community/MyPostsScreen';
 import PostEditScreen from '../screens/community/PostEditScreen';
 import { colors } from '../constants/colors';
+import { spacing, shadow } from '../constants/spacing';
 
 const Tab = createBottomTabNavigator();
 const ProfileStack = createNativeStackNavigator();
@@ -34,12 +35,14 @@ export default function MainTab() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textDisabled,
+        // 고정형 탭바 — 흰 배경 + 위쪽으로 향하는 옅은 그림자 (후보 1 톤)
         tabBarStyle: {
           backgroundColor: colors.surface,
-          borderTopColor: colors.border,
+          borderTopWidth: 0,
           height: 80,
-          paddingBottom: 16,
-          paddingTop: 8,
+          paddingBottom: spacing.lg,
+          paddingTop: spacing.sm,
+          ...shadow.tabBar,
         },
         tabBarLabelStyle: {
           fontSize: 11,
