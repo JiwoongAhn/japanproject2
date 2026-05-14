@@ -11,6 +11,8 @@ import {
   Linking,
 } from 'react-native';
 import { colors } from '../constants/colors';
+import { typography } from '../constants/typography';
+import { spacing, radius, shadow } from '../constants/spacing';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { getCourseColor } from '../constants/courseColors';
 import { supabase } from '../lib/supabase';
@@ -310,13 +312,13 @@ export default function HomeScreen({ navigation }) {
             {[
               // manaba 있으면 manaba, 없으면 lmsUrl(WebClass 등)로 대체
               ...(links.manabaUrl
-                ? [{ icon: '📚', label: 'manaba', url: links.manabaUrl }]
+                ? [{ icon: '📚', label: 'manaba', url: links.manabaUrl, tint: colors.primary }]
                 : links.lmsUrl
-                  ? [{ icon: '📚', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl }]
+                  ? [{ icon: '📚', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, tint: colors.primary }]
                   : []
               ),
-              { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl    },
-              { icon: '🏫', label: 'ホームページ', url: links.homepageUrl },
+              { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl,    tint: colors.success },
+              { icon: '🏫', label: 'ホームページ', url: links.homepageUrl, tint: colors.warning },
             ].filter(item => item.url).map((item) => (
               <TouchableOpacity
                 key={item.label}
@@ -324,7 +326,9 @@ export default function HomeScreen({ navigation }) {
                 activeOpacity={0.7}
                 onPress={() => Linking.openURL(item.url)}
               >
-                <Text style={styles.schoolIcon}>{item.icon}</Text>
+                <View style={[styles.schoolIconChip, { backgroundColor: item.tint + '18' }]}>
+                  <Text style={styles.schoolIcon}>{item.icon}</Text>
+                </View>
                 <Text style={styles.schoolLabel}>{item.label}</Text>
               </TouchableOpacity>
             ))}
@@ -343,101 +347,105 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   scrollContent: {
+    paddingTop: spacing.md,
     paddingBottom: 84,
   },
 
-  // 헤더
+  // 헤더 (흰색 카드)
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 24,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xxl,
     backgroundColor: colors.surface,
-    marginBottom: 8,
+    borderRadius: radius.lg,
+    ...shadow.card,
   },
   headerLeft: {
     flex: 1,
   },
   dateText: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   greetingText: {
-    fontSize: 22,
-    fontWeight: '700',
+    ...typography.title2,
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   universityText: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.pill,
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
   avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.primary,
   },
 
-  // 섹션 공통
+  // 섹션 공통 (흰색 카드)
   section: {
     backgroundColor: colors.surface,
-    marginBottom: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    ...shadow.card,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   seeAll: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.primary,
   },
   countBadge: {
     backgroundColor: colors.danger + '18',
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: 10,
+    borderRadius: radius.sm,
   },
   countBadgeText: {
-    fontSize: 11,
+    ...typography.small,
     fontWeight: '700',
     color: colors.danger,
   },
 
   // 빈 상태 카드
   emptyCard: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 16,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    padding: spacing.lg,
     alignItems: 'center',
   },
   emptyCardText: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
   },
 
@@ -445,10 +453,10 @@ const styles = StyleSheet.create({
   courseCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
     overflow: 'hidden',
   },
   courseColorBar: {
@@ -461,32 +469,33 @@ const styles = StyleSheet.create({
   },
   courseInfo: {
     flex: 1,
-    paddingLeft: 16,
+    paddingLeft: spacing.lg,
   },
   courseName: {
-    fontSize: 14,
+    ...typography.body2,
     fontWeight: '600',
     color: colors.textPrimary,
     marginBottom: 3,
   },
   courseDetail: {
-    fontSize: 12,
+    ...typography.small,
+    fontWeight: '400',
     color: colors.textSecondary,
   },
   statusBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: 8,
-    backgroundColor: colors.background,
+    borderRadius: radius.sm,
+    backgroundColor: colors.gray100,
   },
   statusBadgeActive: {
-    backgroundColor: '#05C072' + '18',
+    backgroundColor: colors.success + '18',
   },
   statusBadgeNext: {
     backgroundColor: colors.warning + '18',
   },
   statusBadgeText: {
-    fontSize: 11,
+    ...typography.small,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -502,74 +511,76 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   assignmentInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   assignmentCourse: {
-    fontSize: 11,
+    ...typography.small,
+    fontWeight: '400',
     color: colors.textSecondary,
     marginBottom: 3,
   },
   assignmentTitle: {
-    fontSize: 14,
+    ...typography.body2,
     fontWeight: '600',
     color: colors.textPrimary,
   },
   ddayBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.sm,
   },
   ddayText: {
-    fontSize: 13,
+    ...typography.caption,
     fontWeight: '700',
   },
 
   // 게시판 카드
   postCard: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 8,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 6,
+    gap: spacing.sm,
+    marginBottom: spacing.sm - 2,
   },
   categoryBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: radius.sm - 2,
   },
   categoryBadgeText: {
-    fontSize: 11,
+    ...typography.small,
     fontWeight: '600',
   },
   postAnon: {
-    fontSize: 11,
+    ...typography.small,
+    fontWeight: '400',
     color: colors.textSecondary,
   },
   postTitle: {
-    fontSize: 14,
+    ...typography.body2,
     fontWeight: '500',
     color: colors.textPrimary,
-    marginBottom: 8,
-    lineHeight: 20,
+    marginBottom: spacing.sm,
   },
   postFooter: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
   },
   postReaction: {
-    fontSize: 12,
+    ...typography.small,
+    fontWeight: '400',
     color: colors.textSecondary,
   },
 
@@ -577,23 +588,30 @@ const styles = StyleSheet.create({
   schoolGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
   schoolCard: {
     flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 8,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
+  },
+  schoolIconChip: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   schoolIcon: {
     fontSize: 20,
   },
   schoolLabel: {
-    fontSize: 12,
+    ...typography.small,
     fontWeight: '600',
     color: colors.textPrimary,
     textAlign: 'center',

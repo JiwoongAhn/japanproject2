@@ -18,3 +18,23 @@ export const radius = {
   xl: 20,
   pill: 999,
 };
+
+// 그림자 토큰 (토스 스타일 — 아주 옅게)
+// 사용 예: <View style={[styles.card, shadow.card]} />
+export const shadow = {
+  card: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  // 하단 탭바 — 위쪽으로 향하는 옅은 그림자
+  tabBar: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+};
