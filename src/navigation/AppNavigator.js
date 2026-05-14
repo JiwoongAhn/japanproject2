@@ -8,8 +8,10 @@ import AuthStack from './AuthStack';
 import MainTab from './MainTab';
 import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
+import OnboardingScreen from '../screens/auth/OnboardingScreen';
 
 const NicknameStack = createNativeStackNavigator();
+const OnboardingStack = createNativeStackNavigator();
 
 // 앱 전체 네비게이션 진입점
 // 세션 유무에 따라 AuthStack(로그인 전) / MainTab(로그인 후) 자동 전환
@@ -62,6 +64,8 @@ export default function AppNavigator() {
 
   // 세션은 있지만 닉네임이 없으면 닉네임 입력 화면 표시 (profile이 null이면 아직 로딩 중)
   const needsNickname = session && profile !== null && !profile?.nickname;
+  // 닉네임은 있지만 온보딩 안 했으면 온보딩 표시 (신규 회원만 1회)
+  const needsOnboarding = session && profile?.nickname && profile?.onboarding_completed === false;
 
   const renderContent = () => {
     if (!session) return <AuthStack />;
@@ -77,6 +81,13 @@ export default function AppNavigator() {
             }}
           />
         </NicknameStack.Navigator>
+      );
+    }
+    if (needsOnboarding) {
+      return (
+        <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
+          <OnboardingStack.Screen name="Onboarding" component={OnboardingScreen} />
+        </OnboardingStack.Navigator>
       );
     }
     return <MainTab />;

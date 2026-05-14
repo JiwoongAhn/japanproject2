@@ -49,6 +49,9 @@ export default function PostListScreen({ navigation }) {
   // Supabase에서 게시글 불러오기
   // reset=true면 처음부터 다시 로드 (카테고리/검색 변경, 새로고침)
   const fetchPosts = useCallback(async ({ reset = false } = {}) => {
+    // 본인 대학 정보가 아직 로드되지 않았으면 대기 (universityName 세팅 후 재실행됨)
+    if (!universityName) return;
+
     if (reset) {
       pageRef.current = 0;
     }
@@ -59,10 +62,11 @@ export default function PostListScreen({ navigation }) {
     if (reset) setLoading(true);
     else setLoadingMore(true);
 
-    // 쿼리 빌드
+    // 쿼리 빌드 — 본인 대학 게시글만 조회 (학교 간 게시글 분리)
     let query = supabase
       .from('posts')
       .select('*, post_comments(count)')
+      .eq('university', universityName)
       .order('created_at', { ascending: false })
       .range(from, to);
 
@@ -88,12 +92,12 @@ export default function PostListScreen({ navigation }) {
     setLoading(false);
     setLoadingMore(false);
     setRefreshing(false);
-  }, [selectedCategory, searchText]);
+  }, [selectedCategory, searchText, universityName]);
 
-  // 카테고리 또는 검색어 변경 시 목록 리셋
+  // 카테고리/검색어 변경 또는 대학 정보 로드 시 목록 리셋
   useEffect(() => {
     fetchPosts({ reset: true });
-  }, [selectedCategory, searchText]);
+  }, [selectedCategory, searchText, universityName]);
 
   useEffect(() => {
     // PostCreate에서 돌아올 때마다 목록 새로고침

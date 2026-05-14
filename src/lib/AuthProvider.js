@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
     if (!userId) { setProfile(null); return; }
     const { data } = await supabase
       .from('profiles')
-      .select('id, nickname, university, school_email')
+      .select('id, nickname, university, school_email, onboarding_completed')
       .eq('id', userId)
       .maybeSingle();
     setProfile(data ?? null);

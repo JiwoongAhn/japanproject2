@@ -157,9 +157,11 @@ CREATE POLICY "본인 과제만 삭제 가능" ON assignments
 CREATE TABLE posts (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  university   TEXT NOT NULL,                -- 작성자 대학 (학교별 게시판 분리용)
   category     TEXT NOT NULL CHECK (category IN ('qa', 'free', 'secret', 'info')),
   title        TEXT NOT NULL,
   body         TEXT,
+  image_urls   TEXT[] DEFAULT '{}',          -- 첨부 이미지 URL 배열
   is_anonymous BOOLEAN NOT NULL DEFAULT true,
   like_count   INTEGER NOT NULL DEFAULT 0,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -167,11 +169,21 @@ CREATE TABLE posts (
 
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "로그인 사용자 게시글 조회 가능" ON posts
-  FOR SELECT USING (auth.role() = 'authenticated');
+-- 현재 로그인 사용자의 대학 이름 반환 (RLS 정책에서 학교 비교에 사용)
+-- SECURITY DEFINER: profiles 정책에 영향받지 않고 안전하게 조회
+CREATE OR REPLACE FUNCTION get_my_university()
+RETURNS TEXT LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT university FROM profiles WHERE id = auth.uid() LIMIT 1;
+$$;
 
-CREATE POLICY "본인만 게시글 작성 가능" ON posts
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- 게시판은 학교 단위로 분리: 본인 대학 게시글만 조회/작성 가능
+CREATE POLICY "같은 학교 게시글만 조회" ON posts
+  FOR SELECT USING (university = get_my_university());
+
+CREATE POLICY "같은 학교 게시글만 작성" ON posts
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id AND university = get_my_university()
+  );
 
 CREATE POLICY "본인만 게시글 수정 가능" ON posts
   FOR UPDATE USING (auth.uid() = user_id);
@@ -195,11 +207,25 @@ CREATE TABLE post_comments (
 
 ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "로그인 사용자 댓글 조회 가능" ON post_comments
-  FOR SELECT USING (auth.role() = 'authenticated');
+-- 댓글도 학교 단위로 분리: 같은 학교 게시글의 댓글만 조회/작성 가능
+CREATE POLICY "같은 학교 댓글만 조회" ON post_comments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = post_comments.post_id
+        AND posts.university = get_my_university()
+    )
+  );
 
-CREATE POLICY "본인만 댓글 작성 가능" ON post_comments
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "같은 학교 게시글에만 댓글 작성" ON post_comments
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = post_comments.post_id
+        AND posts.university = get_my_university()
+    )
+  );
 
 CREATE POLICY "본인만 댓글 삭제 가능" ON post_comments
   FOR DELETE USING (auth.uid() = user_id);

@@ -7,13 +7,17 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
 import { colors } from '../../constants/colors';
+import { getUniversityInfo } from '../../utils/university';
 
 // 닉네임 입력 화면 (신규 회원 전용)
 // OtpVerificationScreen에서 OTP 인증 완료 후 이 화면으로 이동
 // 닉네임 중복 확인 → profiles 저장 → AuthProvider가 자동으로 MainTab 이동
 export default function AcEmailInputScreen({ navigation, route }) {
-  const { university, email, userId } = route.params ?? {};
+  const { email, userId } = route.params ?? {};
   const { refreshProfile } = useAuth();
+
+  // OTP 인증된 이메일 도메인으로 대학 판별 (가입 흐름 어디서든 항상 정확)
+  const universityName = getUniversityInfo(email).name;
 
   const [nickname, setNickname] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -47,9 +51,10 @@ export default function AcEmailInputScreen({ navigation, route }) {
       }
 
       // 프로필 저장 (닉네임 + 학교 이메일 + 대학교)
+      // 대학교는 OTP 인증된 이메일 도메인 기준으로 판별 → 항상 정확하게 저장됨
       const { error } = await supabase.from('profiles').upsert({
         id: userId,
-        university: university?.name ?? '国士舘大学',
+        university: universityName,
         nickname: trimmedNickname,
         school_email: email,
       });
@@ -79,7 +84,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
         >
           <View style={styles.header}>
             <View style={styles.universityBadge}>
-              <Text style={styles.universityBadgeText}>{university?.name ?? '大学'}</Text>
+              <Text style={styles.universityBadgeText}>{universityName}</Text>
             </View>
             <Text style={styles.title}>ニックネームを{'\n'}設定してください</Text>
             <Text style={styles.subtitle}>

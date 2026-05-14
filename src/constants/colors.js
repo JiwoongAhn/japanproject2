@@ -2,6 +2,7 @@
 export const colors = {
   // 메인 — 토스 스타일 블루
   primary:       '#3182F6',   // 버튼, 탭 활성화, 강조
+  primaryDark:   '#1B64DA',   // 버튼 눌렀을 때
   primaryLight:  '#EBF3FE',   // 배지 배경, 아이콘 배경
 
   // 상태
@@ -20,4 +21,17 @@ export const colors = {
 
   // 구분선
   border:        '#E5E8EB',
+
+  // 그레이 스케일 (위계 표현용)
+  gray900:       '#191F28',
+  gray800:       '#333D4B',
+  gray700:       '#4E5968',
+  gray600:       '#6B7684',
+  gray500:       '#8B95A1',
+  gray400:       '#B0B8C1',
+  gray300:       '#D1D6DB',
+  gray200:       '#E5E8EB',
+  gray100:       '#F2F4F6',
+  gray50:        '#F9FAFB',
+  white:         '#FFFFFF',
 };

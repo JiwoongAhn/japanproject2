@@ -118,7 +118,9 @@ export default function OtpVerificationScreen({ navigation, route }) {
             </Text>
           </View>
 
-          {/* 코드 입력 */}
+          {/* 코드 입력 — 인증 코드 자동 입력 지원
+              iOS: textContentType="oneTimeCode" → 메일/메시지 코드를 키보드 위 추천 바에 표시
+              Android: autoComplete="sms-otp" → SMS 코드 자동 입력 */}
           <TextInput
             style={styles.codeInput}
             value={code}
@@ -129,6 +131,8 @@ export default function OtpVerificationScreen({ navigation, route }) {
             placeholderTextColor={colors.textDisabled}
             textAlign="center"
             autoFocus
+            textContentType="oneTimeCode"
+            autoComplete="sms-otp"
           />
 
           {/* 확인 버튼 */}

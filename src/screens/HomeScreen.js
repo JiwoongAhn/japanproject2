@@ -66,6 +66,9 @@ export default function HomeScreen({ navigation }) {
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       })();
 
+      // 본인 대학 이름 (이메일 기준) — 게시글을 학교별로 분리하기 위해 사용
+      const myUniversity = user?.email ? getUniversityInfo(user.email).name : null;
+
       const [coursesRes, assignmentsRes, postsRes] = await Promise.all([
         // 오늘 수업 (평일일 때만, 본인 수업만)
         dbDay >= 0 && dbDay <= 4 && user
@@ -81,12 +84,15 @@ export default function HomeScreen({ navigation }) {
           .lte('due_date', d3Str)
           .order('due_date'),
 
-        // 최신 게시글 3개
-        supabase
-          .from('posts')
-          .select('*, post_comments(count)')
-          .order('created_at', { ascending: false })
-          .limit(3),
+        // 최신 게시글 3개 — 본인 대학 게시글만
+        myUniversity
+          ? supabase
+              .from('posts')
+              .select('*, post_comments(count)')
+              .eq('university', myUniversity)
+              .order('created_at', { ascending: false })
+              .limit(3)
+          : Promise.resolve({ data: [] }),
       ]);
 
       if (coursesRes.data) setTodayCourses(coursesRes.data);

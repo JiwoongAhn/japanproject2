@@ -7,7 +7,7 @@
 export const universities = [
   {
     id: 'kokushikan',
-    name: '国士館大学',
+    name: '国士舘大学',
     location: '東京都世田谷区',
     emailDomain: 'kokushikan.ac.jp',
     campuses: ['世田谷キャンパス', '多摩キャンパス', '鶴川キャンパス'],
@@ -185,7 +185,7 @@ export const universities = [
     location: '東京都足立区',
     emailDomain: 'ms.dendai.ac.jp', // Microsoft 365
     campuses: ['東京千住キャンパス', '埼玉鳩山キャンパス', '千葉新柏キャンパス'],
-    // 時限時間は非公開(PDF掲載のみ) — 国士館デフォルト使用
+    // 時限時間は非公開(PDF掲載のみ) — 国士舘デフォルト使用
   },
   {
     id: 'tamagawa',
@@ -241,7 +241,7 @@ export const universities = [
     location: '大阪府守口市',
     emailDomain: 'oiu.jp', // 大学発行 Google アカウント
     campuses: ['守口キャンパス', '枚方キャンパス'],
-    // 時限時間は非公開(学生ポータルのみ) — 国士館デフォルト使用
+    // 時限時間は非公開(学生ポータルのみ) — 国士舘デフォルト使用
   },
   {
     id: 'nbu',
