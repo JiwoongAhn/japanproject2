@@ -7,14 +7,17 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
-  ActivityIndicator,
   SafeAreaView,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { COURSE_COLORS } from '../../constants/courseColors';
+import Card from '../../components/Card';
+import Button from '../../components/Button';
 
 // 요일 선택지 (0=월, 1=화, ..., 4=금)
 const DAYS = [
@@ -43,17 +46,12 @@ export default function CourseAddScreen({ route, navigation }) {
     selectedDay !== null &&
     selectedPeriod !== null;
 
-  // 저장 버튼 클릭 시 실행
   const handleSave = async () => {
     if (!isFormValid) return;
-
     setSaving(true);
 
-    // 현재 로그인한 사용자 정보 가져오기
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Supabase courses 테이블에 수업 저장
-    // ※ color_index 컬럼은 DB migration 후 아래 주석을 해제해 활성화 가능
     const { error } = await supabase.from('courses').insert({
       user_id: user.id,
       name: courseName.trim(),
@@ -66,36 +64,36 @@ export default function CourseAddScreen({ route, navigation }) {
     setSaving(false);
 
     if (error) {
-      Alert.alert('エラー', '授業の保存に失敗しました');
+      // 부드러운 실패 문구
+      Alert.alert('お知らせ', '授業をうまく保存できませんでした。もう一度お試しください');
     } else {
-      // 저장 성공 → 시간표 화면으로 돌아가기
       navigation.goBack();
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* KeyboardAvoidingView: 키보드가 올라올 때 화면이 함께 올라가도록 */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        {/* ── 상단 헤더 ── */}
+        {/* ── 헤더 (보더 없는 토스 스타일) ── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide}>
             <Text style={styles.cancelText}>キャンセル</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>授業を追加</Text>
-          {/* 우측 공간 균형 맞추기 */}
-          <View style={{ width: 60 }} />
+          <View style={styles.headerSide} />
         </View>
 
         <ScrollView
           style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* ── 과목명 입력 ── */}
-          <View style={styles.section}>
+          {/* ── 과목명 ── */}
+          <Card style={styles.section}>
             <Text style={styles.sectionLabel}>
               科目名 <Text style={styles.required}>*</Text>
             </Text>
@@ -107,69 +105,60 @@ export default function CourseAddScreen({ route, navigation }) {
               onChangeText={setCourseName}
               maxLength={30}
             />
-          </View>
+          </Card>
 
           {/* ── 요일 선택 ── */}
-          <View style={styles.section}>
+          <Card style={styles.section}>
             <Text style={styles.sectionLabel}>
               曜日 <Text style={styles.required}>*</Text>
             </Text>
-            <View style={styles.buttonRow}>
-              {DAYS.map((day) => (
-                <TouchableOpacity
-                  key={day.value}
-                  style={[
-                    styles.selectButton,
-                    selectedDay === day.value && styles.selectButtonActive,
-                  ]}
-                  onPress={() => setSelectedDay(day.value)}
-                >
-                  <Text
-                    style={[
-                      styles.selectButtonText,
-                      selectedDay === day.value && styles.selectButtonTextActive,
-                    ]}
+            <View style={styles.chipRow}>
+              {DAYS.map((day) => {
+                const active = selectedDay === day.value;
+                return (
+                  <TouchableOpacity
+                    key={day.value}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setSelectedDay(day.value)}
+                    activeOpacity={0.8}
                   >
-                    {day.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {day.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
+          </Card>
 
           {/* ── 교시 선택 ── */}
-          <View style={styles.section}>
+          <Card style={styles.section}>
             <Text style={styles.sectionLabel}>
               時限 <Text style={styles.required}>*</Text>
             </Text>
-            <View style={styles.buttonRow}>
-              {PERIODS.map((period) => (
-                <TouchableOpacity
-                  key={period}
-                  style={[
-                    styles.selectButton,
-                    selectedPeriod === period && styles.selectButtonActive,
-                  ]}
-                  onPress={() => setSelectedPeriod(period)}
-                >
-                  <Text
-                    style={[
-                      styles.selectButtonText,
-                      selectedPeriod === period && styles.selectButtonTextActive,
-                    ]}
+            <View style={styles.chipRow}>
+              {PERIODS.map((period) => {
+                const active = selectedPeriod === period;
+                return (
+                  <TouchableOpacity
+                    key={period}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setSelectedPeriod(period)}
+                    activeOpacity={0.8}
                   >
-                    {period}限
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {period}限
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
+          </Card>
 
-          {/* ── 교수명 입력 (선택) ── */}
-          <View style={styles.section}>
+          {/* ── 교수명 ── */}
+          <Card style={styles.section}>
             <Text style={styles.sectionLabel}>
-              担当教員{' '}
-              <Text style={styles.optional}>(任意)</Text>
+              担当教員 <Text style={styles.optional}>(任意)</Text>
             </Text>
             <TextInput
               style={styles.textInput}
@@ -179,53 +168,47 @@ export default function CourseAddScreen({ route, navigation }) {
               onChangeText={setProfessorName}
               maxLength={20}
             />
-          </View>
+          </Card>
 
-          {/* ── 색상 선택 ── */}
-          <View style={styles.section}>
+          {/* ── 색상 ── */}
+          <Card style={styles.section}>
             <Text style={styles.sectionLabel}>カラー</Text>
             <View style={styles.colorRow}>
-              {COURSE_COLORS.map((color, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    styles.colorDot,
-                    { backgroundColor: color.bg, borderColor: color.accent },
-                    selectedColorIndex === index && styles.colorDotSelected,
-                  ]}
-                  onPress={() => setSelectedColorIndex(index)}
-                >
-                  {selectedColorIndex === index && (
-                    <Text style={[styles.colorDotCheck, { color: color.accent }]}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
+              {COURSE_COLORS.map((color, index) => {
+                const selected = selectedColorIndex === index;
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.colorDot,
+                      { backgroundColor: color.bg, borderColor: selected ? color.accent : 'transparent' },
+                    ]}
+                    onPress={() => setSelectedColorIndex(index)}
+                    activeOpacity={0.8}
+                  >
+                    {selected && (
+                      <Text style={[styles.colorDotCheck, { color: color.accent }]}>✓</Text>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
             <Text style={styles.colorNote}>
-              ※ カラーはDB連携後に反映されます
+              カラーはDB連携後に反映されます
             </Text>
-          </View>
+          </Card>
 
-          {/* 하단 여백 (키보드 올라올 때 스크롤 공간 확보) */}
-          <View style={{ height: 40 }} />
+          <View style={{ height: spacing.huge }} />
         </ScrollView>
 
         {/* ── 저장 버튼 ── */}
         <View style={styles.saveButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              (!isFormValid || saving) && styles.saveButtonDisabled,
-            ]}
+          <Button
+            title="保存する"
             onPress={handleSave}
-            disabled={!isFormValid || saving}
-          >
-            {saving ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.saveButtonText}>保存する</Text>
-            )}
-          </TouchableOpacity>
+            disabled={!isFormValid}
+            loading={saving}
+          />
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -238,143 +221,118 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ──
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: colors.textPrimary,
+  headerSide: {
+    minWidth: 72,
   },
   cancelText: {
-    fontSize: 15,
-    color: colors.primary,
-    width: 60,
+    ...typography.body2,
+    color: colors.textSecondary,
+  },
+  headerTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
   },
 
-  // 스크롤 영역
+  // ── 스크롤 영역 ──
   scrollView: {
     flex: 1,
-    paddingTop: 16,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    gap: spacing.md,
   },
 
-  // 입력 섹션 공통
+  // ── 섹션 카드 ──
   section: {
-    backgroundColor: colors.surface,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
+    // Card 컴포넌트가 padding·radius·shadow 적용
   },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 12,
+    ...typography.captionStrong,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
   },
   required: {
     color: colors.danger,
   },
   optional: {
-    color: colors.textSecondary,
+    ...typography.caption,
+    color: colors.textDisabled,
     fontWeight: '400',
-    fontSize: 12,
   },
 
-  // 텍스트 입력창
+  // ── 텍스트 입력 ──
   textInput: {
-    fontSize: 16,
+    ...typography.body1,
     color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: colors.background,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
 
-  // 선택 버튼 행 (요일·교시)
-  buttonRow: {
+  // ── 칩 (요일·교시) ──
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
-  selectButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+  chip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gray50,
   },
-  selectButtonActive: {
+  chipActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
-  selectButtonText: {
-    fontSize: 14,
+  chipText: {
+    ...typography.bodyStrong,
     color: colors.textSecondary,
-    fontWeight: '500',
   },
-  selectButtonTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+  chipTextActive: {
+    color: colors.white,
   },
 
-  // 색상 선택
+  // ── 색상 ──
   colorRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: spacing.md,
   },
   colorDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1,
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  colorDotSelected: {
-    borderWidth: 2,
-  },
   colorDotCheck: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...typography.captionStrong,
+    fontWeight: '800',
   },
   colorNote: {
-    fontSize: 11,
+    ...typography.caption,
     color: colors.textDisabled,
-    marginTop: 10,
+    marginTop: spacing.md,
   },
 
-  // 저장 버튼
+  // ── 저장 버튼 ──
   saveButtonContainer: {
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  saveButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  saveButtonDisabled: {
-    opacity: 0.5,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.background,
   },
 });
