@@ -14,6 +14,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { getCourseColor } from '../../constants/courseColors';
 import CourseDetailModal from './CourseDetailModal';
 import { getPeriodStartTimeStr } from '../../utils/timetable';
@@ -24,29 +26,35 @@ import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 // 요일 레이블 (일본어)
 const DAYS = ['月', '火', '水', '木', '金'];
 // 교시 열(가장 왼쪽) 너비 — 시간 텍스트 공간 확보
-const PERIOD_COL_WIDTH = 42;
+const PERIOD_COL_WIDTH = 32;
 
 // 오늘 요일 → 시간표 열 인덱스 (월=0 ~ 금=4, 주말=-1)
-// JS: 0=일, 1=월 ... 6=토
 const jsDay = new Date().getDay();
 const TODAY_COL = (jsDay >= 1 && jsDay <= 5) ? jsDay - 1 : -1;
 
+// 일본 학기 라벨 — 5월이면 春学期, 11월이면 秋学期 등
+function getSemesterLabel() {
+  const m = new Date().getMonth() + 1; // 1~12
+  const y = new Date().getFullYear();
+  const semester = (m >= 4 && m <= 8) ? '春学期' : '秋学期';
+  return `${y}年 ${semester}`;
+}
+
 export default function TimetableScreen({ navigation }) {
   const { session } = useAuth();
-  // 현재 로그인한 대학 정보
   const universityInfo = getUniversityInfo(session?.user?.email);
   const links = getUniversityLinks(universityInfo.id);
 
-  // 학교별 교시 수에 맞게 그리드 동적 계산
+  // 학교별 교시 수
   const periodCount = universityInfo?.periodRanges ? Object.keys(universityInfo.periodRanges).length : 6;
   const PERIODS = Array.from({ length: periodCount }, (_, i) => i + 1);
-  // 교시 수가 많을수록 행 높이를 줄여 화면에 맞게 조정
-  const ROW_HEIGHT = periodCount <= 5 ? 88 : periodCount <= 6 ? 80 : periodCount <= 8 ? 68 : 56;
+  // 그리드 셀 높이 — 에브리타임 스타일로 약간 더 컴팩트
+  const ROW_HEIGHT = periodCount <= 5 ? 78 : periodCount <= 6 ? 70 : periodCount <= 8 ? 60 : 52;
 
-  const [courses, setCourses] = useState([]);    // 수업 목록
-  const [loading, setLoading] = useState(true);  // 로딩 상태
-  const [selectedCourse, setSelectedCourse] = useState(null); // 모달에 표시할 수업
-  const [todayColor, setTodayColor] = useState(colors.primary); // 오늘 요일 강조 색상
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [todayColor, setTodayColor] = useState(colors.primary);
 
   // Supabase에서 본인 수업 목록 불러오기
   const fetchCourses = useCallback(async () => {
@@ -63,7 +71,8 @@ export default function TimetableScreen({ navigation }) {
       .order('period');
 
     if (error) {
-      Alert.alert('エラー', '時間割の読み込みに失敗しました');
+      // 부드러운 실패 문구
+      Alert.alert('お知らせ', '時間割をうまく取得できませんでした');
     } else {
       setCourses(data || []);
     }
@@ -72,8 +81,6 @@ export default function TimetableScreen({ navigation }) {
 
   useEffect(() => {
     fetchCourses();
-
-    // 화면 포커스 시 수업 목록 + 색상 설정 새로고침
     const unsubscribe = navigation.addListener('focus', async () => {
       fetchCourses();
       const saved = await AsyncStorage.getItem(TODAY_COLOR_KEY);
@@ -82,14 +89,12 @@ export default function TimetableScreen({ navigation }) {
     return unsubscribe;
   }, [navigation, fetchCourses]);
 
-  // 특정 요일(dayIndex)과 교시(period)에 해당하는 수업 반환
   const getCourse = useCallback(
     (dayIndex, period) =>
       courses.find(c => c.day_of_week === dayIndex && c.period === period),
     [courses]
   );
 
-  // 수업 삭제 (CourseDetailModal에서 호출)
   const handleDeleteCourse = async (courseId) => {
     const { error } = await supabase
       .from('courses')
@@ -97,21 +102,30 @@ export default function TimetableScreen({ navigation }) {
       .eq('id', courseId);
 
     if (error) {
-      Alert.alert('エラー', '削除に失敗しました');
+      Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
     } else {
       setSelectedCourse(null);
       fetchCourses();
     }
   };
 
+  // 오늘 수업 통계 (1 thing/1 page — 화면 상단의 핵심 정보 하나)
+  const todayCourseCount = TODAY_COL >= 0
+    ? courses.filter(c => c.day_of_week === TODAY_COL).length
+    : 0;
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* ── 상단 헤더 ── */}
+      {/* ── 상단 헤더 (토스 스타일) ── */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>時間割</Text>
+        <View>
+          <Text style={styles.semesterLabel}>{getSemesterLabel()}</Text>
+          <Text style={styles.headerTitle}>時間割</Text>
+        </View>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('CourseAdd')}
+          activeOpacity={0.8}
         >
           <Text style={styles.addButtonText}>＋ 追加</Text>
         </TouchableOpacity>
@@ -120,102 +134,104 @@ export default function TimetableScreen({ navigation }) {
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* ── 요일 헤더 행 (月火水木金) ── */}
-          <View style={styles.dayHeaderRow}>
-            {/* 교시 열 공간 확보 */}
-            <View style={{ width: PERIOD_COL_WIDTH }} />
-            {DAYS.map((day, i) => {
-              const isToday = i === TODAY_COL;
-              return (
-                <View
-                  key={i}
-                  style={[
-                    styles.dayHeaderCell,
-                    isToday && { backgroundColor: todayColor + '18', borderRadius: 8, marginHorizontal: 2 },
-                  ]}
-                >
-                  <Text style={[
-                    styles.dayHeaderText,
-                    isToday && { color: todayColor, fontWeight: '800' },
-                  ]}>
-                    {day}
-                  </Text>
-                  {isToday && <View style={[styles.todayDot, { backgroundColor: todayColor }]} />}
-                </View>
-              );
-            })}
-          </View>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
+          {/* ── 오늘 수업 요약 칩 (1 thing — 핵심 정보 하나) ── */}
+          {TODAY_COL >= 0 && (
+            <View style={styles.todaySummary}>
+              <View style={[styles.todayDotLarge, { backgroundColor: todayColor }]} />
+              <Text style={styles.todaySummaryText}>
+                今日は<Text style={[styles.todaySummaryStrong, { color: todayColor }]}>{todayCourseCount}コマ</Text>
+              </Text>
+            </View>
+          )}
 
-          {/* ── 교시별 행 (1~8교시) ── */}
-          {PERIODS.map((period) => (
-            <View key={period} style={styles.periodRow}>
-              {/* 교시 번호 + 시간 */}
-              <View style={[styles.periodLabelCell, { height: ROW_HEIGHT }]}>
-                <Text style={styles.periodLabelText}>{period}</Text>
-                <Text style={styles.periodTimeText}>{getPeriodStartTimeStr(period, universityInfo)}</Text>
-              </View>
-
-              {/* 요일별 셀 */}
-              {DAYS.map((_, dayIndex) => {
-                const course = getCourse(dayIndex, period);
-                // 과목 색상 (수업 있을 때만)
-                const color = course ? getCourseColor(course.id) : null;
+          {/* ── 시간표 카드 (에브리타임 그리드 + 토스 카드) ── */}
+          <View style={styles.gridCard}>
+            {/* 요일 헤더 행 */}
+            <View style={styles.dayHeaderRow}>
+              <View style={{ width: PERIOD_COL_WIDTH }} />
+              {DAYS.map((day, i) => {
+                const isToday = i === TODAY_COL;
                 return (
-                  <TouchableOpacity
-                    key={dayIndex}
-                    style={[
-                      styles.cell,
-                      { height: ROW_HEIGHT },
-                      course
-                        ? {
-                            backgroundColor: color.bg,
-                            borderLeftWidth: 3,
-                            borderLeftColor: color.accent,
-                          }
-                        : styles.cellEmpty,
-                    ]}
-                    onPress={() => {
-                      if (course) {
-                        // 수업 있는 셀 탭 → 상세 모달 열기
-                        setSelectedCourse(course);
-                      } else {
-                        // 빈 셀 탭 → 해당 요일/교시 미리 선택된 추가 화면
-                        navigation.navigate('CourseAdd', { day: dayIndex, period });
-                      }
-                    }}
-                    activeOpacity={0.75}
-                  >
-                    {course ? (
-                      <>
-                        <Text
-                          style={[styles.courseName, { color: color.accent }]}
-                          numberOfLines={2}
-                        >
-                          {course.name}
-                        </Text>
-                        {course.professor_name ? (
-                          <Text
-                            style={[styles.professorName, { color: color.accent }]}
-                            numberOfLines={1}
-                          >
-                            {course.professor_name}
-                          </Text>
-                        ) : null}
-                      </>
-                    ) : (
-                      // 빈 셀에 + 아이콘 (호버 느낌)
-                      <Text style={styles.emptyCellPlus}>＋</Text>
-                    )}
-                  </TouchableOpacity>
+                  <View key={i} style={styles.dayHeaderCell}>
+                    <Text style={[
+                      styles.dayHeaderText,
+                      isToday && { color: todayColor, fontWeight: '700' },
+                    ]}>
+                      {day}
+                    </Text>
+                  </View>
                 );
               })}
             </View>
-          ))}
 
-          {/* ── 하단 메뉴 카드 (강의평가 / 공강맞추기) ── */}
+            {/* 그리드 본문 */}
+            {PERIODS.map((period) => (
+              <View key={period} style={[styles.periodRow, { height: ROW_HEIGHT }]}>
+                {/* 교시 라벨 */}
+                <View style={styles.periodLabelCell}>
+                  <Text style={styles.periodLabelText}>{period}</Text>
+                  <Text style={styles.periodTimeText}>{getPeriodStartTimeStr(period, universityInfo)}</Text>
+                </View>
+
+                {/* 요일별 셀 */}
+                {DAYS.map((_, dayIndex) => {
+                  const course = getCourse(dayIndex, period);
+                  const color = course ? getCourseColor(course.id) : null;
+                  return (
+                    <TouchableOpacity
+                      key={dayIndex}
+                      style={[
+                        styles.cell,
+                        course
+                          ? { backgroundColor: color.bg }
+                          : styles.cellEmpty,
+                      ]}
+                      onPress={() => {
+                        if (course) {
+                          setSelectedCourse(course);
+                        } else {
+                          navigation.navigate('CourseAdd', { day: dayIndex, period });
+                        }
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      {course ? (
+                        <>
+                          <Text
+                            style={[styles.courseName, { color: color.accent }]}
+                            numberOfLines={2}
+                          >
+                            {course.name}
+                          </Text>
+                          {course.classroom ? (
+                            <Text
+                              style={[styles.courseRoom, { color: color.accent }]}
+                              numberOfLines={1}
+                            >
+                              {course.classroom}
+                            </Text>
+                          ) : course.professor_name ? (
+                            <Text
+                              style={[styles.courseRoom, { color: color.accent }]}
+                              numberOfLines={1}
+                            >
+                              {course.professor_name}
+                            </Text>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+
+          {/* ── 하단 메뉴 섹션 (밀러의 법칙 — 3개 항목, 7±2 이내) ── */}
           <View style={styles.menuSection}>
-            <Text style={styles.menuSectionTitle}>授業関連機能</Text>
+            <Text style={styles.menuSectionTitle}>授業関連</Text>
+
             <TouchableOpacity
               style={styles.menuCard}
               activeOpacity={0.75}
@@ -228,6 +244,7 @@ export default function TimetableScreen({ navigation }) {
               </View>
               <Text style={styles.menuCardChevron}>›</Text>
             </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.menuCard}
               activeOpacity={0.75}
@@ -240,6 +257,7 @@ export default function TimetableScreen({ navigation }) {
               </View>
               <Text style={styles.menuCardChevron}>›</Text>
             </TouchableOpacity>
+
             {links.syllabusUrl ? (
               <TouchableOpacity
                 style={styles.menuCard}
@@ -249,34 +267,31 @@ export default function TimetableScreen({ navigation }) {
                 <Text style={styles.menuCardIcon}>📖</Text>
                 <View style={styles.menuCardText}>
                   <Text style={styles.menuCardTitle}>シラバス</Text>
-                  <Text style={styles.menuCardDesc}>{universityInfo.name} シラバス検索システム</Text>
+                  <Text style={styles.menuCardDesc}>{universityInfo.name} シラバス検索</Text>
                 </View>
                 <Text style={styles.menuCardChevron}>›</Text>
               </TouchableOpacity>
             ) : null}
           </View>
-
-          {/* 하단 여백 — 탭바(50) + 홈바(34) 클리어 */}
-          <View style={{ height: 84 }} />
         </ScrollView>
       )}
 
-      {/* 수업이 아직 없을 때 안내 오버레이 */}
+      {/* 빈 상태 (부드러운 톤) */}
       {!loading && courses.length === 0 && (
         <View style={styles.emptyOverlay}>
           <Text style={styles.emptyEmoji}>📚</Text>
-          <Text style={styles.emptyText}>まだ授業がありません</Text>
-          <Text style={styles.emptySubText}>空きコマをタップして授業を追加しよう</Text>
+          <Text style={styles.emptyText}>まだ授業がないみたい</Text>
+          <Text style={styles.emptySubText}>空きコマをタップして授業を追加してみよう</Text>
           <TouchableOpacity
             style={styles.emptyButton}
             onPress={() => navigation.navigate('CourseAdd')}
+            activeOpacity={0.85}
           >
             <Text style={styles.emptyButtonText}>＋ 授業を追加する</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* 수업 상세 모달 (수업 셀 탭 시 표시) */}
       <CourseDetailModal
         course={selectedCourse}
         onClose={() => setSelectedCourse(null)}
@@ -292,58 +307,81 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ────────────────────────────────────
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.background, // 보더 제거, 배경 일체화
+  },
+  semesterLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...typography.title2,
     color: colors.textPrimary,
   },
   addButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
   },
   addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+    color: colors.white,
+    ...typography.captionStrong,
+  },
+
+  // ── 오늘 요약 ────────────────────────────────
+  todaySummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+  },
+  todayDotLarge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: spacing.sm,
+  },
+  todaySummaryText: {
+    ...typography.body2,
+    color: colors.textSecondary,
+  },
+  todaySummaryStrong: {
+    ...typography.bodyStrong,
+  },
+
+  // ── 시간표 카드 (토스 카드 컨테이너) ──────────
+  gridCard: {
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    ...shadow.card,
   },
 
   // 요일 헤더
   dayHeaderRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
+    paddingBottom: spacing.sm,
+    marginBottom: spacing.xs,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingVertical: 8,
-    marginBottom: 2,
+    borderBottomColor: colors.gray100,
   },
   dayHeaderCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 2,
   },
   dayHeaderText: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
-  },
-  todayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    marginTop: 2,
   },
 
   // 교시 행
@@ -355,96 +393,86 @@ const styles = StyleSheet.create({
     width: PERIOD_COL_WIDTH,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surface,
+    paddingRight: spacing.xs,
   },
   periodLabelText: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
   },
   periodTimeText: {
-    fontSize: 9,
+    ...typography.micro,
     color: colors.textDisabled,
     marginTop: 2,
   },
 
-  // 수업 셀 (높이는 ROW_HEIGHT로 인라인 적용)
+  // 셀
   cell: {
     flex: 1,
     marginHorizontal: 1,
-    borderRadius: 6,
-    padding: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.xs,
+    alignItems: 'flex-start',
+    justifyContent: 'flex-start',
   },
   cellEmpty: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.gray50,
   },
   courseName: {
+    ...typography.captionStrong,
     fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-    lineHeight: 15,
+    lineHeight: 14,
   },
-  professorName: {
-    fontSize: 9,
-    textAlign: 'center',
+  courseRoom: {
+    ...typography.micro,
+    opacity: 0.85,
     marginTop: 2,
-    opacity: 0.75,
   },
-  // 하단 메뉴 섹션
+
+  // ── 하단 메뉴 ──────────────────────────────
   menuSection: {
-    marginHorizontal: 12,
-    marginTop: 16,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.xxl,
   },
   menuSectionTitle: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
-    marginBottom: 8,
-    paddingLeft: 4,
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.xs,
   },
   menuCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+    ...shadow.card,
   },
   menuCardIcon: {
-    fontSize: 20,
-    marginRight: 12,
+    fontSize: 22,
+    marginRight: spacing.md,
   },
   menuCardText: {
     flex: 1,
   },
   menuCardTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.bodyStrong,
     color: colors.textPrimary,
     marginBottom: 2,
   },
   menuCardDesc: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   menuCardChevron: {
-    fontSize: 20,
+    fontSize: 22,
     color: colors.textDisabled,
     lineHeight: 24,
   },
 
-  // 빈 셀의 + 아이콘
-  emptyCellPlus: {
-    fontSize: 16,
-    color: colors.border,
-    fontWeight: '300',
-  },
-
-  // 빈 상태 안내 오버레이
+  // ── 빈 상태 (부드러운 톤) ─────────────────
   emptyOverlay: {
     position: 'absolute',
     top: 0,
@@ -453,33 +481,31 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 56,
-    backgroundColor: 'rgba(242,244,246,0.92)',
+    paddingTop: spacing.huge,
+    backgroundColor: 'rgba(242,244,246,0.94)',
   },
   emptyEmoji: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 8,
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   emptySubText: {
-    fontSize: 13,
-    color: colors.textDisabled,
-    marginBottom: 24,
+    ...typography.body2,
+    color: colors.textSecondary,
+    marginBottom: spacing.xxl,
   },
   emptyButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
   },
   emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.white,
+    ...typography.bodyStrong,
   },
 });

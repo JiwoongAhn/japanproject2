@@ -1,16 +1,16 @@
-// 과목별 파스텔 색상 팔레트 (10가지)
-// bg: 셀 배경 (연한 파스텔), accent: 좌측 보더 & 텍스트 강조 (진한 색)
+// 과목별 파스텔 색상 팔레트 (밀러의 법칙 — 7±2)
+// 일본 감성 파스텔 7색. bg: 셀 배경, accent: 텍스트·강조 색
+// 디자인 토큰 `colors.pastel`과 동기화 (src/constants/colors.js)
+import { pastel } from './colors';
+
 export const COURSE_COLORS = [
-  { bg: '#EBF3FE', accent: '#3182F6' }, // Blue
-  { bg: '#E8F8F0', accent: '#05C072' }, // Green
-  { bg: '#FFF3E0', accent: '#FF8A00' }, // Orange
-  { bg: '#FDE8E8', accent: '#F04438' }, // Red
-  { bg: '#F3E8FD', accent: '#9B59B6' }, // Purple
-  { bg: '#E8F4FD', accent: '#2196F3' }, // Sky
-  { bg: '#FFF8E1', accent: '#F9A825' }, // Yellow
-  { bg: '#E8FDF5', accent: '#00897B' }, // Teal
-  { bg: '#FCE4EC', accent: '#E91E8C' }, // Pink
-  { bg: '#E8EAF6', accent: '#3F51B5' }, // Indigo
+  pastel.sky,       // 하늘
+  pastel.mint,      // 민트
+  pastel.peach,     // 피치
+  pastel.lavender,  // 라벤더
+  pastel.yellow,    // 옐로
+  pastel.pink,      // 핑크
+  pastel.rose,      // 로즈
 ];
 
 // course.id(UUID)를 기반으로 색상을 자동 배정
