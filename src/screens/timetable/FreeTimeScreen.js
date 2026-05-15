@@ -14,20 +14,19 @@ import {
   Platform,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
-import { colors } from '../../constants/colors';
+import { colors, pastel } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo } from '../../utils/university';
+import Card from '../../components/Card';
 
-// 요일 레이블
 const DAY_LABELS = ['月', '火', '水', '木', '金'];
-// 교시 열 너비
 const PERIOD_COL_WIDTH = 36;
-// 화면 너비 기반으로 셀 너비 계산
-// 32 = ScrollView padding (16 * 2)
-// 28 = gridSection card padding (14 * 2)
-// 10 = gap:2 × 5칸 사이 공간
+// 화면 너비 기반 셀 크기 계산
+// 32 = ScrollView padding (16 * 2), 32 = Card padding (16 * 2), 10 = gap*5
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 32 - 28 - PERIOD_COL_WIDTH - 10) / 5);
+const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 32 - 32 - PERIOD_COL_WIDTH - 10) / 5);
 
 export default function FreeTimeScreen({ navigation }) {
   const scrollViewRef = useRef(null);
@@ -43,19 +42,18 @@ export default function FreeTimeScreen({ navigation }) {
   const [myNickname, setMyNickname] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // 내 수업이 있는 칸 (회색 - 선택 불가)
+  // 내 수업이 있는 칸 (회색)
   const [myClassSet, setMyClassSet] = useState(new Set());
-  // 내가 선택한 공강 칸 (파란색)
+  // 내가 선택한 공강 (파란색)
   const [selectedCells, setSelectedCells] = useState(new Set());
 
   // 친구 비교
   const [friendInput, setFriendInput] = useState('');
   const [comparing, setComparing] = useState(false);
   const [friendNickname, setFriendNickname] = useState('');
-  // 친구와 겹치는 칸 (초록색)
+  // 친구와 겹치는 칸 (민트)
   const [commonCells, setCommonCells] = useState(new Set());
 
-  // ── 내 시간표 불러와서 수업/공강 초기화 ─────────────────────────
   const fetchMyData = useCallback(async () => {
     setLoading(true);
     try {
@@ -70,15 +68,14 @@ export default function FreeTimeScreen({ navigation }) {
       setMyNickname(profileResult.data?.nickname ?? '');
 
       const courses = coursesResult.data ?? [];
-      // 수업 있는 칸 세트
       const classSet = new Set(courses.map(c => `${c.day_of_week}-${c.period}`));
       setMyClassSet(classSet);
 
-      // 학교별 교시 수 계산 (fetchMyData 내부에서 직접 계산해 stale 클로저 방지)
+      // 학교별 교시 수 (stale 클로저 방지 위해 내부에서 재계산)
       const uniInfo = getUniversityInfo(user.email);
       const pc = uniInfo?.periodRanges ? Object.keys(uniInfo.periodRanges).length : 6;
 
-      // 공강 칸을 기본으로 선택 (내 시간표 기준 자동 채우기)
+      // 공강 칸을 기본 선택
       const freeSet = new Set();
       for (let day = 0; day <= 4; day++) {
         for (let period = 1; period <= pc; period++) {
@@ -88,8 +85,9 @@ export default function FreeTimeScreen({ navigation }) {
         }
       }
       setSelectedCells(freeSet);
-    } catch (e) {
-      Alert.alert('エラー', '読み込みに失敗しました');
+    } catch {
+      // 부드러운 실패 문구
+      Alert.alert('お知らせ', 'うまく読み込めませんでした。もう一度お試しください');
     } finally {
       setLoading(false);
     }
@@ -99,7 +97,6 @@ export default function FreeTimeScreen({ navigation }) {
     fetchMyData();
   }, [fetchMyData]);
 
-  // 셀 탭 → 선택/해제 토글
   const toggleCell = useCallback((key) => {
     setSelectedCells(prev => {
       const next = new Set(prev);
@@ -107,12 +104,10 @@ export default function FreeTimeScreen({ navigation }) {
       else next.add(key);
       return next;
     });
-    // 비교 결과 초기화
     setCommonCells(new Set());
     setFriendNickname('');
   }, []);
 
-  // 전체 선택 / 전체 해제
   const selectAll = () => {
     const allFree = new Set();
     for (let day = 0; day <= 4; day++) {
@@ -124,13 +119,13 @@ export default function FreeTimeScreen({ navigation }) {
     setCommonCells(new Set());
     setFriendNickname('');
   };
+
   const clearAll = () => {
     setSelectedCells(new Set());
     setCommonCells(new Set());
     setFriendNickname('');
   };
 
-  // ── 친구 아이디로 비교 ──────────────────────────────────────────
   const handleCompare = async () => {
     const input = friendInput.trim();
     if (!input) return;
@@ -147,15 +142,14 @@ export default function FreeTimeScreen({ navigation }) {
         .single();
 
       if (profileError || !profile) {
-        Alert.alert('見つかりません', `「${input}」というIDのユーザーが見つかりませんでした`);
+        Alert.alert('お知らせ', `「${input}」というIDのユーザーが見つからないみたい`);
         return;
       }
 
-      // 친구가 시간표 공개를 OFF로 설정한 경우 비교 불가
       if (!profile.share_timetable) {
         Alert.alert(
-          '非公開',
-          `${profile.nickname}さんは時間割を公開していません。\n友達に時間割の公開をお願いしてください。`
+          'お知らせ',
+          `${profile.nickname}さんは時間割を公開していません。\n友達に時間割の公開をお願いしてみよう`
         );
         return;
       }
@@ -165,7 +159,6 @@ export default function FreeTimeScreen({ navigation }) {
         .select('day_of_week, period')
         .eq('user_id', profile.id);
 
-      // 친구의 공강 계산 (현재 학교 교시 수 기준)
       const friendClassSet = new Set((friendCourses ?? []).map(c => `${c.day_of_week}-${c.period}`));
       const friendFreeSet = new Set();
       for (let day = 0; day <= 4; day++) {
@@ -173,37 +166,34 @@ export default function FreeTimeScreen({ navigation }) {
           if (!friendClassSet.has(`${day}-${period}`)) friendFreeSet.add(`${day}-${period}`);
         }
       }
-      // PERIODS는 컴포넌트 변수 — 렌더 시점 값 사용 (세션 로드 후 정확)
 
-      // 내가 선택한 공강 ∩ 친구 공강 = 공통 공강
       const common = new Set([...selectedCells].filter(k => friendFreeSet.has(k)));
       setCommonCells(common);
       setFriendNickname(profile.nickname);
     } catch {
-      Alert.alert('エラー', '比較に失敗しました');
+      Alert.alert('お知らせ', 'うまく比較できませんでした。もう一度お試しください');
     } finally {
       setComparing(false);
     }
   };
 
-  // ── 셀 상태 결정 ────────────────────────────────────────────────
   const getCellState = (day, period) => {
     const key = `${day}-${period}`;
-    if (myClassSet.has(key)) return 'class';       // 내 수업
-    if (commonCells.has(key)) return 'common';     // 친구와 겹침
-    if (selectedCells.has(key)) return 'selected'; // 내가 선택한 공강
-    return 'empty';                                  // 선택 안 함
+    if (myClassSet.has(key)) return 'class';
+    if (commonCells.has(key)) return 'common';
+    if (selectedCells.has(key)) return 'selected';
+    return 'empty';
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7}>
             <Text style={styles.backButtonText}>‹</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>空き時間合わせ</Text>
-          <View style={{ width: 36 }} />
+          <View style={styles.backButton} />
         </View>
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       </SafeAreaView>
@@ -215,182 +205,179 @@ export default function FreeTimeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 헤더 */}
+      {/* ── 헤더 ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7}>
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>空き時間合わせ</Text>
-        <View style={{ width: 36 }} />
+        <View style={styles.backButton} />
       </View>
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-      <ScrollView
-        ref={scrollViewRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+        <ScrollView
+          ref={scrollViewRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ── 내 ID 카드 (primary 강조) ── */}
+          {myNickname ? (
+            <View style={styles.myIdCard}>
+              <Text style={styles.myIdLabel}>あなたのID（友達に教えよう）</Text>
+              <Text style={styles.myIdValue}>{myNickname}</Text>
+            </View>
+          ) : null}
 
-        {/* ── 내 ID 카드 ── */}
-        {myNickname ? (
-          <View style={styles.myIdCard}>
-            <Text style={styles.myIdLabel}>あなたのID（友達に教えよう）</Text>
-            <Text style={styles.myIdValue}>{myNickname}</Text>
-          </View>
-        ) : null}
+          {/* ── 선택 그리드 ── */}
+          <Card style={styles.gridSection}>
+            <View style={styles.gridHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.sectionTitle}>空き時間を選択</Text>
+                <Text style={styles.sectionSub}>
+                  {selectedCount}コマ選択中
+                  {friendNickname ? ` · ${friendNickname}と${commonCount}コマ共通` : ''}
+                </Text>
+              </View>
+              <View style={styles.gridActions}>
+                <TouchableOpacity style={styles.actionBtn} onPress={selectAll} activeOpacity={0.8}>
+                  <Text style={styles.actionBtnText}>全選択</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.actionBtn, styles.actionBtnGhost]} onPress={clearAll} activeOpacity={0.8}>
+                  <Text style={styles.actionBtnGhostText}>全解除</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-        {/* ── 선택 그리드 ── */}
-        <View style={styles.gridSection}>
-          {/* 섹션 헤더 + 버튼 */}
-          <View style={styles.gridHeaderRow}>
-            <View>
-              <Text style={styles.sectionTitle}>空き時間を選択</Text>
-              <Text style={styles.sectionSub}>
-                {selectedCount}コマ選択中
-                {friendNickname ? ` · ${friendNickname}と${commonCount}コマ共通` : ''}
-              </Text>
+            {/* ── 범례 (밀러 3개) ── */}
+            <View style={styles.legend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+                <Text style={styles.legendText}>選択中</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: pastel.mint.accent }]} />
+                <Text style={styles.legendText}>友達と共通</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.gray300 }]} />
+                <Text style={styles.legendText}>授業あり</Text>
+              </View>
             </View>
-            <View style={styles.gridActions}>
-              <TouchableOpacity style={styles.actionBtn} onPress={selectAll}>
-                <Text style={styles.actionBtnText}>全選択</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionBtn, styles.actionBtnGhost]} onPress={clearAll}>
-                <Text style={styles.actionBtnGhostText}>全解除</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
 
-          {/* 범례 */}
-          <View style={styles.legend}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-              <Text style={styles.legendText}>選択中</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: '#05C072' }]} />
-              <Text style={styles.legendText}>友達と共通</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.border }]} />
-              <Text style={styles.legendText}>授業あり</Text>
-            </View>
-          </View>
+            {/* ── 그리드 ── */}
+            <View style={styles.grid}>
+              {/* 요일 헤더 */}
+              <View style={styles.gridRow}>
+                <View style={{ width: PERIOD_COL_WIDTH }} />
+                {DAY_LABELS.map((d, i) => (
+                  <View key={i} style={[styles.dayHeader, { width: CELL_WIDTH }]}>
+                    <Text style={styles.dayHeaderText}>{d}</Text>
+                  </View>
+                ))}
+              </View>
 
-          {/* 그리드 */}
-          <View style={styles.grid}>
-            {/* 요일 헤더 */}
-            <View style={styles.gridRow}>
-              <View style={{ width: PERIOD_COL_WIDTH }} />
-              {DAY_LABELS.map((d, i) => (
-                <View key={i} style={[styles.dayHeader, { width: CELL_WIDTH }]}>
-                  <Text style={styles.dayHeaderText}>{d}</Text>
+              {/* 교시 행 */}
+              {PERIODS.map((period) => (
+                <View key={period} style={styles.gridRow}>
+                  <View style={[styles.periodLabel, { width: PERIOD_COL_WIDTH, height: CELL_HEIGHT }]}>
+                    <Text style={styles.periodLabelText}>{period}</Text>
+                  </View>
+
+                  {[0, 1, 2, 3, 4].map((day) => {
+                    const cellState = getCellState(day, period);
+                    const key = `${day}-${period}`;
+                    return (
+                      <TouchableOpacity
+                        key={day}
+                        style={[
+                          styles.cell,
+                          { width: CELL_WIDTH, height: CELL_HEIGHT },
+                          cellState === 'class'    && styles.cellClass,
+                          cellState === 'selected' && styles.cellSelected,
+                          cellState === 'common'   && styles.cellCommon,
+                          cellState === 'empty'    && styles.cellEmpty,
+                        ]}
+                        onPress={() => cellState !== 'class' && toggleCell(key)}
+                        disabled={cellState === 'class'}
+                        activeOpacity={0.7}
+                      >
+                        {cellState === 'class' && (
+                          <Text style={styles.cellClassText}>授業</Text>
+                        )}
+                        {cellState === 'common' && (
+                          <Text style={styles.cellCommonText}>✓</Text>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               ))}
             </View>
+          </Card>
 
-            {/* 교시 행 */}
-            {PERIODS.map((period) => (
-              <View key={period} style={styles.gridRow}>
-                {/* 교시 레이블 */}
-                <View style={[styles.periodLabel, { width: PERIOD_COL_WIDTH, height: CELL_HEIGHT }]}>
-                  <Text style={styles.periodLabelText}>{period}</Text>
-                </View>
-
-                {/* 요일별 셀 */}
-                {[0, 1, 2, 3, 4].map((day) => {
-                  const cellState = getCellState(day, period);
-                  const key = `${day}-${period}`;
-                  return (
-                    <TouchableOpacity
-                      key={day}
-                      style={[
-                        styles.cell,
-                        { width: CELL_WIDTH, height: CELL_HEIGHT },
-                        cellState === 'class'    && styles.cellClass,
-                        cellState === 'selected' && styles.cellSelected,
-                        cellState === 'common'   && styles.cellCommon,
-                        cellState === 'empty'    && styles.cellEmpty,
-                      ]}
-                      onPress={() => cellState !== 'class' && toggleCell(key)}
-                      disabled={cellState === 'class'}
-                      activeOpacity={0.7}
-                    >
-                      {cellState === 'class' && (
-                        <Text style={styles.cellClassText}>授業</Text>
-                      )}
-                      {cellState === 'common' && (
-                        <Text style={styles.cellCommonText}>✓</Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* ── 친구 ID 입력 및 비교 ── */}
-        <View style={styles.compareSection}>
-          <Text style={styles.sectionTitle}>友達のIDを入力して比較</Text>
-          <Text style={styles.sectionSub}>友達のIDを入力すると、共通の空き時間が緑色で表示されます</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="友達のIDを入力"
-              placeholderTextColor={colors.textDisabled}
-              value={friendInput}
-              onChangeText={text => {
-                setFriendInput(text);
-                if (friendNickname) {
-                  setFriendNickname('');
-                  setCommonCells(new Set());
+          {/* ── 친구 비교 섹션 ── */}
+          <Card style={styles.compareSection}>
+            <Text style={styles.sectionTitle}>友達のIDを入力して比較</Text>
+            <Text style={styles.sectionSub}>共通の空き時間が緑色で表示されます</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="友達のIDを入力"
+                placeholderTextColor={colors.textDisabled}
+                value={friendInput}
+                onChangeText={text => {
+                  setFriendInput(text);
+                  if (friendNickname) {
+                    setFriendNickname('');
+                    setCommonCells(new Set());
+                  }
+                }}
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 300);
+                }}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={[styles.compareBtn, (!friendInput.trim() || comparing) && styles.compareBtnDisabled]}
+                onPress={handleCompare}
+                disabled={!friendInput.trim() || comparing}
+                activeOpacity={0.85}
+              >
+                {comparing
+                  ? <ActivityIndicator size="small" color={colors.white} />
+                  : <Text style={styles.compareBtnText}>比較</Text>
                 }
-              }}
-              onFocus={() => {
-                setTimeout(() => {
-                  scrollViewRef.current?.scrollToEnd({ animated: true });
-                }, 300);
-              }}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TouchableOpacity
-              style={[styles.compareBtn, (!friendInput.trim() || comparing) && styles.compareBtnDisabled]}
-              onPress={handleCompare}
-              disabled={!friendInput.trim() || comparing}
-              activeOpacity={0.8}
-            >
-              {comparing
-                ? <ActivityIndicator size="small" color="#FFF" />
-                : <Text style={styles.compareBtnText}>比較</Text>
-              }
-            </TouchableOpacity>
-          </View>
-
-          {/* 비교 결과 요약 */}
-          {friendNickname && (
-            <View style={[
-              styles.resultBanner,
-              commonCount > 0 ? styles.resultBannerSuccess : styles.resultBannerEmpty,
-            ]}>
-              <Text style={[
-                styles.resultBannerText,
-                commonCount > 0 ? styles.resultBannerTextSuccess : styles.resultBannerTextEmpty,
-              ]}>
-                {commonCount > 0
-                  ? `${friendNickname}さんと ${commonCount}コマ 共通の空き時間があります 🎉`
-                  : `${friendNickname}さんと共通の空き時間がありません 😢`
-                }
-              </Text>
+              </TouchableOpacity>
             </View>
-          )}
-        </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+            {/* 비교 결과 배너 (부드러운 톤) */}
+            {friendNickname && (
+              <View style={[
+                styles.resultBanner,
+                commonCount > 0 ? styles.resultBannerSuccess : styles.resultBannerEmpty,
+              ]}>
+                <Text style={[
+                  styles.resultBannerText,
+                  commonCount > 0 ? styles.resultBannerTextSuccess : styles.resultBannerTextEmpty,
+                ]}>
+                  {commonCount > 0
+                    ? `${friendNickname}さんと ${commonCount}コマ 共通の空き時間があります 🎉`
+                    : `${friendNickname}さんとは共通の空き時間がなさそう 😢`
+                  }
+                </Text>
+              </View>
+            )}
+          </Card>
+
+          <View style={{ height: spacing.huge }} />
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -402,15 +389,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
+  // ── 헤더 ──
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.background,
   },
   backButton: {
     width: 36,
@@ -424,92 +411,90 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
 
   scrollContent: {
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    gap: spacing.md,
   },
 
-  // 내 ID 카드
+  // ── 내 ID 카드 ──
   myIdCard: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.lg,
     alignItems: 'center',
+    ...shadow.card,
   },
   myIdLabel: {
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.8)',
-    marginBottom: 6,
+    ...typography.caption,
+    color: 'rgba(255,255,255,0.85)',
+    marginBottom: spacing.xs + 2,
   },
   myIdValue: {
-    fontSize: 20,
+    ...typography.title3,
+    color: colors.white,
     fontWeight: '800',
-    color: '#FFFFFF',
     letterSpacing: 1,
   },
 
-  // 그리드 섹션
+  // ── 그리드 섹션 ──
   gridSection: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
+    // Card 컴포넌트가 padding 적용
   },
   gridHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...typography.bodyStrong,
     color: colors.textPrimary,
     marginBottom: 3,
   },
   sectionSub: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   gridActions: {
     flexDirection: 'row',
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   actionBtn: {
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.pill,
   },
   actionBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...typography.small,
     color: colors.primary,
+    fontWeight: '700',
   },
   actionBtnGhost: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.gray50,
   },
   actionBtnGhostText: {
-    fontSize: 12,
+    ...typography.small,
     color: colors.textSecondary,
+    fontWeight: '600',
   },
 
-  // 범례
+  // ── 범례 ──
   legend: {
     flexDirection: 'row',
-    gap: 14,
-    marginBottom: 10,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: spacing.xs + 2,
   },
   legendDot: {
     width: 10,
@@ -517,11 +502,11 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   legendText: {
-    fontSize: 11,
+    ...typography.small,
     color: colors.textSecondary,
   },
 
-  // 그리드
+  // ── 그리드 ──
   grid: {
     gap: 2,
   },
@@ -536,108 +521,101 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayHeaderText: {
-    fontSize: 12,
-    fontWeight: '700',
+    ...typography.captionStrong,
     color: colors.textSecondary,
   },
   periodLabel: {
-    // height는 컴포넌트 안에서 동적으로 적용 (학교별 교시 수에 따라 변동)
     alignItems: 'center',
     justifyContent: 'center',
   },
   periodLabelText: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
   },
 
-  // 그리드 셀 상태
+  // ── 셀 상태 ──
   cell: {
-    borderRadius: 6,
+    borderRadius: radius.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cellEmpty: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
+    backgroundColor: colors.gray50,
   },
   cellSelected: {
     backgroundColor: colors.primary,
   },
   cellCommon: {
-    backgroundColor: '#05C072',
+    backgroundColor: pastel.mint.accent,
   },
   cellClass: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.gray200,
   },
   cellClassText: {
     fontSize: 9,
     color: colors.textDisabled,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   cellCommonText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '800',
   },
 
-  // 비교 섹션
+  // ── 비교 섹션 ──
   compareSection: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    // Card 컴포넌트가 padding 적용
   },
   inputRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginTop: 12,
-    marginBottom: 10,
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
   },
   input: {
     flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 14,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    ...typography.body2,
     color: colors.textPrimary,
   },
   compareBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 18,
-    borderRadius: 10,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 64,
+    minWidth: 72,
   },
   compareBtnDisabled: {
-    backgroundColor: colors.textDisabled,
+    backgroundColor: colors.gray300,
   },
   compareBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.white,
+    ...typography.bodyStrong,
     fontWeight: '700',
   },
 
-  // 결과 배너
+  // ── 결과 배너 (부드러운 톤) ──
   resultBanner: {
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: radius.md,
+    padding: spacing.md,
   },
   resultBannerSuccess: {
-    backgroundColor: '#05C072' + '18',
+    backgroundColor: pastel.mint.bg,
   },
   resultBannerEmpty: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.gray50,
   },
   resultBannerText: {
-    fontSize: 13,
+    ...typography.caption,
     fontWeight: '600',
     textAlign: 'center',
   },
   resultBannerTextSuccess: {
-    color: '#05C072',
+    color: pastel.mint.accent,
   },
   resultBannerTextEmpty: {
     color: colors.textSecondary,

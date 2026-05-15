@@ -9,8 +9,11 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { colors } from '../../constants/colors';
+import { colors, pastel } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
+import Card from '../../components/Card';
 
 // 별점 표시 컴포넌트
 function StarRating({ rating, size = 14 }) {
@@ -19,7 +22,7 @@ function StarRating({ rating, size = 14 }) {
       {[1, 2, 3, 4, 5].map((i) => (
         <Text
           key={i}
-          style={[styles.star, { fontSize: size, color: i <= Math.round(rating) ? '#F59E0B' : colors.border }]}
+          style={[styles.star, { fontSize: size, color: i <= Math.round(rating) ? pastel.yellow.accent : colors.gray200 }]}
         >
           ★
         </Text>
@@ -28,7 +31,7 @@ function StarRating({ rating, size = 14 }) {
   );
 }
 
-// 작성 일시 포맷 (예: 2026年4月13日)
+// 작성 일시 포맷
 function formatDate(isoString) {
   const d = new Date(isoString);
   return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
@@ -41,7 +44,6 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // 해당 수업의 전체 리뷰 불러오기
   const fetchReviews = useCallback(async () => {
     try {
       let query = supabase
@@ -50,7 +52,6 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
         .eq('course_name', courseName)
         .order('created_at', { ascending: false });
 
-      // 교수명이 있으면 교수명으로도 필터
       if (professorName) {
         query = query.eq('professor_name', professorName);
       }
@@ -68,7 +69,6 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
 
   useEffect(() => {
     fetchReviews();
-    // 리뷰 작성 후 돌아오면 새로고침
     const unsubscribe = navigation.addListener('focus', fetchReviews);
     return unsubscribe;
   }, [navigation, fetchReviews]);
@@ -78,41 +78,22 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
     fetchReviews();
   }, [fetchReviews]);
 
-  // 평균 별점 계산
+  // 평균 별점
   const avgRating = reviews.length > 0
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
     : 0;
 
   return (
     <SafeAreaView style={styles.container}>
-
       {/* ── 헤더 ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7}>
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>{courseName}</Text>
-        <View style={{ width: 36 }} />
+        <View style={styles.backButton} />
       </View>
 
-      {/* ── 수업 요약 카드 ── */}
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryLeft}>
-          <Text style={styles.summaryCourse}>{courseName}</Text>
-          {professorName ? (
-            <Text style={styles.summaryProfessor}>{professorName}</Text>
-          ) : null}
-        </View>
-        {reviews.length > 0 && (
-          <View style={styles.summaryRight}>
-            <StarRating rating={avgRating} size={16} />
-            <Text style={styles.summaryAvg}>{avgRating.toFixed(1)}</Text>
-            <Text style={styles.summaryCount}>{reviews.length}件の評価</Text>
-          </View>
-        )}
-      </View>
-
-      {/* ── 리뷰 목록 ── */}
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : (
@@ -123,49 +104,71 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
         >
+          {/* ── 수업 요약 카드 (1 thing — 평균 별점 강조) ── */}
+          <Card style={styles.summaryCard}>
+            <View style={styles.summaryLeft}>
+              <Text style={styles.summaryCourse}>{courseName}</Text>
+              {professorName ? (
+                <Text style={styles.summaryProfessor}>{professorName}</Text>
+              ) : null}
+            </View>
+            {reviews.length > 0 ? (
+              <View style={styles.summaryRight}>
+                <Text style={styles.summaryAvg}>{avgRating.toFixed(1)}</Text>
+                <StarRating rating={avgRating} size={14} />
+                <Text style={styles.summaryCount}>{reviews.length}件の評価</Text>
+              </View>
+            ) : null}
+          </Card>
+
           {reviews.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>📝</Text>
-              <Text style={styles.emptyText}>まだ評価がありません</Text>
-              <Text style={styles.emptySubText}>最初の評価を書いてみよう！</Text>
+              <Text style={styles.emptyText}>まだ評価がないみたい</Text>
+              <Text style={styles.emptySubText}>最初の評価を書いてみよう</Text>
             </View>
           ) : (
-            reviews.map((review) => (
-              <View key={review.id} style={styles.reviewCard}>
-                {/* 별점 + 날짜 */}
-                <View style={styles.cardTop}>
-                  <StarRating rating={review.rating} size={13} />
-                  <Text style={styles.cardDate}>{formatDate(review.created_at)}</Text>
-                </View>
+            <>
+              <Text style={styles.listLabel}>みんなの評価</Text>
+              {reviews.map((review) => (
+                <View key={review.id} style={styles.reviewCardWrap}>
+                  <Card>
+                    {/* 별점 + 날짜 */}
+                    <View style={styles.cardTop}>
+                      <StarRating rating={review.rating} size={14} />
+                      <Text style={styles.cardDate}>{formatDate(review.created_at)}</Text>
+                    </View>
 
-                {/* 태그 */}
-                {review.tags && review.tags.length > 0 && (
-                  <View style={styles.tagRow}>
-                    {review.tags.map((tag, i) => (
-                      <View key={i} style={styles.tag}>
-                        <Text style={styles.tagText}>#{tag}</Text>
+                    {/* 태그 */}
+                    {review.tags && review.tags.length > 0 && (
+                      <View style={styles.tagRow}>
+                        {review.tags.map((tag, i) => (
+                          <View key={i} style={styles.tag}>
+                            <Text style={styles.tagText}>#{tag}</Text>
+                          </View>
+                        ))}
                       </View>
-                    ))}
-                  </View>
-                )}
+                    )}
 
-                {/* 코멘트 */}
-                {review.comment ? (
-                  <Text style={styles.comment}>{review.comment}</Text>
-                ) : null}
-              </View>
-            ))
+                    {/* 코멘트 */}
+                    {review.comment ? (
+                      <Text style={styles.comment}>{review.comment}</Text>
+                    ) : null}
+                  </Card>
+                </View>
+              ))}
+            </>
           )}
 
           <View style={{ height: 100 }} />
         </ScrollView>
       )}
 
-      {/* ── 평가 작성 FAB ── */}
+      {/* ── FAB ── */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
-        onPress={() => navigation.navigate('CourseReviewCreate')}
+        onPress={() => navigation.navigate('CourseReviewCreate', { courseName, professorName })}
       >
         <Text style={styles.fabText}>＋ 評価を書く</Text>
       </TouchableOpacity>
@@ -179,16 +182,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ──
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.background,
   },
   backButton: {
     width: 36,
@@ -203,138 +205,134 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
     textAlign: 'center',
-    marginHorizontal: 8,
+    marginHorizontal: spacing.sm,
   },
 
-  // 수업 요약 카드
+  // ── 목록 ──
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  listLabel: {
+    ...typography.captionStrong,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    marginTop: spacing.md,
+    paddingLeft: spacing.xs,
+  },
+
+  // ── 수업 요약 카드 ──
   summaryCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
   summaryLeft: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   summaryCourse: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.title3,
     color: colors.textPrimary,
-    marginBottom: 3,
+    marginBottom: spacing.xs,
   },
   summaryProfessor: {
-    fontSize: 13,
+    ...typography.body2,
     color: colors.textSecondary,
   },
   summaryRight: {
     alignItems: 'flex-end',
   },
   summaryAvg: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...typography.display,
     color: colors.textPrimary,
-    marginTop: 2,
+    marginBottom: 2,
   },
   summaryCount: {
-    fontSize: 12,
+    ...typography.small,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginTop: spacing.xs,
   },
 
-  // 리뷰 목록
-  listContent: {
-    padding: 16,
-  },
-
-  // 개별 리뷰 카드
-  reviewCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+  // ── 개별 리뷰 카드 ──
+  reviewCardWrap: {
+    marginBottom: spacing.md,
   },
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   starRow: {
     flexDirection: 'row',
-    gap: 2,
+    gap: 1,
   },
   star: {
     lineHeight: 18,
   },
   cardDate: {
-    fontSize: 12,
+    ...typography.small,
     color: colors.textDisabled,
   },
 
-  // 태그
+  // ── 태그 ──
   tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
+    gap: spacing.xs + 2,
+    marginBottom: spacing.md,
   },
   tag: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
+    backgroundColor: pastel.sky.bg,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
   tagText: {
-    fontSize: 11,
-    color: colors.primary,
-    fontWeight: '500',
+    ...typography.small,
+    color: pastel.sky.accent,
+    fontWeight: '600',
   },
 
-  // 코멘트
+  // ── 코멘트 ──
   comment: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
-    lineHeight: 20,
+    lineHeight: 22,
   },
 
-  // 빈 상태
+  // ── 빈 상태 ──
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 80,
+    paddingVertical: spacing.huge * 2,
   },
   emptyEmoji: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 6,
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   emptySubText: {
-    fontSize: 13,
-    color: colors.textDisabled,
+    ...typography.body2,
+    color: colors.textSecondary,
   },
 
-  // FAB
+  // ── FAB ──
   fab: {
     position: 'absolute',
-    bottom: 24,
-    right: 20,
+    bottom: spacing.xxl,
+    right: spacing.xl,
     backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 28,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md + 2,
+    borderRadius: radius.pill,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -342,8 +340,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.white,
+    ...typography.bodyStrong,
     fontWeight: '700',
   },
 });

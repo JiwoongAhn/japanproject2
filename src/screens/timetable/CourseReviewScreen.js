@@ -10,15 +10,21 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { colors } from '../../constants/colors';
+import { colors, pastel } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
+import Card from '../../components/Card';
 
-// 별 표시 렌더링
+// 별 표시
 function StarRating({ rating }) {
   return (
     <View style={styles.starRow}>
       {[1, 2, 3, 4, 5].map((i) => (
-        <Text key={i} style={[styles.star, { color: i <= Math.round(rating) ? '#F59E0B' : colors.border }]}>
+        <Text
+          key={i}
+          style={[styles.star, { color: i <= Math.round(rating) ? pastel.yellow.accent : colors.gray200 }]}
+        >
           ★
         </Text>
       ))}
@@ -27,7 +33,6 @@ function StarRating({ rating }) {
 }
 
 // course_reviews 배열을 과목명 기준으로 그룹화
-// 반환: [{ courseName, professorName, avgRating, count, tags, latestComment }]
 function groupReviewsByCourse(reviews) {
   const map = {};
   reviews.forEach((r) => {
@@ -44,7 +49,7 @@ function groupReviewsByCourse(reviews) {
     }
     map[key].totalRating += r.rating;
     map[key].count += 1;
-    // 태그 중복 없이 수집 (최대 5개)
+    // 태그 중복 없이 수집 (최대 5개 — 밀러 7±2 이내)
     (r.tags || []).forEach((tag) => {
       if (!map[key].tags.includes(tag) && map[key].tags.length < 5) {
         map[key].tags.push(tag);
@@ -57,7 +62,7 @@ function groupReviewsByCourse(reviews) {
       ...item,
       avgRating: item.totalRating / item.count,
     }))
-    .sort((a, b) => b.count - a.count); // 평가 수 많은 순 정렬
+    .sort((a, b) => b.count - a.count);
 }
 
 export default function CourseReviewScreen({ navigation }) {
@@ -66,7 +71,6 @@ export default function CourseReviewScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Supabase에서 강의평가 불러오기
   const fetchReviews = useCallback(async () => {
     const { data, error } = await supabase
       .from('course_reviews')
@@ -82,7 +86,6 @@ export default function CourseReviewScreen({ navigation }) {
 
   useEffect(() => {
     fetchReviews();
-    // CourseReviewCreate에서 돌아올 때마다 목록 새로고침
     const unsubscribe = navigation.addListener('focus', fetchReviews);
     return unsubscribe;
   }, [navigation, fetchReviews]);
@@ -92,7 +95,6 @@ export default function CourseReviewScreen({ navigation }) {
     fetchReviews();
   }, [fetchReviews]);
 
-  // 과목별 그룹화 + 검색 필터
   const grouped = groupReviewsByCourse(reviews).filter(
     (item) =>
       item.courseName.includes(searchText) ||
@@ -101,14 +103,13 @@ export default function CourseReviewScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-
-      {/* ── 헤더 ── */}
+      {/* ── 헤더 (보더 없는 토스 스타일) ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7}>
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>講義評価</Text>
-        <View style={{ width: 36 }} />
+        <View style={styles.backButton} />
       </View>
 
       {/* ── 검색바 ── */}
@@ -123,14 +124,13 @@ export default function CourseReviewScreen({ navigation }) {
             onChangeText={setSearchText}
           />
           {searchText.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchText('')}>
+            <TouchableOpacity onPress={() => setSearchText('')} activeOpacity={0.7}>
               <Text style={styles.clearButton}>✕</Text>
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      {/* ── 로딩 중 ── */}
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : (
@@ -142,14 +142,13 @@ export default function CourseReviewScreen({ navigation }) {
           }
         >
           {grouped.length === 0 ? (
-            // 빈 상태 (데이터 없거나 검색 결과 없음)
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{searchText ? '🔍' : '📝'}</Text>
               <Text style={styles.emptyText}>
-                {searchText ? '該当する授業が見つかりません' : 'まだ講義評価がありません'}
+                {searchText ? '該当する授業が見つからないみたい' : 'まだ講義評価がないみたい'}
               </Text>
               {!searchText && (
-                <Text style={styles.emptySubText}>最初の評価を書いてみよう！</Text>
+                <Text style={styles.emptySubText}>最初の評価を書いてみよう</Text>
               )}
             </View>
           ) : (
@@ -160,45 +159,49 @@ export default function CourseReviewScreen({ navigation }) {
               {grouped.map((item) => (
                 <TouchableOpacity
                   key={`${item.courseName}__${item.professorName ?? ''}`}
-                  style={styles.reviewCard}
-                  activeOpacity={0.75}
+                  activeOpacity={0.85}
                   onPress={() => navigation.navigate('CourseReviewDetail', {
                     courseName: item.courseName,
                     professorName: item.professorName,
                   })}
+                  style={styles.cardWrap}
                 >
-                  {/* 수업명 + 별점 */}
-                  <View style={styles.cardHeader}>
-                    <View style={styles.cardTitleArea}>
-                      <Text style={styles.cardCourseName} numberOfLines={1}>{item.courseName}</Text>
-                      {item.professorName ? (
-                        <Text style={styles.cardProfessor} numberOfLines={1}>{item.professorName}</Text>
-                      ) : null}
-                    </View>
-                    <View style={styles.ratingArea}>
-                      <StarRating rating={item.avgRating} />
-                      <Text style={styles.ratingNumber}>{item.avgRating.toFixed(1)}</Text>
-                      <Text style={styles.ratingCount}>({item.count}件)</Text>
-                    </View>
-                  </View>
-
-                  {/* 태그 */}
-                  {item.tags.length > 0 && (
-                    <View style={styles.tagRow}>
-                      {item.tags.map((tag, i) => (
-                        <View key={i} style={styles.tag}>
-                          <Text style={styles.tagText}>#{tag}</Text>
+                  <Card>
+                    {/* 수업명 + 별점 */}
+                    <View style={styles.cardHeader}>
+                      <View style={styles.cardTitleArea}>
+                        <Text style={styles.cardCourseName} numberOfLines={1}>{item.courseName}</Text>
+                        {item.professorName ? (
+                          <Text style={styles.cardProfessor} numberOfLines={1}>{item.professorName}</Text>
+                        ) : null}
+                      </View>
+                      <View style={styles.ratingArea}>
+                        <StarRating rating={item.avgRating} />
+                        <View style={styles.ratingNumRow}>
+                          <Text style={styles.ratingNumber}>{item.avgRating.toFixed(1)}</Text>
+                          <Text style={styles.ratingCount}> ({item.count})</Text>
                         </View>
-                      ))}
+                      </View>
                     </View>
-                  )}
 
-                  {/* 최신 코멘트 미리보기 */}
-                  {item.latestComment ? (
-                    <Text style={styles.previewText} numberOfLines={2}>
-                      "{item.latestComment}"
-                    </Text>
-                  ) : null}
+                    {/* 태그 */}
+                    {item.tags.length > 0 && (
+                      <View style={styles.tagRow}>
+                        {item.tags.map((tag, i) => (
+                          <View key={i} style={styles.tag}>
+                            <Text style={styles.tagText}>#{tag}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* 최신 코멘트 미리보기 */}
+                    {item.latestComment ? (
+                      <Text style={styles.previewText} numberOfLines={2}>
+                        "{item.latestComment}"
+                      </Text>
+                    ) : null}
+                  </Card>
                 </TouchableOpacity>
               ))}
             </>
@@ -208,7 +211,7 @@ export default function CourseReviewScreen({ navigation }) {
         </ScrollView>
       )}
 
-      {/* ── 평가 작성 FAB 버튼 ── */}
+      {/* ── FAB ── */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
@@ -226,16 +229,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ──
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+    backgroundColor: colors.background,
   },
   backButton: {
     width: 36,
@@ -249,78 +251,74 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
 
-  // 검색바
+  // ── 검색바 ──
   searchContainer: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+    ...shadow.soft,
   },
   searchIcon: {
     fontSize: 14,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
   },
   clearButton: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
-    padding: 4,
+    padding: spacing.xs,
   },
 
-  // 목록
+  // ── 목록 ──
   listContent: {
-    padding: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   listLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: spacing.md,
+    paddingLeft: spacing.xs,
   },
 
-  // 강의평가 카드
-  reviewCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
+  // ── 카드 ──
+  cardWrap: {
+    marginBottom: spacing.md,
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   cardTitleArea: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   cardCourseName: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...typography.bodyStrong,
     color: colors.textPrimary,
-    marginBottom: 3,
+    marginBottom: 2,
   },
   cardProfessor: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   ratingArea: {
@@ -329,76 +327,78 @@ const styles = StyleSheet.create({
   starRow: {
     flexDirection: 'row',
     marginBottom: 2,
+    gap: 1,
   },
   star: {
-    fontSize: 12,
+    fontSize: 13,
+  },
+  ratingNumRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
   ratingNumber: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...typography.bodyStrong,
     color: colors.textPrimary,
   },
   ratingCount: {
-    fontSize: 11,
+    ...typography.small,
     color: colors.textSecondary,
   },
 
-  // 태그
+  // ── 태그 ──
   tagRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
-    marginBottom: 10,
+    gap: spacing.xs + 2,
+    marginBottom: spacing.md,
   },
   tag: {
-    backgroundColor: colors.primaryLight,
-    paddingHorizontal: 8,
+    backgroundColor: pastel.sky.bg,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
   tagText: {
-    fontSize: 11,
-    color: colors.primary,
-    fontWeight: '500',
+    ...typography.small,
+    color: pastel.sky.accent,
+    fontWeight: '600',
   },
 
-  // 코멘트
+  // ── 코멘트 ──
   previewText: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
-    lineHeight: 18,
     fontStyle: 'italic',
   },
 
-  // 빈 상태
+  // ── 빈 상태 ──
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 80,
+    paddingVertical: spacing.huge * 2,
   },
   emptyEmoji: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 6,
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   emptySubText: {
-    fontSize: 13,
-    color: colors.textDisabled,
+    ...typography.body2,
+    color: colors.textSecondary,
   },
 
-  // FAB
+  // ── FAB ──
   fab: {
     position: 'absolute',
-    bottom: 24,
-    right: 20,
+    bottom: spacing.xxl,
+    right: spacing.xl,
     backgroundColor: colors.primary,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderRadius: 28,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md + 2,
+    borderRadius: radius.pill,
     shadowColor: colors.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -406,8 +406,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   fabText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.white,
+    ...typography.bodyStrong,
     fontWeight: '700',
   },
 });

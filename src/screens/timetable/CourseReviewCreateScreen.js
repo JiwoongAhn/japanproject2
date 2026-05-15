@@ -12,12 +12,15 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { colors } from '../../constants/colors';
+import { colors, pastel } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
 import { toggleTag as toggleTagFn, addCustomTag as addCustomTagFn } from '../../utils/review';
+import Card from '../../components/Card';
 
-// 미리 정의된 태그 추천 목록
+// 미리 정의된 태그 추천 목록 (밀러 7±2 — 10개로 컴팩트하게)
 const SUGGESTED_TAGS = [
   'わかりやすい', '出席必須', '課題多め', 'テスト重要',
   'おもしろい', '単位楽', '難しい', '予習必須',
@@ -35,7 +38,7 @@ function StarSelector({ value, onChange }) {
           activeOpacity={0.7}
           style={starStyles.starButton}
         >
-          <Text style={[starStyles.star, { color: star <= value ? '#F59E0B' : colors.border }]}>
+          <Text style={[starStyles.star, { color: star <= value ? pastel.yellow.accent : colors.gray200 }]}>
             ★
           </Text>
         </TouchableOpacity>
@@ -51,13 +54,13 @@ const starStyles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   starButton: { padding: 4 },
   star: { fontSize: 32 },
-  ratingLabel: { fontSize: 14, color: colors.textSecondary, marginLeft: 8 },
+  ratingLabel: { ...typography.body2, color: colors.textSecondary, marginLeft: spacing.sm },
 });
 
 export default function CourseReviewCreateScreen({ navigation, route }) {
   const { session, profile } = useAuth();
 
-  // 시간표 수업 셀에서 넘어온 경우 과목명/교수명 미리 채우기
+  // 시간표 셀에서 넘어온 경우 과목명/교수명 미리 채우기
   const { courseName: preCourseName = '', professorName: preProfessorName = '' } = route.params || {};
 
   const [courseName, setCourseName] = useState(preCourseName);
@@ -70,12 +73,10 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
 
   const canSubmit = courseName.trim() !== '' && rating > 0;
 
-  // 태그 토글
   const toggleTag = (tag) => {
     setSelectedTags(prev => toggleTagFn(tag, prev));
   };
 
-  // 커스텀 태그 추가
   const addCustomTag = () => {
     const next = addCustomTagFn(customTag, selectedTags);
     if (next !== selectedTags) {
@@ -84,20 +85,19 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
     }
   };
 
-  // Supabase에 강의평가 저장
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
     setSubmitting(true);
 
     if (!session?.user) {
-      Alert.alert('エラー', 'ログインが必要です');
+      Alert.alert('お知らせ', 'ログインが必要です');
       setSubmitting(false);
       return;
     }
 
     const { error } = await supabase.from('course_reviews').insert({
       user_id: session.user.id,
-      university: profile.university,  // 학교별 격리: 강의평가에 소속 대학 저장
+      university: profile.university,
       course_name: courseName.trim(),
       professor_name: professorName.trim() || null,
       rating,
@@ -106,7 +106,8 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
     });
 
     if (error) {
-      Alert.alert('エラー', '投稿に失敗しました。もう一度お試しください。');
+      // 부드러운 실패 문구
+      Alert.alert('お知らせ', 'うまく投稿できませんでした。もう一度お試しください');
     } else {
       navigation.goBack();
     }
@@ -119,136 +120,144 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
+        {/* ── 헤더 ── */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton} activeOpacity={0.7}>
+            <Text style={styles.cancelText}>キャンセル</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>評価を書く</Text>
+          <TouchableOpacity
+            style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
+            onPress={handleSubmit}
+            disabled={!canSubmit || submitting}
+            activeOpacity={0.85}
+          >
+            {submitting
+              ? <ActivityIndicator size="small" color={colors.white} />
+              : <Text style={styles.submitText}>投稿</Text>
+            }
+          </TouchableOpacity>
+        </View>
 
-      {/* ── 헤더 ── */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton}>
-          <Text style={styles.cancelText}>キャンセル</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>講義評価を書く</Text>
-        <TouchableOpacity
-          style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={!canSubmit || submitting}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
         >
-          {submitting
-            ? <ActivityIndicator size="small" color="#FFFFFF" />
-            : <Text style={styles.submitText}>投稿</Text>
-          }
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
-        {/* ── 과목명 ── */}
-        <View style={styles.section}>
-          <Text style={styles.label}>科目名 <Text style={styles.required}>*</Text></Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="例: 経営学概論"
-            placeholderTextColor={colors.textDisabled}
-            value={courseName}
-            onChangeText={setCourseName}
-            maxLength={40}
-          />
-        </View>
-
-        {/* ── 교수명 ── */}
-        <View style={styles.section}>
-          <Text style={styles.label}>担当教員名 <Text style={styles.optional}>(任意)</Text></Text>
-          <TextInput
-            style={styles.textInput}
-            placeholder="例: 田中 一郎"
-            placeholderTextColor={colors.textDisabled}
-            value={professorName}
-            onChangeText={setProfessorName}
-            maxLength={30}
-          />
-        </View>
-
-        {/* ── 별점 ── */}
-        <View style={styles.section}>
-          <Text style={styles.label}>評価 <Text style={styles.required}>*</Text></Text>
-          <StarSelector value={rating} onChange={setRating} />
-        </View>
-
-        {/* ── 태그 선택 ── */}
-        <View style={styles.section}>
-          <Text style={styles.label}>タグ <Text style={styles.optional}>(任意・最大8個)</Text></Text>
-
-          {/* 추천 태그 */}
-          <View style={styles.tagGrid}>
-            {SUGGESTED_TAGS.map((tag) => {
-              const selected = selectedTags.includes(tag);
-              return (
-                <TouchableOpacity
-                  key={tag}
-                  style={[styles.tagChip, selected && styles.tagChipSelected]}
-                  onPress={() => toggleTag(tag)}
-                  activeOpacity={0.75}
-                >
-                  <Text style={[styles.tagChipText, selected && styles.tagChipTextSelected]}>
-                    {selected ? '✓ ' : '# '}{tag}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {/* 직접 입력 태그 */}
-          <View style={styles.customTagRow}>
+          {/* ── 과목명 ── */}
+          <Card>
+            <Text style={styles.label}>科目名 <Text style={styles.required}>*</Text></Text>
             <TextInput
-              style={styles.customTagInput}
-              placeholder="タグを直接入力"
+              style={styles.textInput}
+              placeholder="例: 経営学概論"
               placeholderTextColor={colors.textDisabled}
-              value={customTag}
-              onChangeText={setCustomTag}
-              onSubmitEditing={addCustomTag}
-              maxLength={10}
-              returnKeyType="done"
+              value={courseName}
+              onChangeText={setCourseName}
+              maxLength={40}
             />
-            <TouchableOpacity
-              style={[styles.addTagButton, (!customTag.trim() || selectedTags.length >= 8) && styles.addTagButtonDisabled]}
-              onPress={addCustomTag}
-              disabled={!customTag.trim() || selectedTags.length >= 8}
-            >
-              <Text style={styles.addTagButtonText}>追加</Text>
-            </TouchableOpacity>
-          </View>
+          </Card>
 
-          {/* 선택된 커스텀 태그 표시 */}
-          {selectedTags.filter(t => !SUGGESTED_TAGS.includes(t)).length > 0 && (
-            <View style={styles.customTagsRow}>
-              {selectedTags.filter(t => !SUGGESTED_TAGS.includes(t)).map((tag) => (
-                <TouchableOpacity
-                  key={tag}
-                  style={styles.tagChipSelected}
-                  onPress={() => toggleTag(tag)}
-                >
-                  <Text style={styles.tagChipTextSelected}>✓ {tag}</Text>
-                </TouchableOpacity>
-              ))}
+          {/* ── 교수명 ── */}
+          <Card>
+            <Text style={styles.label}>担当教員名 <Text style={styles.optional}>(任意)</Text></Text>
+            <TextInput
+              style={styles.textInput}
+              placeholder="例: 田中 一郎"
+              placeholderTextColor={colors.textDisabled}
+              value={professorName}
+              onChangeText={setProfessorName}
+              maxLength={30}
+            />
+          </Card>
+
+          {/* ── 별점 ── */}
+          <Card>
+            <Text style={styles.label}>評価 <Text style={styles.required}>*</Text></Text>
+            <StarSelector value={rating} onChange={setRating} />
+          </Card>
+
+          {/* ── 태그 ── */}
+          <Card>
+            <Text style={styles.label}>タグ <Text style={styles.optional}>(任意・最大8個)</Text></Text>
+
+            <View style={styles.tagGrid}>
+              {SUGGESTED_TAGS.map((tag) => {
+                const selected = selectedTags.includes(tag);
+                return (
+                  <TouchableOpacity
+                    key={tag}
+                    style={[styles.tagChip, selected && styles.tagChipSelected]}
+                    onPress={() => toggleTag(tag)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.tagChipText, selected && styles.tagChipTextSelected]}>
+                      {selected ? '✓ ' : '# '}{tag}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          )}
-        </View>
 
-        {/* ── 코멘트 ── */}
-        <View style={styles.section}>
-          <Text style={styles.label}>コメント <Text style={styles.optional}>(任意)</Text></Text>
-          <TextInput
-            style={styles.commentInput}
-            placeholder="授業の感想を自由に書いてください"
-            placeholderTextColor={colors.textDisabled}
-            value={comment}
-            onChangeText={setComment}
-            maxLength={300}
-            multiline
-            textAlignVertical="top"
-          />
-          <Text style={styles.charCount}>{comment.length}/300</Text>
-        </View>
+            {/* 커스텀 태그 입력 */}
+            <View style={styles.customTagRow}>
+              <TextInput
+                style={styles.customTagInput}
+                placeholder="タグを直接入力"
+                placeholderTextColor={colors.textDisabled}
+                value={customTag}
+                onChangeText={setCustomTag}
+                onSubmitEditing={addCustomTag}
+                maxLength={10}
+                returnKeyType="done"
+              />
+              <TouchableOpacity
+                style={[
+                  styles.addTagButton,
+                  (!customTag.trim() || selectedTags.length >= 8) && styles.addTagButtonDisabled,
+                ]}
+                onPress={addCustomTag}
+                disabled={!customTag.trim() || selectedTags.length >= 8}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.addTagButtonText}>追加</Text>
+              </TouchableOpacity>
+            </View>
 
-      </ScrollView>
+            {/* 선택된 커스텀 태그 */}
+            {selectedTags.filter(t => !SUGGESTED_TAGS.includes(t)).length > 0 && (
+              <View style={styles.customTagsRow}>
+                {selectedTags.filter(t => !SUGGESTED_TAGS.includes(t)).map((tag) => (
+                  <TouchableOpacity
+                    key={tag}
+                    style={styles.tagChipSelected}
+                    onPress={() => toggleTag(tag)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.tagChipTextSelected}>✓ {tag}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </Card>
+
+          {/* ── 코멘트 ── */}
+          <Card>
+            <Text style={styles.label}>コメント <Text style={styles.optional}>(任意)</Text></Text>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="授業の感想を自由に書いてください"
+              placeholderTextColor={colors.textDisabled}
+              value={comment}
+              onChangeText={setComment}
+              maxLength={300}
+              multiline
+              textAlignVertical="top"
+            />
+            <Text style={styles.charCount}>{comment.length}/300</Text>
+          </Card>
+
+          <View style={{ height: spacing.huge }} />
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -260,63 +269,56 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ──
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
   },
   cancelButton: {
-    paddingVertical: 4,
-    paddingRight: 8,
+    paddingVertical: spacing.xs,
+    paddingRight: spacing.sm,
   },
   cancelText: {
-    fontSize: 15,
+    ...typography.body2,
     color: colors.textSecondary,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   submitButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 16,
-    minWidth: 56,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    minWidth: 64,
     alignItems: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: colors.textDisabled,
+    backgroundColor: colors.gray300,
   },
   submitText: {
-    color: '#FFFFFF',
-    fontSize: 14,
+    color: colors.white,
+    ...typography.captionStrong,
     fontWeight: '700',
   },
 
   scrollContent: {
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    gap: spacing.md,
   },
 
-  // 섹션 공통
-  section: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-  },
+  // ── 라벨 ──
   label: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   required: {
     color: colors.danger,
@@ -326,98 +328,95 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 
-  // 텍스트 입력
+  // ── 텍스트 입력 ──
   textInput: {
-    fontSize: 15,
+    ...typography.body1,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
 
-  // 태그 그리드
+  // ── 태그 ──
   tagGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   tagChip: {
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gray50,
   },
   tagChipSelected: {
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderRadius: radius.pill,
     backgroundColor: colors.primaryLight,
   },
   tagChipText: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   tagChipTextSelected: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
-  // 커스텀 태그 입력
+  // ── 커스텀 태그 입력 ──
   customTagRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   customTagInput: {
     flex: 1,
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   addTagButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addTagButtonDisabled: {
-    backgroundColor: colors.textDisabled,
+    backgroundColor: colors.gray300,
   },
   addTagButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+    color: colors.white,
+    ...typography.captionStrong,
     fontWeight: '700',
   },
   customTagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
   },
 
-  // 코멘트 입력
+  // ── 코멘트 ──
   commentInput: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    padding: spacing.md,
     minHeight: 120,
     lineHeight: 22,
   },
   charCount: {
-    fontSize: 11,
+    ...typography.small,
     color: colors.textDisabled,
     textAlign: 'right',
-    marginTop: 6,
+    marginTop: spacing.xs + 2,
   },
 });
