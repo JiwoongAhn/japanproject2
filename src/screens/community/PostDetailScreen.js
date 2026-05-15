@@ -19,6 +19,8 @@ import {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { getCategoryInfo } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
 import { deleteImagesFromStorage } from '../../utils/imageUpload';
@@ -497,16 +499,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
   },
   backButton: {
     width: 36,
@@ -520,8 +520,7 @@ const styles = StyleSheet.create({
     lineHeight: 32,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   reportButton: {
@@ -538,62 +537,61 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    padding: 16,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.lg,
   },
 
-  // 게시글 카드
+  // ── 게시글 카드 ──────────────────────────────
   postCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    ...shadow.card,
   },
   postMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   catBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
   catBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...typography.small,
+    fontWeight: '700',
   },
   postAnon: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   postTime: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textDisabled,
     marginLeft: 'auto',
   },
   postTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    ...typography.title3,
     color: colors.textPrimary,
-    lineHeight: 26,
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
   postBody: {
-    fontSize: 14,
+    ...typography.body1,
     color: colors.textPrimary,
-    lineHeight: 22,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   imageRow: {
-    gap: 8,
-    marginBottom: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   attachedImage: {
     width: 240,
     height: 240,
-    borderRadius: 10,
-    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    backgroundColor: colors.gray100,
   },
   viewerBackdrop: {
     flex: 1,
@@ -602,7 +600,7 @@ const styles = StyleSheet.create({
   viewerClose: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 56 : 24,
-    right: 20,
+    right: spacing.xl,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -612,7 +610,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   viewerCloseText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 18,
     fontWeight: '600',
   },
@@ -629,79 +627,78 @@ const styles = StyleSheet.create({
   postFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
-    paddingTop: 12,
+    gap: spacing.md,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.gray100,
   },
   likeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: spacing.xs + 2,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gray100,
   },
   likeButtonActive: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.dangerSoft,
   },
   likeIcon: {
     fontSize: 14,
     color: colors.textSecondary,
   },
   likeCount: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   likeCountActive: {
-    color: '#EF4444',
+    color: colors.danger,
   },
   commentCountArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: spacing.xs + 2,
+    paddingHorizontal: spacing.sm,
   },
   commentCountIcon: {
     fontSize: 14,
     color: colors.textSecondary,
   },
   commentCountText: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
   },
 
-  // 댓글 섹션
+  // ── 댓글 섹션 ──────────────────────────────
   commentsSection: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    ...shadow.card,
   },
   commentsLabel: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   emptyComments: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: spacing.xxl,
   },
   emptyCommentsText: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   emptyCommentsSubText: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textDisabled,
   },
   commentItem: {
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.gray100,
   },
   commentItemFirst: {
     borderTopWidth: 0,
@@ -711,59 +708,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    marginBottom: spacing.xs + 2,
   },
   commentAuthor: {
-    fontSize: 12,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
   },
   commentTime: {
-    fontSize: 11,
+    ...typography.small,
     color: colors.textDisabled,
   },
   commentBody: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
-    lineHeight: 20,
-    marginBottom: 6,
+    marginBottom: spacing.xs + 2,
   },
   commentLikeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     alignSelf: 'flex-start',
+    paddingVertical: 2,
   },
   commentLikeIcon: {
     fontSize: 13,
     color: colors.textDisabled,
   },
   commentLikeIconActive: {
-    color: '#EF4444',
+    color: colors.danger,
   },
   commentLikeCount: {
-    fontSize: 12,
+    ...typography.small,
     color: colors.textDisabled,
   },
   commentLikeCountActive: {
-    color: '#EF4444',
+    color: colors.danger,
   },
 
-  // 댓글 입력창
+  // ── 댓글 입력창 ────────────────────────────
   commentInputArea: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
     backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.gray100,
   },
   anonToggle: {
     alignItems: 'center',
     gap: 3,
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   toggleDot: {
     width: 18,
@@ -787,19 +783,19 @@ const styles = StyleSheet.create({
   },
   commentInput: {
     flex: 1,
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
+    backgroundColor: colors.gray100,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 1,
     maxHeight: 80,
   },
   sendButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.pill,
     minWidth: 52,
     alignItems: 'center',
     justifyContent: 'center',
@@ -808,19 +804,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textDisabled,
   },
   sendButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
+    color: colors.white,
+    ...typography.captionStrong,
   },
 
-  // 빈 상태 (게시글 없을 때)
+  // ── 빈 상태 ────────────────────────────────
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyText: {
-    fontSize: 15,
+    ...typography.body1,
     color: colors.textSecondary,
   },
 });

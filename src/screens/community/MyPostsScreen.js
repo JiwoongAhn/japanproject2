@@ -6,6 +6,8 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { getCategoryInfo } from '../../constants/boardCategories';
 import { formatTimeAgo } from '../../utils/community';
 
@@ -30,13 +32,10 @@ export default function MyPostsScreen({ navigation }) {
     setLoading(false);
   }, []);
 
-  // 화면 포커스 시 새로고침 (삭제/수정 후 돌아왔을 때 반영)
-  // async 함수는 Promise를 반환하므로 useFocusEffect에 직접 넘기면 안 됨
   useFocusEffect(
     useCallback(() => { fetchMyPosts(); }, [fetchMyPosts])
   );
 
-  // 게시글 삭제
   const handleDelete = (post) => {
     Alert.alert(
       '投稿を削除',
@@ -49,7 +48,7 @@ export default function MyPostsScreen({ navigation }) {
           onPress: async () => {
             const { error } = await supabase.from('posts').delete().eq('id', post.id);
             if (error) {
-              Alert.alert('エラー', '削除に失敗しました');
+              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
             } else {
               setPosts(prev => prev.filter(p => p.id !== post.id));
             }
@@ -59,7 +58,6 @@ export default function MyPostsScreen({ navigation }) {
     );
   };
 
-  // 게시글 수정 (PostEdit 화면으로 이동)
   const handleEdit = (post) => {
     navigation.navigate('PostEdit', {
       postId: post.id,
@@ -68,7 +66,6 @@ export default function MyPostsScreen({ navigation }) {
     });
   };
 
-  // 탭 → PostDetail 이동
   const handlePress = (post) => {
     navigation.navigate('Community', {
       screen: 'PostDetail',
@@ -82,43 +79,53 @@ export default function MyPostsScreen({ navigation }) {
 
     return (
       <TouchableOpacity
-        style={styles.postRow}
+        style={styles.postCard}
         onPress={() => handlePress(post)}
         onLongPress={() => handleDelete(post)}
-        activeOpacity={0.75}
+        activeOpacity={0.85}
         delayLongPress={500}
       >
-        {/* 카테고리 배지 */}
-        <View style={[styles.catBadge, { backgroundColor: cat.color + '22' }]}>
-          <Text style={[styles.catText, { color: cat.color }]}>{cat.label}</Text>
+        <View style={styles.cardTop}>
+          <View style={[styles.catBadge, { backgroundColor: cat.color + '18' }]}>
+            <Text style={[styles.catText, { color: cat.color }]}>{cat.label}</Text>
+          </View>
+          <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
         </View>
 
-        {/* 제목 + 메타 */}
-        <View style={styles.postContent}>
-          <Text style={styles.postTitle} numberOfLines={1}>{post.title}</Text>
-          <Text style={styles.postMeta}>
-            {formatTimeAgo(post.created_at)}
-            {(post.like_count ?? 0) > 0 && `  ♡ ${post.like_count}`}
-            {commentCount > 0 && `  💬 ${commentCount}`}
-          </Text>
-        </View>
+        <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
 
-        {/* 수정/삭제 버튼 */}
-        <View style={styles.actions}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => handleEdit(post)}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
-          >
-            <Text style={styles.editBtnText}>編集</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.deleteBtn}
-            onPress={() => handleDelete(post)}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-          >
-            <Text style={styles.deleteBtnText}>削除</Text>
-          </TouchableOpacity>
+        <View style={styles.cardBottom}>
+          <View style={styles.metaRow}>
+            {(post.like_count ?? 0) > 0 && (
+              <View style={styles.metaItem}>
+                <Text style={styles.metaIcon}>♡</Text>
+                <Text style={styles.metaText}>{post.like_count}</Text>
+              </View>
+            )}
+            {commentCount > 0 && (
+              <View style={styles.metaItem}>
+                <Text style={styles.metaIcon}>💬</Text>
+                <Text style={styles.metaText}>{commentCount}</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => handleEdit(post)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}
+            >
+              <Text style={styles.editBtnText}>編集</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => handleDelete(post)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+            >
+              <Text style={styles.deleteBtnText}>削除</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -126,7 +133,6 @@ export default function MyPostsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>‹</Text>
@@ -140,14 +146,14 @@ export default function MyPostsScreen({ navigation }) {
       ) : posts.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>📝</Text>
-          <Text style={styles.emptyText}>まだ投稿した記事がありません</Text>
+          <Text style={styles.emptyText}>まだ投稿した記事がないみたい</Text>
+          <Text style={styles.emptySubText}>掲示板で最初の投稿を書いてみよう</Text>
         </View>
       ) : (
         <FlatList
           data={posts}
           keyExtractor={p => p.id}
           renderItem={renderItem}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
@@ -159,65 +165,92 @@ export default function MyPostsScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
 
+  // ── 헤더 ────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
   },
   backButton: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   backText: { fontSize: 28, color: colors.textPrimary, lineHeight: 32 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  headerTitle: { ...typography.subtitle, color: colors.textPrimary },
 
-  listContent: { paddingVertical: 8 },
-  separator: { height: 1, backgroundColor: colors.border, marginLeft: 16 },
-
-  postRow: {
+  // ── 목록 ────────────────────────────────────
+  listContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xxxl,
+  },
+  postCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    ...shadow.card,
+  },
+  cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-    gap: 10,
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   catBadge: {
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    minWidth: 36,
-    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
   },
-  catText: { fontSize: 11, fontWeight: '700' },
-  postContent: { flex: 1 },
+  catText: { ...typography.small, fontWeight: '700' },
+  postTime: { ...typography.caption, color: colors.textDisabled },
   postTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.subtitle,
     color: colors.textPrimary,
-    marginBottom: 3,
+    marginBottom: spacing.md,
   },
-  postMeta: { fontSize: 11, color: colors.textDisabled },
+  cardBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  metaRow: { flexDirection: 'row', gap: spacing.md },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  metaIcon: { fontSize: 13, color: colors.textSecondary },
+  metaText: { ...typography.caption, color: colors.textSecondary },
 
-  actions: { flexDirection: 'row', gap: 6 },
+  actions: { flexDirection: 'row', gap: spacing.sm, marginLeft: 'auto' },
   editBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 7,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.pill,
     backgroundColor: colors.primaryLight,
   },
-  editBtnText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  editBtnText: { ...typography.captionStrong, color: colors.primary },
   deleteBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 7,
-    backgroundColor: '#FEE2E2',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.pill,
+    backgroundColor: colors.dangerSoft,
   },
-  deleteBtnText: { fontSize: 12, fontWeight: '600', color: colors.danger },
+  deleteBtnText: { ...typography.captionStrong, color: colors.danger },
 
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  emptyEmoji: { fontSize: 40 },
-  emptyText: { fontSize: 15, color: colors.textDisabled },
+  // ── 빈 상태 ────────────────────────────────
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xxl,
+  },
+  emptyEmoji: { fontSize: 48, marginBottom: spacing.lg },
+  emptyText: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  emptySubText: {
+    ...typography.body2,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
 });

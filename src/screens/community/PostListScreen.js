@@ -12,6 +12,8 @@ import {
   TextInput,
 } from 'react-native';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { BOARD_CATEGORIES, getCategoryInfo } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
 import { formatTimeAgo } from '../../utils/community';
@@ -49,7 +51,6 @@ export default function PostListScreen({ navigation }) {
   // Supabase에서 게시글 불러오기
   // reset=true면 처음부터 다시 로드 (카테고리/검색 변경, 새로고침)
   const fetchPosts = useCallback(async ({ reset = false } = {}) => {
-    // 본인 대학 정보가 아직 로드되지 않았으면 대기 (universityName 세팅 후 재실행됨)
     if (!universityName) return;
 
     if (reset) {
@@ -62,7 +63,6 @@ export default function PostListScreen({ navigation }) {
     if (reset) setLoading(true);
     else setLoadingMore(true);
 
-    // 쿼리 빌드 — 본인 대학 게시글만 조회 (학교 간 게시글 분리)
     let query = supabase
       .from('posts')
       .select('*, post_comments(count)')
@@ -70,12 +70,10 @@ export default function PostListScreen({ navigation }) {
       .order('created_at', { ascending: false })
       .range(from, to);
 
-    // 카테고리 필터 (서버 사이드)
     if (selectedCategory !== 'all') {
       query = query.eq('category', selectedCategory);
     }
 
-    // 검색어 필터 (서버 사이드 ilike)
     const q = searchText.trim();
     if (q) {
       query = query.or(`title.ilike.%${q}%,body.ilike.%${q}%`);
@@ -94,24 +92,20 @@ export default function PostListScreen({ navigation }) {
     setRefreshing(false);
   }, [selectedCategory, searchText, universityName]);
 
-  // 카테고리/검색어 변경 또는 대학 정보 로드 시 목록 리셋
   useEffect(() => {
     fetchPosts({ reset: true });
   }, [selectedCategory, searchText, universityName]);
 
   useEffect(() => {
-    // PostCreate에서 돌아올 때마다 목록 새로고침
     const unsubscribe = navigation.addListener('focus', () => fetchPosts({ reset: true }));
     return unsubscribe;
   }, [navigation, fetchPosts]);
 
-  // 당겨서 새로고침
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchPosts({ reset: true });
   }, [fetchPosts]);
 
-  // 더 보기 버튼
   const loadMore = useCallback(() => {
     if (!loadingMore && hasMore) {
       fetchPosts({ reset: false });
@@ -121,47 +115,19 @@ export default function PostListScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
 
-      {/* ── 상단 헤더 ── */}
+      {/* ── 헤더 ── */}
       <View style={styles.header}>
         <View>
+          {!!universityName && <Text style={styles.headerSubtitle}>{universityName}</Text>}
           <Text style={styles.headerTitle}>掲示板</Text>
-          <Text style={styles.headerSubtitle}>{universityName}</Text>
         </View>
         <TouchableOpacity
           style={styles.postButton}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('PostCreate')}
         >
-          <Text style={styles.postButtonText}>＋ 投稿する</Text>
+          <Text style={styles.postButtonText}>＋ 投稿</Text>
         </TouchableOpacity>
-      </View>
-
-      {/* ── 카테고리 탭 (가로 스크롤 — 나중에 게시판 늘어나도 OK) ── */}
-      <View style={styles.categoryTabBar}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryTabScroll}
-        >
-          {ALL_TABS.map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={styles.categoryTab}
-              onPress={() => setSelectedCategory(tab.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.categoryTabText,
-                selectedCategory === tab.key && { color: colors.primary, fontWeight: '700' },
-              ]}>
-                {tab.label}
-              </Text>
-              {selectedCategory === tab.key && (
-                <View style={styles.categoryIndicator} />
-              )}
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
       </View>
 
       {/* ── 검색 바 ── */}
@@ -184,6 +150,30 @@ export default function PostListScreen({ navigation }) {
         </View>
       </View>
 
+      {/* ── 카테고리 칩 (가로 스크롤) ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipScroll}
+        style={styles.chipBar}
+      >
+        {ALL_TABS.map((tab) => {
+          const active = selectedCategory === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.chip, active && styles.chipActive]}
+              onPress={() => setSelectedCategory(tab.key)}
+              activeOpacity={0.75}
+            >
+              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       {/* ── 로딩 중 ── */}
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
@@ -195,22 +185,20 @@ export default function PostListScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
         >
-          {/* ── 검색 결과 카운트 ── */}
           {searchText.trim() !== '' && (
             <Text style={styles.searchResultCount}>
               「{searchText}」の検索結果
             </Text>
           )}
 
-          {/* ── 게시글 없을 때 ── */}
           {posts.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{searchText ? '🔍' : '📭'}</Text>
               <Text style={styles.emptyText}>
-                {searchText ? '一致する投稿が見つかりません' : 'まだ投稿がありません'}
+                {searchText ? '一致する投稿が見つかりません' : 'まだ投稿がないみたい'}
               </Text>
               {!searchText && (
-                <Text style={styles.emptySubText}>最初の投稿者になりましょう！</Text>
+                <Text style={styles.emptySubText}>最初の投稿者になってみよう！</Text>
               )}
             </View>
           ) : (
@@ -223,11 +211,10 @@ export default function PostListScreen({ navigation }) {
                   <TouchableOpacity
                     key={post.id}
                     style={styles.postCard}
-                    activeOpacity={0.7}
+                    activeOpacity={0.85}
                     onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
                   >
                     <View style={styles.postRow}>
-                      {/* 왼쪽: 텍스트 영역 */}
                       <View style={styles.postTextArea}>
                         <View style={styles.postMeta}>
                           <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
@@ -251,13 +238,12 @@ export default function PostListScreen({ navigation }) {
                             <Text style={styles.reactionCount}>{post.like_count}</Text>
                           </View>
                           <View style={styles.reactionItem}>
-                            <Text style={styles.reactionIcon}>□</Text>
+                            <Text style={styles.reactionIcon}>💬</Text>
                             <Text style={styles.reactionCount}>{commentCount}</Text>
                           </View>
                         </View>
                       </View>
 
-                      {/* 오른쪽: 썸네일 (이미지 있을 때만) */}
                       {hasImage && (
                         <View style={styles.thumbnailWrapper}>
                           <Image
@@ -276,13 +262,12 @@ export default function PostListScreen({ navigation }) {
                 );
               })}
 
-              {/* ── 더 보기 버튼 ── */}
               {hasMore && (
                 <TouchableOpacity
                   style={styles.loadMoreButton}
                   onPress={loadMore}
                   disabled={loadingMore}
-                  activeOpacity={0.7}
+                  activeOpacity={0.8}
                 >
                   {loadingMore ? (
                     <ActivityIndicator size="small" color={colors.primary} />
@@ -294,7 +279,7 @@ export default function PostListScreen({ navigation }) {
             </>
           )}
 
-          <View style={{ height: 32 }} />
+          <View style={{ height: spacing.xxxl }} />
         </ScrollView>
       )}
     </SafeAreaView>
@@ -307,153 +292,178 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ────────────────────────────────────
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    alignItems: 'flex-end',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.background,
   },
   headerSubtitle: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
-    marginTop: 2,
+    marginBottom: spacing.xs,
+  },
+  headerTitle: {
+    ...typography.title2,
+    color: colors.textPrimary,
   },
   postButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
   },
   postButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+    color: colors.white,
+    ...typography.captionStrong,
   },
 
-  // 카테고리 탭 (가로 스크롤)
-  categoryTabBar: {
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  categoryTabScroll: {
-    paddingHorizontal: 4,
-  },
-  categoryTab: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    position: 'relative',
-    alignItems: 'center',
-  },
-  categoryTabText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  categoryIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 8,
-    right: 8,
-    height: 2,
-    backgroundColor: colors.primary,
-    borderRadius: 1,
-  },
-
-  // 검색 바
+  // ── 검색 바 ──────────────────────────────────
   searchContainer: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    gap: 8,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    gap: spacing.sm,
+    ...shadow.soft,
   },
   searchIcon: {
     fontSize: 13,
   },
   searchInput: {
     flex: 1,
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
+    padding: 0,
   },
   clearButton: {
     fontSize: 12,
     color: colors.textSecondary,
   },
 
-  // 검색 결과 카운트
-  searchResultCount: {
-    fontSize: 12,
+  // ── 카테고리 칩 ───────────────────────────────
+  chipBar: {
+    flexGrow: 0,
+    marginBottom: spacing.sm,
+  },
+  chipScroll: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+  },
+  chipActive: {
+    backgroundColor: colors.gray900,
+  },
+  chipText: {
+    ...typography.captionStrong,
     color: colors.textSecondary,
-    marginBottom: 10,
+  },
+  chipTextActive: {
+    color: colors.white,
   },
 
-  // 게시글 목록
+  // ── 검색 결과 카운트 ──────────────────────────
+  searchResultCount: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.xs,
+  },
+
+  // ── 게시글 목록 ───────────────────────────────
   listContent: {
-    padding: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
   },
   postCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 8,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.sm,
+    ...shadow.card,
   },
-  postMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
-  },
-  catBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 6,
-  },
-  catBadgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  postAnon: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  postTime: {
-    fontSize: 12,
-    color: colors.textDisabled,
-    marginLeft: 'auto',
-  },
-  // 썸네일 (목록 카드 우측)
   postRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: spacing.md,
     alignItems: 'flex-start',
   },
   postTextArea: {
     flex: 1,
   },
+  postMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  catBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+  },
+  catBadgeText: {
+    ...typography.small,
+    fontWeight: '700',
+  },
+  postAnon: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  postTime: {
+    ...typography.caption,
+    color: colors.textDisabled,
+    marginLeft: 'auto',
+  },
+  postTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  postBody: {
+    ...typography.body2,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  postFooter: {
+    flexDirection: 'row',
+    gap: spacing.lg,
+  },
+  reactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  reactionIcon: {
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  reactionCount: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+
+  // ── 썸네일 ────────────────────────────────────
   thumbnailWrapper: {
     width: 76,
     height: 76,
-    borderRadius: 10,
+    borderRadius: radius.md,
     overflow: 'hidden',
-    backgroundColor: colors.background,
+    backgroundColor: colors.gray100,
     position: 'relative',
   },
   thumbnail: {
@@ -462,82 +472,48 @@ const styles = StyleSheet.create({
   },
   thumbnailBadge: {
     position: 'absolute',
-    right: 4,
-    bottom: 4,
+    right: spacing.xs,
+    bottom: spacing.xs,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     backgroundColor: 'rgba(0,0,0,0.65)',
   },
   thumbnailBadgeText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  postTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    lineHeight: 22,
-    marginBottom: 4,
-  },
-  postBody: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginBottom: 12,
-  },
-  postFooter: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  reactionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  reactionIcon: {
-    fontSize: 13,
-    color: colors.textSecondary,
-  },
-  reactionCount: {
-    fontSize: 13,
-    color: colors.textSecondary,
+    color: colors.white,
+    ...typography.micro,
   },
 
-  // 더 보기 버튼
+  // ── 더 보기 버튼 ──────────────────────────────
   loadMoreButton: {
     backgroundColor: colors.surface,
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginTop: spacing.xs,
+    ...shadow.soft,
   },
   loadMoreText: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.bodyStrong,
     color: colors.primary,
   },
 
-  // 빈 상태
+  // ── 빈 상태 ───────────────────────────────────
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 80,
+    paddingVertical: spacing.huge * 2,
   },
   emptyEmoji: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: 6,
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   emptySubText: {
-    fontSize: 13,
-    color: colors.textDisabled,
+    ...typography.body2,
+    color: colors.textSecondary,
   },
 });

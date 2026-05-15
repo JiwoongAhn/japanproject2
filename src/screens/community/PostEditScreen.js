@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import {
   ensureMediaLibraryPermission,
   pickAndProcessImage,
@@ -216,70 +218,84 @@ export default function PostEditScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
+
+  // ── 헤더 ────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
   },
-  cancelButton: { paddingVertical: 4, paddingHorizontal: 4 },
-  cancelText: { fontSize: 15, color: colors.textSecondary },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.textPrimary },
+  cancelButton: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
+  cancelText: { ...typography.body2, color: colors.textSecondary },
+  headerTitle: { ...typography.subtitle, color: colors.textPrimary },
   saveButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 8,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    minWidth: 60,
+    alignItems: 'center',
   },
   saveButtonDisabled: { backgroundColor: colors.textDisabled },
-  saveText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+  saveText: { ...typography.captionStrong, color: colors.white },
 
-  scrollContent: { padding: 16, gap: 16 },
-  inputGroup: { gap: 8 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
-  titleInput: {
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.md,
+  },
+
+  // ── 입력 그룹 (카드형) ─────────────────────
+  inputGroup: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 15,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadow.card,
+  },
+  label: { ...typography.captionStrong, color: colors.textSecondary },
+  titleInput: {
+    backgroundColor: colors.gray100,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    ...typography.body2,
     color: colors.textPrimary,
-    letterSpacing: 0,
   },
   bodyInput: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 14,
+    backgroundColor: colors.gray100,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    ...typography.body2,
     color: colors.textPrimary,
     minHeight: 200,
-    letterSpacing: 0,
   },
 
+  // ── 사진 첨부 ──────────────────────────────
   imageHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   imageCount: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textDisabled,
   },
   imageScroll: {
-    gap: 8,
+    gap: spacing.sm,
     paddingVertical: 2,
   },
   addImageButton: {
     width: 80,
     height: 80,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderStyle: 'dashed',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.gray50,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -290,21 +306,21 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   addImageLabel: {
-    fontSize: 11,
+    ...typography.small,
     color: colors.textSecondary,
     marginTop: 2,
   },
   thumbWrapper: {
     width: 80,
     height: 80,
-    borderRadius: 10,
+    borderRadius: radius.md,
     position: 'relative',
   },
   thumbImage: {
     width: 80,
     height: 80,
-    borderRadius: 10,
-    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    backgroundColor: colors.gray100,
   },
   thumbRemove: {
     position: 'absolute',
@@ -318,7 +334,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   thumbRemoveText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 14,
