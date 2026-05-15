@@ -14,6 +14,8 @@ import {
   Platform,
 } from 'react-native';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { BOARD_CATEGORIES } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
@@ -265,63 +267,61 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // ── 헤더 ────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
   },
   cancelButton: {
-    paddingVertical: 4,
-    paddingRight: 8,
+    paddingVertical: spacing.xs,
+    paddingRight: spacing.sm,
   },
   cancelText: {
-    fontSize: 15,
+    ...typography.body2,
     color: colors.textSecondary,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   submitButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 16,
-    minWidth: 56,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    minWidth: 60,
     alignItems: 'center',
   },
   submitButtonDisabled: {
     backgroundColor: colors.textDisabled,
   },
   submitText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.white,
+    ...typography.captionStrong,
   },
 
   scrollContent: {
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.md,
   },
 
-  // 섹션 공통
+  // ── 섹션 공통 ──────────────────────────────
   section: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    ...shadow.card,
   },
   label: {
-    fontSize: 13,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   required: {
     color: colors.danger,
@@ -331,76 +331,72 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
 
-  // 카테고리 칩
+  // ── 카테고리 칩 ───────────────────────────
   categoryRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   categoryChip: {
     flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    borderWidth: 1.5,
-    borderColor: colors.border,
+    paddingVertical: spacing.md - 2,
+    borderRadius: radius.md,
+    backgroundColor: colors.gray100,
     alignItems: 'center',
   },
   categoryChipText: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: '600',
   },
 
-  // 제목 입력
+  // ── 제목 입력 ──────────────────────────────
   titleInput: {
-    fontSize: 15,
+    ...typography.body2,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
-    lineHeight: 22,
+    backgroundColor: colors.gray100,
+    borderRadius: radius.md,
+    padding: spacing.md,
   },
   charCount: {
-    fontSize: 11,
+    ...typography.small,
     color: colors.textDisabled,
     textAlign: 'right',
-    marginTop: 6,
+    marginTop: spacing.xs + 2,
   },
 
-  // 본문 입력
+  // ── 본문 입력 ──────────────────────────────
   bodyInput: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textPrimary,
-    backgroundColor: colors.background,
-    borderRadius: 10,
-    padding: 12,
+    backgroundColor: colors.gray100,
+    borderRadius: radius.md,
+    padding: spacing.md,
     minHeight: 140,
-    lineHeight: 22,
   },
 
-  // 사진 첨부
+  // ── 사진 첨부 ──────────────────────────────
   imageHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   imageCount: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textDisabled,
-    marginBottom: 10,
   },
   imageScroll: {
-    gap: 8,
+    gap: spacing.sm,
     paddingVertical: 2,
   },
   addImageButton: {
     width: 80,
     height: 80,
-    borderRadius: 10,
+    borderRadius: radius.md,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderStyle: 'dashed',
-    backgroundColor: colors.background,
+    backgroundColor: colors.gray50,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -411,21 +407,21 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   addImageLabel: {
-    fontSize: 11,
+    ...typography.small,
     color: colors.textSecondary,
     marginTop: 2,
   },
   thumbWrapper: {
     width: 80,
     height: 80,
-    borderRadius: 10,
+    borderRadius: radius.md,
     position: 'relative',
   },
   thumbImage: {
     width: 80,
     height: 80,
-    borderRadius: 10,
-    backgroundColor: colors.background,
+    borderRadius: radius.md,
+    backgroundColor: colors.gray100,
   },
   thumbRemove: {
     position: 'absolute',
@@ -439,33 +435,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   thumbRemoveText: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontSize: 12,
     fontWeight: '600',
     lineHeight: 14,
   },
 
-  // 익명 토글
+  // ── 익명 토글 ──────────────────────────────
   anonymousRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   anonymousTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...typography.bodyStrong,
     color: colors.textPrimary,
     marginBottom: 3,
   },
   anonymousDesc: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   toggle: {
     width: 48,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.border,
+    backgroundColor: colors.gray300,
     justifyContent: 'center',
     paddingHorizontal: 3,
   },
@@ -476,7 +471,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.white,
   },
   toggleThumbOn: {
     alignSelf: 'flex-end',
