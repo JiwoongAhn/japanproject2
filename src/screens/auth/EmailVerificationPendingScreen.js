@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 
 // 이메일 인증 대기 화면
 // 인증 메일 발송 완료 후 사용자에게 안내
@@ -17,7 +19,7 @@ export default function EmailVerificationPendingScreen({ navigation, route }) {
   // 이메일 재발송
   const handleResend = async () => {
     if (resendCooldown) {
-      Alert.alert('しばらくお待ちください', '再送信は60秒後にできます');
+      Alert.alert('お知らせ', '再送信は60秒後にできます');
       return;
     }
 
@@ -29,17 +31,17 @@ export default function EmailVerificationPendingScreen({ navigation, route }) {
       });
 
       if (error) {
-        Alert.alert('エラー', error.message);
+        Alert.alert('お知らせ', '再送信できませんでした。もう一度お試しください');
         return;
       }
 
-      Alert.alert('送信完了', `${email} に再送しました`);
+      Alert.alert('再送信しました', `${email} にもう一度お送りしました`);
 
-      // 60초 쿨다운 (연속 재발송 방지)
+      // 60초 쿨다운
       setResendCooldown(true);
       setTimeout(() => setResendCooldown(false), 60000);
     } catch (e) {
-      Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
+      Alert.alert('お知らせ', 'ネットワークの状態をご確認の上、もう一度お試しください');
     } finally {
       setResending(false);
     }
@@ -47,35 +49,33 @@ export default function EmailVerificationPendingScreen({ navigation, route }) {
 
   // 인증 완료 후 로그인 화면으로 이동
   const handleGoToLogin = () => {
-    // UniversitySelect까지 pop해서 새로 시작
     navigation.navigate('SchoolPortalAuth', { university });
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.inner}>
-
         {/* 이메일 아이콘 */}
         <View style={styles.iconWrap}>
           <Text style={styles.icon}>📬</Text>
         </View>
 
-        {/* 안내 텍스ト */}
-        <Text style={styles.title}>メールを確認してください</Text>
+        {/* 안내 텍스트 — 1 thing/1 page: 메일 확인이 핵심 액션 */}
+        <Text style={styles.title}>メールをご確認ください</Text>
         <Text style={styles.description}>
-          以下のアドレスに確認メールを送りました。
+          以下のアドレスに確認メールをお送りしました
         </Text>
         <View style={styles.emailBox}>
           <Text style={styles.emailText}>{email}</Text>
         </View>
         <Text style={styles.description}>
-          メール内の「メールアドレスを確認する」リンクをクリックして、認証を完了してください。
+          メール内の「メールアドレスを確認する」リンクをタップして、認証を完了してください
         </Text>
 
         {/* 주의사항 */}
         <View style={styles.noteBox}>
           <Text style={styles.noteText}>
-            ・メールが届かない場合は迷惑メールフォルダをご確認ください{'\n'}
+            ・メールが届かない場合は迷惑メールフォルダもご確認ください{'\n'}
             ・リンクの有効期限は24時間です{'\n'}
             ・認証後、下のボタンからログインしてください
           </Text>
@@ -83,21 +83,19 @@ export default function EmailVerificationPendingScreen({ navigation, route }) {
 
         {/* 버튼 영역 */}
         <View style={styles.buttonGroup}>
-          {/* 인증 완료 후 로그인 */}
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleGoToLogin}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Text style={styles.primaryButtonText}>認証完了 → ログインへ</Text>
           </TouchableOpacity>
 
-          {/* 재발송 */}
           <TouchableOpacity
             style={[styles.secondaryButton, resendCooldown && styles.buttonDisabled]}
             onPress={handleResend}
             disabled={resending || resendCooldown}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             {resending ? (
               <ActivityIndicator color={colors.primary} size="small" />
@@ -108,7 +106,6 @@ export default function EmailVerificationPendingScreen({ navigation, route }) {
             )}
           </TouchableOpacity>
         </View>
-
       </View>
     </SafeAreaView>
   );
@@ -121,8 +118,8 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    paddingHorizontal: 28,
-    paddingTop: 60,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.huge,
     alignItems: 'center',
   },
   iconWrap: {
@@ -132,79 +129,75 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 28,
+    marginBottom: spacing.xxl,
   },
   icon: {
     fontSize: 36,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
+    ...typography.title2,
     color: colors.textPrimary,
-    marginBottom: 14,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   emailBox: {
     backgroundColor: colors.background,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    marginBottom: 12,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.md,
     alignSelf: 'stretch',
     alignItems: 'center',
   },
   emailText: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...typography.bodyStrong,
     color: colors.primary,
   },
   noteBox: {
     backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: radius.md,
+    padding: spacing.md,
     alignSelf: 'stretch',
-    marginTop: 8,
-    marginBottom: 32,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xxxl,
   },
   noteText: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
     lineHeight: 20,
   },
   buttonGroup: {
     alignSelf: 'stretch',
-    gap: 12,
+    gap: spacing.md,
   },
   primaryButton: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   primaryButtonText: {
-    color: '#fff',
+    ...typography.bodyStrong,
     fontSize: 16,
-    fontWeight: '700',
+    color: colors.white,
   },
   secondaryButton: {
     backgroundColor: colors.background,
-    borderRadius: 14,
-    padding: 16,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.5,
   },
   secondaryButtonText: {
+    ...typography.bodyStrong,
     color: colors.primary,
-    fontSize: 14,
-    fontWeight: '600',
   },
 });

@@ -6,15 +6,17 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 
 // 학교 이메일 OTP 인증 화면
-// AcEmailInputScreen에서 OTP 발송 후 이 화면으로 이동
+// SchoolPortalAuthScreen에서 OTP 발송 후 이 화면으로 이동
 // 코드 확인 → signUp → 메인 화면 자동 진입
 export default function OtpVerificationScreen({ navigation, route }) {
-  const { email, nickname, university, studentId, password } = route.params ?? {};
+  const { email } = route.params ?? {};
 
-  const [code, setCode]             = useState('');
-  const [loading, setLoading]       = useState(false);
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(60); // 재발송 쿨다운(초)
   const timerRef = useRef(null);
 
@@ -41,7 +43,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
         options: { shouldCreateUser: true },
       });
       if (!error) {
-        Alert.alert('再送信完了', `${email} に新しいコードを送りました`);
+        Alert.alert('再送信しました', `${email} に新しいコードをお送りしました`);
         setResendCooldown(60);
         clearInterval(timerRef.current);
         timerRef.current = setInterval(() => {
@@ -51,10 +53,10 @@ export default function OtpVerificationScreen({ navigation, route }) {
           });
         }, 1000);
       } else {
-        Alert.alert('エラー', '再送信に失敗しました');
+        Alert.alert('お知らせ', '再送信できませんでした。もう一度お試しください');
       }
     } catch (e) {
-      Alert.alert('エラー', '通信エラーが発生しました');
+      Alert.alert('お知らせ', 'ネットワークの状態をご確認の上、もう一度お試しください');
     }
   };
 
@@ -62,14 +64,13 @@ export default function OtpVerificationScreen({ navigation, route }) {
   const handleVerify = async () => {
     const trimmedCode = code.trim();
     if (trimmedCode.length !== 6) {
-      Alert.alert('エラー', '6桁のコードを入力してください');
+      Alert.alert('お知らせ', '6桁のコードを入力してください');
       return;
     }
 
     setLoading(true);
     try {
-      // 1. Supabase OTP 검증 → 성공 시 자동으로 계정 생성 + 세션 시작
-      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      const { error: verifyError } = await supabase.auth.verifyOtp({
         email,
         token: trimmedCode,
         type: 'email',
@@ -77,18 +78,13 @@ export default function OtpVerificationScreen({ navigation, route }) {
 
       if (verifyError) {
         const msg = verifyError.message.includes('expired')
-          ? 'コードの有効期限が切れました。再送信ボタンで新しいコードを取得してください。'
-          : 'コードが正しくありません。もう一度確認してください。';
-        Alert.alert('認証失敗', msg);
+          ? 'コードの有効期限が切れました。再送信ボタンで新しいコードを取得してください'
+          : 'コードをもう一度ご確認ください';
+        Alert.alert('お知らせ', msg);
         return;
       }
-
-      // verifyOtp 성공 → AuthProvider의 onAuthStateChange가 세션 감지
-      // 신규 회원(닉네임 없음) → AppNavigator가 자동으로 닉네임 입력 화면 표시
-      // 기존 회원(닉네임 있음) → AppNavigator가 자동으로 MainTab 이동
-
     } catch (e) {
-      Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
+      Alert.alert('お知らせ', 'ネットワークの状態をご確認の上、もう一度お試しください');
     } finally {
       setLoading(false);
     }
@@ -102,11 +98,11 @@ export default function OtpVerificationScreen({ navigation, route }) {
       >
         <View style={styles.inner}>
           {/* 뒤로가기 */}
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
             <Text style={styles.backText}>‹ 戻る</Text>
           </TouchableOpacity>
 
-          {/* 헤더 */}
+          {/* 헤더 — 1 thing/1 page: 코드 입력 한 가지에 집중 */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
               <Text style={styles.iconEmoji}>📧</Text>
@@ -114,13 +110,11 @@ export default function OtpVerificationScreen({ navigation, route }) {
             <Text style={styles.title}>認証コードを入力</Text>
             <Text style={styles.subtitle}>
               <Text style={styles.emailHighlight}>{email}</Text>
-              {'\n'}に送信した6桁のコードを入力してください。
+              {'\n'}に送信した6桁のコードを入力してください
             </Text>
           </View>
 
-          {/* 코드 입력 — 인증 코드 자동 입력 지원
-              iOS: textContentType="oneTimeCode" → 메일/메시지 코드를 키보드 위 추천 바에 표시
-              Android: autoComplete="sms-otp" → SMS 코드 자동 입력 */}
+          {/* 코드 입력 — iOS oneTimeCode / Android sms-otp 자동완성 */}
           <TextInput
             style={styles.codeInput}
             value={code}
@@ -140,10 +134,10 @@ export default function OtpVerificationScreen({ navigation, route }) {
             style={[styles.button, (code.length !== 6 || loading) && styles.buttonDisabled]}
             onPress={handleVerify}
             disabled={code.length !== 6 || loading}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={colors.white} />
               : <Text style={styles.buttonText}>確認</Text>
             }
           </TouchableOpacity>
@@ -157,7 +151,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
           >
             <Text style={[styles.resendText, resendCooldown > 0 && styles.resendTextDisabled]}>
               {resendCooldown > 0
-                ? `再送信 (${resendCooldown}秒後に再試行可能)`
+                ? `再送信 (${resendCooldown}秒後)`
                 : 'コードを再送信する'
               }
             </Text>
@@ -165,7 +159,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
 
           {/* 안내 */}
           <Text style={styles.note}>
-            メールが届かない場合、迷惑メールフォルダも確認してください。
+            メールが届かない場合、迷惑メールフォルダもご確認ください
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -174,48 +168,100 @@ export default function OtpVerificationScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container:  { flex: 1, backgroundColor: colors.surface },
-  inner:      { flex: 1, paddingHorizontal: 24, paddingBottom: 40 },
-  backButton: { marginTop: 16, marginBottom: 8 },
-  backText:   { fontSize: 15, color: colors.primary, fontWeight: '600' },
-
-  header:     { alignItems: 'center', marginTop: 24, marginBottom: 40 },
-  iconCircle: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
-    marginBottom: 20,
+  container: {
+    flex: 1,
+    backgroundColor: colors.surface,
   },
-  iconEmoji:       { fontSize: 32 },
-  title:           { fontSize: 24, fontWeight: '800', color: colors.textPrimary, marginBottom: 12 },
-  subtitle:        { fontSize: 14, color: colors.textSecondary, lineHeight: 22, textAlign: 'center' },
-  emailHighlight:  { fontWeight: '700', color: colors.textPrimary },
+  inner: {
+    flex: 1,
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.huge,
+  },
+
+  backButton: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  backText: {
+    ...typography.bodyStrong,
+    color: colors.primary,
+  },
+
+  header: {
+    alignItems: 'center',
+    marginTop: spacing.xxl,
+    marginBottom: spacing.huge,
+  },
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  iconEmoji: {
+    fontSize: 32,
+  },
+  title: {
+    ...typography.title2,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+  },
+  subtitle: {
+    ...typography.body2,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  emailHighlight: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+  },
 
   codeInput: {
     backgroundColor: colors.background,
-    borderRadius: 16,
-    paddingVertical: 20,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.xl,
     fontSize: 36,
     fontWeight: '800',
     color: colors.primary,
     letterSpacing: 12,
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
 
   button: {
     backgroundColor: colors.primary,
-    borderRadius: 14, padding: 18,
-    alignItems: 'center', marginBottom: 16,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonDisabled: {
+    opacity: 0.4,
+  },
+  buttonText: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+    color: colors.white,
+  },
 
-  resendButton:        { alignItems: 'center', paddingVertical: 12, marginBottom: 24 },
-  resendText:          { fontSize: 14, color: colors.primary, fontWeight: '600' },
-  resendTextDisabled:  { color: colors.textDisabled },
+  resendButton: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    marginBottom: spacing.xxl,
+  },
+  resendText: {
+    ...typography.bodyStrong,
+    color: colors.primary,
+  },
+  resendTextDisabled: {
+    color: colors.textDisabled,
+  },
 
   note: {
-    fontSize: 12, color: colors.textDisabled,
-    textAlign: 'center', lineHeight: 18,
+    ...typography.caption,
+    color: colors.textDisabled,
+    textAlign: 'center',
   },
 });

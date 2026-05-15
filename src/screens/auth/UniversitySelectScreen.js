@@ -5,6 +5,8 @@ import {
 } from 'react-native';
 import { universities } from '../../constants/universities';
 import { colors } from '../../constants/colors';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 
 // 대학 선택 화면 — 앱 첫 실행 시 한 번만 표시
 // 선택한 대학 정보는 로그인 화면으로 전달됨
@@ -17,9 +19,9 @@ export default function UniversitySelectScreen({ navigation }) {
     <TouchableOpacity
       style={styles.card}
       onPress={() => handleSelect(item)}
-      activeOpacity={0.7}
+      activeOpacity={0.75}
     >
-      <View>
+      <View style={{ flex: 1 }}>
         <Text style={styles.universityName}>{item.name}</Text>
         <Text style={styles.location}>{item.location}</Text>
       </View>
@@ -29,6 +31,7 @@ export default function UniversitySelectScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* 헤더 — 1 thing/1 page: 대학 선택이 화면의 유일한 핵심 액션 */}
       <View style={styles.header}>
         <Text style={styles.title}>大学を選んでください</Text>
         <Text style={styles.subtitle}>あなたの大学を選択してください</Text>
@@ -38,6 +41,7 @@ export default function UniversitySelectScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.list}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
       />
     </SafeAreaView>
   );
@@ -49,45 +53,45 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 40,
-    paddingBottom: 24,
+    paddingHorizontal: spacing.xxl,
+    paddingTop: spacing.huge,
+    paddingBottom: spacing.xxl,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '800',
+    ...typography.title2,
     color: colors.textPrimary,
-    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textSecondary,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   list: {
-    paddingHorizontal: 24,
-    gap: 12,
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.huge,
   },
   card: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    ...shadow.card,
   },
   universityName: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   location: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   arrow: {
-    fontSize: 24,
+    fontSize: 22,
     color: colors.textDisabled,
+    marginLeft: spacing.sm,
   },
 });

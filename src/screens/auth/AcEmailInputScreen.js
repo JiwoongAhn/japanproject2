@@ -7,20 +7,22 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
 import { colors } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 import { getUniversityInfo } from '../../utils/university';
 
 // 닉네임 입력 화면 (신규 회원 전용)
 // OtpVerificationScreen에서 OTP 인증 완료 후 이 화면으로 이동
 // 닉네임 중복 확인 → profiles 저장 → AuthProvider가 자동으로 MainTab 이동
-export default function AcEmailInputScreen({ navigation, route }) {
+export default function AcEmailInputScreen({ route }) {
   const { email, userId } = route.params ?? {};
   const { refreshProfile } = useAuth();
 
-  // OTP 인증된 이메일 도메인으로 대학 판별 (가입 흐름 어디서든 항상 정확)
+  // OTP 인증된 이메일 도메인으로 대학 판별
   const universityName = getUniversityInfo(email).name;
 
   const [nickname, setNickname] = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // 닉네임 형식 검증 (2~10자, 공백 불가)
   const isValidNickname = (v) => {
@@ -32,7 +34,7 @@ export default function AcEmailInputScreen({ navigation, route }) {
     const trimmedNickname = nickname.trim();
 
     if (!isValidNickname(trimmedNickname)) {
-      Alert.alert('ニックネームエラー', 'ニックネームは2〜10文字で入力してください（スペース不可）');
+      Alert.alert('お知らせ', 'ニックネームは2〜10文字でお願いします（スペース不可）');
       return;
     }
 
@@ -46,12 +48,11 @@ export default function AcEmailInputScreen({ navigation, route }) {
         .maybeSingle();
 
       if (existing) {
-        Alert.alert('ニックネーム重複', `「${trimmedNickname}」はすでに使われています。\n別のニックネームを入力してください。`);
+        Alert.alert('お知らせ', `「${trimmedNickname}」はすでに使われています。\n別のニックネームでお試しください`);
         return;
       }
 
-      // 프로필 저장 (닉네임 + 학교 이메일 + 대학교)
-      // 대학교는 OTP 인증된 이메일 도메인 기준으로 판별 → 항상 정확하게 저장됨
+      // 프로필 저장
       const { error } = await supabase.from('profiles').upsert({
         id: userId,
         university: universityName,
@@ -63,9 +64,8 @@ export default function AcEmailInputScreen({ navigation, route }) {
 
       // 프로필 재조회 → AppNavigator가 nickname 감지 후 MainTab으로 자동 전환
       await refreshProfile();
-
     } catch (e) {
-      Alert.alert('エラー', `保存に失敗しました。\n${e.message}`);
+      Alert.alert('お知らせ', '保存できませんでした。もう一度お試しください');
     } finally {
       setLoading(false);
     }
@@ -82,13 +82,14 @@ export default function AcEmailInputScreen({ navigation, route }) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
+          {/* 헤더 — 1 thing/1 page: 닉네임 설정 하나에 집중 */}
           <View style={styles.header}>
             <View style={styles.universityBadge}>
               <Text style={styles.universityBadgeText}>{universityName}</Text>
             </View>
             <Text style={styles.title}>ニックネームを{'\n'}設定してください</Text>
             <Text style={styles.subtitle}>
-              空き時間合わせで友達があなたを検索するIDになります。{'\n'}
+              空き時間合わせで友達が検索するIDになります。{'\n'}
               後からいつでも変更できます。
             </Text>
           </View>
@@ -114,10 +115,10 @@ export default function AcEmailInputScreen({ navigation, route }) {
             style={[styles.button, (!isValidNickname(nickname) || loading) && styles.buttonDisabled]}
             onPress={handleSave}
             disabled={!isValidNickname(nickname) || loading}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={colors.white} />
               : <Text style={styles.buttonText}>はじめる</Text>
             }
           </TouchableOpacity>
@@ -128,35 +129,74 @@ export default function AcEmailInputScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container:     { flex: 1, backgroundColor: colors.surface },
-  scrollContent: { paddingHorizontal: 24, paddingBottom: 40 },
-  header:        { marginTop: 40, marginBottom: 36 },
+  container: {
+    flex: 1,
+    backgroundColor: colors.surface,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.huge,
+  },
+  header: {
+    marginTop: spacing.huge,
+    marginBottom: spacing.xxxl,
+  },
   universityBadge: {
     alignSelf: 'flex-start',
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12, paddingVertical: 5,
-    borderRadius: 20, marginBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    marginBottom: spacing.lg,
   },
-  universityBadgeText: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  universityBadgeText: {
+    ...typography.captionStrong,
+    color: colors.primary,
+  },
   title: {
-    fontSize: 26, fontWeight: '800', color: colors.textPrimary,
-    letterSpacing: -0.5, lineHeight: 34, marginBottom: 10,
+    ...typography.title2,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
-  subtitle:   { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
-  form:       { gap: 20, marginBottom: 32 },
-  inputGroup: { gap: 8 },
-  label:      { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  subtitle: {
+    ...typography.body2,
+    color: colors.textSecondary,
+  },
+  form: {
+    marginBottom: spacing.xxxl,
+  },
+  inputGroup: {
+    gap: spacing.sm,
+  },
+  label: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+  },
   input: {
     backgroundColor: colors.background,
-    borderRadius: 12, padding: 16,
-    fontSize: 15, color: colors.textPrimary,
-    letterSpacing: 0,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    ...typography.body2,
+    color: colors.textPrimary,
   },
-  hint: { fontSize: 12, color: colors.textSecondary, marginTop: 2 },
+  hint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
   button: {
     backgroundColor: colors.primary,
-    borderRadius: 14, padding: 18, alignItems: 'center',
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
   },
-  buttonDisabled: { opacity: 0.4 },
-  buttonText:     { color: '#fff', fontSize: 16, fontWeight: '700' },
+  buttonDisabled: {
+    opacity: 0.4,
+  },
+  buttonText: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+    color: colors.white,
+  },
 });

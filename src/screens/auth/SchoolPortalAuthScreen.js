@@ -6,6 +6,8 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import { spacing, radius } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 
 // 학교 포털 인증 화면
 // 학교 이메일로 OTP 발송 → OTP 입력 → 로그인/가입
@@ -25,32 +27,30 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
   const handleSendOtp = async () => {
     const trimmedEmail = email.trim().toLowerCase();
     if (!trimmedEmail) {
-      Alert.alert('エラー', 'メールアドレスを入力してください');
+      Alert.alert('お知らせ', 'メールアドレスを入力してください');
       return;
     }
     if (!isValidDomain()) {
       const domain = university?.emailDomain ?? 'ac.jp';
       Alert.alert(
-        'メールアドレスエラー',
-        `${university?.name ?? '大学'}の学校メールアドレスを入力してください。\n（例: 学籍番号@${domain}）`
+        'メールアドレスを確認してください',
+        `${university?.name ?? '大学'}の学校メールアドレスでお願いします。\n（例: 学籍番号@${domain}）`
       );
       return;
     }
 
     setLoading(true);
     try {
-      // 기존/신규 회원 관계없이 OTP 발송 (Supabase가 자동 처리)
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
         options: { shouldCreateUser: true },
       });
 
       if (error) {
-        Alert.alert('送信エラー', error.message ?? 'コードの送信に失敗しました。');
+        Alert.alert('お知らせ', 'コードをうまく送信できませんでした。もう一度お試しください');
         return;
       }
 
-      // OTP 입력 화면으로 이동 (신규/기존 구분은 인증 후 처리)
       navigation.navigate('OtpVerification', {
         email: trimmedEmail,
         university,
@@ -58,7 +58,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
         password: '',
       });
     } catch (e) {
-      Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
+      Alert.alert('お知らせ', 'ネットワークの状態をご確認の上、もう一度お試しください');
     } finally {
       setLoading(false);
     }
@@ -76,7 +76,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
           keyboardShouldPersistTaps="handled"
         >
           {/* 뒤로가기 */}
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
             <Text style={styles.backText}>‹ 大学選択</Text>
           </TouchableOpacity>
 
@@ -87,11 +87,11 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
             </View>
             <Text style={styles.title}>学校メールアドレスで{'\n'}ログイン</Text>
             <Text style={styles.subtitle}>
-              学校のメールアドレスに認証コードを送信します
+              学校のメールアドレスに認証コードを送ります
             </Text>
           </View>
 
-          {/* 입력 폼 */}
+          {/* 입력 폼 — 1 thing/1 page: 이메일 입력 하나에 집중 */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>学校メールアドレス</Text>
@@ -115,8 +115,8 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
           <View style={styles.infoBox}>
             <Text style={styles.infoIcon}>📧</Text>
             <Text style={styles.infoText}>
-              学校メールアドレスに6桁の認証コードを送信します。{'\n'}
-              初めての方は自動的にアカウントが作成されます。
+              学校メールに6桁の認証コードをお送りします。{'\n'}
+              はじめての方は自動でアカウントが作成されます。
             </Text>
           </View>
 
@@ -125,10 +125,10 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
             style={[styles.button, (!email.trim() || loading) && styles.buttonDisabled]}
             onPress={handleSendOtp}
             disabled={!email.trim() || loading}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={colors.white} />
               : <Text style={styles.buttonText}>認証コードを送信</Text>
             }
           </TouchableOpacity>
@@ -144,104 +144,99 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   scrollContent: {
-    paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingHorizontal: spacing.xxl,
+    paddingBottom: spacing.huge,
   },
 
   backButton: {
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   backText: {
-    fontSize: 15,
+    ...typography.bodyStrong,
     color: colors.primary,
-    fontWeight: '600',
   },
 
   header: {
-    marginTop: 16,
-    marginBottom: 36,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xxxl,
   },
   universityBadge: {
     alignSelf: 'flex-start',
     backgroundColor: colors.primaryLight,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    marginBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    marginBottom: spacing.lg,
   },
   universityBadgeText: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...typography.captionStrong,
     color: colors.primary,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '800',
+    ...typography.title2,
     color: colors.textPrimary,
-    letterSpacing: -0.5,
-    lineHeight: 34,
-    marginBottom: 10,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textSecondary,
-    lineHeight: 20,
   },
 
   form: {
-    gap: 20,
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   inputGroup: {
-    gap: 8,
+    gap: spacing.sm,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.bodyStrong,
     color: colors.textPrimary,
   },
   input: {
     backgroundColor: colors.background,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 15,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    ...typography.body2,
     color: colors.textPrimary,
-    letterSpacing: 0,
+  },
+  hint: {
+    ...typography.caption,
+    color: colors.primary,
+    marginTop: spacing.xs,
   },
 
   infoBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: colors.primaryLight,
-    borderRadius: 12,
-    padding: 14,
-    gap: 10,
-    marginBottom: 24,
+    borderRadius: radius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.xxl,
   },
   infoIcon: {
     fontSize: 16,
   },
   infoText: {
     flex: 1,
-    fontSize: 12,
+    ...typography.caption,
     color: colors.primary,
-    lineHeight: 18,
   },
 
-  hint: { fontSize: 12, color: colors.primary, marginTop: 2 },
   button: {
     backgroundColor: colors.primary,
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   buttonDisabled: {
     opacity: 0.4,
   },
   buttonText: {
-    color: '#fff',
+    ...typography.bodyStrong,
     fontSize: 16,
-    fontWeight: '700',
+    color: colors.white,
   },
 });

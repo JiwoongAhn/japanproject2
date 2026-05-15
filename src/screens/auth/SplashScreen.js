@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../../constants/colors';
+import { spacing } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
 
 // 앱 시작 시 세션 확인 중에 표시되는 로딩 화면 (순수 UI)
 // 세션 라우팅은 AppNavigator가 전담 — 여기서 navigation 로직 없음
@@ -26,18 +28,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logo: {
+    ...typography.title1,
     fontSize: 36,
-    fontWeight: '800',
-    color: colors.textPrimary,
     letterSpacing: -1,
+    color: colors.textPrimary,
   },
   subtitle: {
-    fontSize: 16,
+    ...typography.body1,
     color: colors.textSecondary,
-    marginTop: 8,
-    marginBottom: 40,
+    marginTop: spacing.sm,
+    marginBottom: spacing.huge,
   },
   loader: {
-    marginTop: 20,
+    marginTop: spacing.xl,
   },
 });
