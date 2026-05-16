@@ -4,21 +4,29 @@ import {
   StyleSheet, SafeAreaView,
 } from 'react-native';
 import { colors } from '../constants/colors';
+import { spacing, radius } from '../constants/spacing';
+import { typography } from '../constants/typography';
+import Card from '../components/Card';
 
 // 개인정보처리방침 화면 (Apple 심사 필수)
 export default function PrivacyPolicyScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
+      {/* 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.backText}>‹ 戻る</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>プライバシーポリシー</Text>
-        <View style={{ width: 60 }} />
+        <View style={styles.headerSide} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.updated}>最終更新日：2026年4月24日</Text>
+        {/* 상단 안내 카드 */}
+        <Card padding="lg" radius="lg" style={styles.intro}>
+          <Text style={styles.introTitle}>個人情報の取り扱いについて</Text>
+          <Text style={styles.updated}>最終更新日：2026年4月24日</Text>
+        </Card>
 
         <Section title="1. はじめに">
           {`Unipas（ユニパス）（以下「本アプリ」）は、日本の大学生のための学校生活支援アプリです。本プライバシーポリシーは、本アプリがお客様の個人情報をどのように収集・利用・保護するかについて説明します。\n\n本アプリをご利用いただくことで、本ポリシーに同意したものとみなします。`}
@@ -74,39 +82,75 @@ export default function PrivacyPolicyScreen({ navigation }) {
 
 function Section({ title, children }) {
   return (
-    <View style={styles.section}>
+    <Card padding="lg" radius="lg" style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
       <Text style={styles.sectionBody}>{children}</Text>
-    </View>
+    </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  container:   { flex: 1, backgroundColor: colors.surface },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
   },
-  backButton:  { width: 60 },
-  backText:    { fontSize: 15, color: colors.primary, fontWeight: '600' },
-  headerTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
-  content:     { paddingHorizontal: 20, paddingVertical: 20, paddingBottom: 40 },
-  updated:     { fontSize: 12, color: colors.textSecondary, marginBottom: 24 },
-  section:     { marginBottom: 24 },
+  headerSide: { width: 70 },
+  backText: {
+    ...typography.body2,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  headerTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+  },
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.huge,
+  },
+
+  // 상단 안내 카드
+  intro: {
+    marginBottom: spacing.md,
+  },
+  introTitle: {
+    ...typography.title3,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  updated: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+
+  // 섹션 카드
+  section: {
+    marginBottom: spacing.md,
+  },
   sectionTitle: {
-    fontSize: 15, fontWeight: '700', color: colors.textPrimary, marginBottom: 8,
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   sectionBody: {
-    fontSize: 14, color: colors.textSecondary, lineHeight: 22,
+    ...typography.body2,
+    color: colors.gray700,
   },
+
   footer: {
-    fontSize: 12, color: colors.textDisabled,
-    lineHeight: 18, marginTop: 8, paddingTop: 20,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    ...typography.caption,
+    color: colors.textDisabled,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    textAlign: 'center',
   },
 });

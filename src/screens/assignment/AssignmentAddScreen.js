@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { colors } from '../../constants/colors';
-import { isAssignmentFormValid } from '../../utils/assignment';
+import { spacing, radius, shadow } from '../../constants/spacing';
+import { typography } from '../../constants/typography';
+import Card from '../../components/Card';
 import { supabase } from '../../lib/supabase';
 
 // ──────────────────────────────────────────────────
@@ -22,19 +24,15 @@ import { supabase } from '../../lib/supabase';
 const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 function CalendarPicker({ selectedDate, onSelectDate }) {
-  // selectedDate: 'YYYY-MM-DD' 문자열 또는 ''
   const today = new Date();
 
-  // 현재 보여주는 연/월
   const [viewYear, setViewYear] = useState(
     selectedDate ? parseInt(selectedDate.slice(0, 4)) : today.getFullYear()
   );
   const [viewMonth, setViewMonth] = useState(
     selectedDate ? parseInt(selectedDate.slice(5, 7)) - 1 : today.getMonth()
   );
-  // viewMonth: 0~11 (JS Date 기준)
 
-  // 이전 달로 이동
   const goPrev = () => {
     if (viewMonth === 0) {
       setViewYear(y => y - 1);
@@ -44,7 +42,6 @@ function CalendarPicker({ selectedDate, onSelectDate }) {
     }
   };
 
-  // 다음 달로 이동
   const goNext = () => {
     if (viewMonth === 11) {
       setViewYear(y => y + 1);
@@ -54,26 +51,20 @@ function CalendarPicker({ selectedDate, onSelectDate }) {
     }
   };
 
-  // 이번 달 1일이 무슨 요일인지 계산
-  const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay(); // 0=일,1=월...
-  // 이번 달 총 일수
+  const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
 
-  // 달력 그리드 셀 배열 만들기 (앞 빈칸 + 날짜 + 뒤 빈칸)
   const cells = [];
-  for (let i = 0; i < firstDayOfMonth; i++) cells.push(null); // 빈 칸
+  for (let i = 0; i < firstDayOfMonth; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  // 7의 배수가 되도록 뒤 빈칸
   while (cells.length % 7 !== 0) cells.push(null);
 
-  // 날짜를 'YYYY-MM-DD' 로 변환
   const toDateStr = (day) => {
     const mm = String(viewMonth + 1).padStart(2, '0');
     const dd = String(day).padStart(2, '0');
     return `${viewYear}-${mm}-${dd}`;
   };
 
-  // 오늘 날짜 문자열
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
@@ -98,8 +89,8 @@ function CalendarPicker({ selectedDate, onSelectDate }) {
             key={i}
             style={[
               calStyles.weekLabel,
-              i === 0 && { color: '#EF4444' }, // 일요일 빨강
-              i === 6 && { color: '#3182F6' }, // 토요일 파랑
+              i === 0 && { color: '#EF4444' },
+              i === 6 && { color: colors.primary },
             ]}
           >
             {d}
@@ -115,7 +106,7 @@ function CalendarPicker({ selectedDate, onSelectDate }) {
           const dateStr = toDateStr(day);
           const isSelected = dateStr === selectedDate;
           const isToday = dateStr === todayStr;
-          const col = idx % 7; // 0=일, 6=토
+          const col = idx % 7;
 
           return (
             <TouchableOpacity
@@ -133,7 +124,7 @@ function CalendarPicker({ selectedDate, onSelectDate }) {
                   style={[
                     calStyles.dayText,
                     col === 0 && { color: '#EF4444' },
-                    col === 6 && { color: '#3182F6' },
+                    col === 6 && { color: colors.primary },
                     isSelected && calStyles.dayTextSelected,
                   ]}
                 >
@@ -150,21 +141,16 @@ function CalendarPicker({ selectedDate, onSelectDate }) {
 
 const calStyles = StyleSheet.create({
   container: {
-    backgroundColor: colors.background,
-    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
   },
   navBtn: {
     width: 36,
@@ -177,27 +163,24 @@ const calStyles = StyleSheet.create({
     lineHeight: 28,
   },
   monthTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   weekRow: {
     flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingBottom: spacing.sm,
   },
   weekLabel: {
     flex: 1,
     textAlign: 'center',
     paddingVertical: 6,
-    fontSize: 12,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    paddingBottom: spacing.sm,
   },
   cell: {
     width: `${100 / 7}%`,
@@ -206,9 +189,9 @@ const calStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -220,12 +203,11 @@ const calStyles = StyleSheet.create({
     borderColor: colors.primary,
   },
   dayText: {
-    fontSize: 13,
+    ...typography.body2,
     color: colors.textPrimary,
-    fontWeight: '500',
   },
   dayTextSelected: {
-    color: '#FFFFFF',
+    color: colors.white,
     fontWeight: '700',
   },
 });
@@ -244,13 +226,12 @@ const STATUS_OPTIONS = [
 export default function AssignmentAddScreen({ navigation }) {
   const [courseName, setCourseName] = useState('');
   const [title, setTitle]           = useState('');
-  const [dueDate, setDueDate]       = useState('');   // 'YYYY-MM-DD'
+  const [dueDate, setDueDate]       = useState('');
   const [status, setStatus]         = useState('pending');
   const [saving, setSaving]         = useState(false);
 
   const isFormValid = courseName.trim().length > 0 && title.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(dueDate);
 
-  // 저장 버튼 — Supabase에 과제 저장
   const handleSave = async () => {
     if (!isFormValid || saving) return;
     setSaving(true);
@@ -258,11 +239,11 @@ export default function AssignmentAddScreen({ navigation }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        Alert.alert('エラー', 'ログインが必要です');
+        Alert.alert('お知らせ', 'ログインが必要です');
         return;
       }
 
-      // 입력한 수업명과 일치하는 수업 찾기 (있으면 course_id 연결)
+      // 입력한 수업명과 일치하는 수업 찾기
       const { data: courseData } = await supabase
         .from('courses')
         .select('id')
@@ -279,19 +260,18 @@ export default function AssignmentAddScreen({ navigation }) {
       });
 
       if (error) {
-        Alert.alert('エラー', '課題の保存に失敗しました');
+        Alert.alert('お知らせ', '課題を保存できませんでした');
         return;
       }
 
       navigation.goBack();
     } catch (e) {
-      Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
+      Alert.alert('お知らせ', `通信できませんでした。\n${e.message}`);
     } finally {
       setSaving(false);
     }
   };
 
-  // 선택된 날짜를 보기 좋게 표시 (YYYY年MM月DD日)
   const displayDate = dueDate
     ? `${dueDate.slice(0, 4)}年${dueDate.slice(5, 7)}月${dueDate.slice(8, 10)}日`
     : '';
@@ -302,21 +282,23 @@ export default function AssignmentAddScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
-        {/* ── 상단 헤더 ── */}
+        {/* 헤더 */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide}>
             <Text style={styles.cancelText}>キャンセル</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>課題を追加</Text>
-          <View style={{ width: 60 }} />
+          <View style={styles.headerSide} />
         </View>
 
         <ScrollView
           style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* ── 수업명 입력 ── */}
-          <View style={styles.section}>
+          {/* 수업명 */}
+          <Card padding="lg" radius="lg" style={styles.section}>
             <Text style={styles.sectionLabel}>
               科目名 <Text style={styles.required}>*</Text>
             </Text>
@@ -328,10 +310,10 @@ export default function AssignmentAddScreen({ navigation }) {
               onChangeText={setCourseName}
               maxLength={30}
             />
-          </View>
+          </Card>
 
-          {/* ── 과제 제목 입력 ── */}
-          <View style={styles.section}>
+          {/* 과제 제목 */}
+          <Card padding="lg" radius="lg" style={styles.section}>
             <Text style={styles.sectionLabel}>
               課題タイトル <Text style={styles.required}>*</Text>
             </Text>
@@ -343,15 +325,14 @@ export default function AssignmentAddScreen({ navigation }) {
               onChangeText={setTitle}
               maxLength={60}
             />
-          </View>
+          </Card>
 
-          {/* ── 달력 날짜 선택 ── */}
-          <View style={styles.section}>
+          {/* 마감일 + 달력 */}
+          <Card padding="lg" radius="lg" style={styles.section}>
             <Text style={styles.sectionLabel}>
               提出期限 <Text style={styles.required}>*</Text>
             </Text>
 
-            {/* 선택된 날짜 표시 배지 */}
             {displayDate ? (
               <View style={styles.selectedDateBadge}>
                 <Text style={styles.selectedDateText}>📅 {displayDate}</Text>
@@ -360,51 +341,47 @@ export default function AssignmentAddScreen({ navigation }) {
               <Text style={styles.dateHint}>カレンダーから日付を選んでください</Text>
             )}
 
-            {/* 인라인 달력 */}
             <CalendarPicker
               selectedDate={dueDate}
               onSelectDate={setDueDate}
             />
-          </View>
+          </Card>
 
-          {/* ── 제출 상태 선택 ── */}
-          <View style={styles.section}>
+          {/* 제출 상태 */}
+          <Card padding="lg" radius="lg" style={styles.section}>
             <Text style={styles.sectionLabel}>提出状態</Text>
             <View style={styles.buttonRow}>
-              {STATUS_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.selectButton,
-                    status === opt.value && styles.selectButtonActive,
-                  ]}
-                  onPress={() => setStatus(opt.value)}
-                >
-                  <Text
-                    style={[
-                      styles.selectButtonText,
-                      status === opt.value && styles.selectButtonTextActive,
-                    ]}
+              {STATUS_OPTIONS.map((opt) => {
+                const active = status === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[styles.selectButton, active && styles.selectButtonActive]}
+                    onPress={() => setStatus(opt.value)}
+                    activeOpacity={0.8}
                   >
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                    <Text style={[styles.selectButtonText, active && styles.selectButtonTextActive]}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
+          </Card>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: spacing.huge }} />
         </ScrollView>
 
-        {/* ── 저장 버튼 ── */}
+        {/* 저장 버튼 */}
         <View style={styles.saveButtonContainer}>
           <TouchableOpacity
             style={[styles.saveButton, (!isFormValid || saving) && styles.saveButtonDisabled]}
             onPress={handleSave}
             disabled={!isFormValid || saving}
+            activeOpacity={0.85}
           >
             {saving
-              ? <ActivityIndicator color="#fff" />
+              ? <ActivityIndicator color={colors.white} />
               : <Text style={styles.saveButtonText}>保存する</Text>
             }
           </TouchableOpacity>
@@ -425,124 +402,113 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.background,
+  },
+  headerSide: {
+    width: 80,
   },
   headerTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.subtitle,
     color: colors.textPrimary,
   },
   cancelText: {
-    fontSize: 15,
+    ...typography.body2,
     color: colors.primary,
-    width: 60,
   },
 
   scrollView: {
     flex: 1,
-    paddingTop: 16,
+  },
+  scrollContent: {
+    paddingTop: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
 
-  // 입력 섹션 카드
+  // 섹션 카드
   section: {
-    backgroundColor: colors.surface,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    padding: 16,
-    borderRadius: 12,
+    marginBottom: spacing.md,
   },
   sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.bodyStrong,
     color: colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   required: {
     color: colors.danger,
   },
 
-  // 텍스트 입력창
+  // 텍스트 입력
   textInput: {
-    fontSize: 16,
+    ...typography.body1,
     color: colors.textPrimary,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     backgroundColor: colors.background,
   },
 
   // 선택된 날짜 배지
   selectedDateBadge: {
-    backgroundColor: colors.primary + '18',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 12,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
     alignSelf: 'flex-start',
   },
   selectedDateText: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...typography.captionStrong,
     color: colors.primary,
   },
   dateHint: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textDisabled,
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
 
-  // 상태 선택 버튼 행
+  // 상태 버튼
   buttonRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   selectButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
     backgroundColor: colors.background,
+    alignItems: 'center',
   },
   selectButtonActive: {
     backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   selectButtonText: {
-    fontSize: 14,
+    ...typography.bodyStrong,
     color: colors.textSecondary,
-    fontWeight: '500',
   },
   selectButtonTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '600',
+    color: colors.white,
   },
 
   // 저장 버튼
   saveButtonContainer: {
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    backgroundColor: colors.background,
   },
   saveButton: {
     backgroundColor: colors.primary,
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: radius.md,
+    paddingVertical: spacing.lg,
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.4,
   },
   saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
+    color: colors.white,
+    ...typography.subtitle,
   },
 });

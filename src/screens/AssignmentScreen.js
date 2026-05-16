@@ -10,31 +10,21 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { colors } from '../constants/colors';
+import { colors, pastel } from '../constants/colors';
+import { spacing, radius, shadow } from '../constants/spacing';
+import { typography } from '../constants/typography';
+import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
 import { calcDday } from '../utils/assignment';
 
-// ── 상태별 디자인 설정 ─────────────────────────────────────────────────────
+// 상태별 디자인 — pastel 토큰으로 부드럽게
 const STATUS_CONFIG = {
-  pending: {
-    label: '未提出',
-    bg: '#FFF3E0',
-    text: colors.warning,
-  },
-  submitted: {
-    label: '提出済',
-    bg: '#E8F8F0',
-    text: colors.success,
-  },
-  overdue: {
-    label: '期限超過',
-    bg: '#FDE8E8',
-    text: colors.danger,
-  },
+  pending:   { label: '未提出',   bg: pastel.peach.bg,    text: pastel.peach.accent },
+  submitted: { label: '提出済',   bg: pastel.mint.bg,     text: pastel.mint.accent },
+  overdue:   { label: '期限超過', bg: pastel.rose.bg,     text: pastel.rose.accent },
 };
 
-// DB 상태(pending/submitted/overdue)와 마감일을 비교해 실제 표시 상태를 계산
-// → pending인데 마감일이 지났으면 overdue로 표시
+// DB 상태와 마감일을 비교해 실제 표시 상태를 계산
 function getDisplayStatus(assignment) {
   if (assignment.status === 'submitted') return 'submitted';
   if (assignment.status === 'overdue') return 'overdue';
@@ -45,20 +35,19 @@ function getDisplayStatus(assignment) {
   return 'pending';
 }
 
-// 필터 탭 설정
 const FILTER_TABS = [
-  { key: 'all',      label: '全体' },
-  { key: 'pending',  label: '未提出' },
+  { key: 'all',       label: '全体' },
+  { key: 'pending',   label: '未提出' },
   { key: 'submitted', label: '提出済' },
-  { key: 'overdue',  label: '期限超過' },
+  { key: 'overdue',   label: '期限超過' },
 ];
 
-// 필터 탭별 빈 상태 메시지
+// 필터별 빈 상태 — 부드러운 실패 톤
 const EMPTY_STATE = {
-  all:       { emoji: '📝', title: '課題がありません',          subtitle: '右上の「＋ 追加」から\n課題を登録してみよう', showButton: true },
-  pending:   { emoji: '🎉', title: '未提出の課題はありません',   subtitle: '全部提出済みです！お疲れ様！', showButton: false },
-  submitted: { emoji: '📋', title: 'まだ提出した課題がありません', subtitle: 'タップで「提出済」に切り替えられます', showButton: false },
-  overdue:   { emoji: '✅', title: '期限超過の課題はありません',  subtitle: '全て期限内で提出できています！', showButton: false },
+  all:       { emoji: '📝', title: 'まだ課題がないみたい',         subtitle: '右上の「＋ 追加」から\n登録してみよう',           showButton: true },
+  pending:   { emoji: '🎉', title: '未提出の課題はありません',     subtitle: '全部提出済みです！お疲れ様！',                    showButton: false },
+  submitted: { emoji: '📋', title: 'まだ提出した課題がありません', subtitle: 'タップで「提出済」に切り替えられます',            showButton: false },
+  overdue:   { emoji: '✅', title: '期限超過の課題はありません',   subtitle: '全て期限内で提出できています！',                  showButton: false },
 };
 
 export default function AssignmentScreen({ navigation }) {
@@ -67,7 +56,6 @@ export default function AssignmentScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState('all');
 
-  // Supabase에서 과제 목록 불러오기
   const fetchAssignments = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -78,7 +66,7 @@ export default function AssignmentScreen({ navigation }) {
       if (error) throw error;
       setAssignments(data ?? []);
     } catch {
-      Alert.alert('エラー', '課題の読み込みに失敗しました');
+      Alert.alert('お知らせ', '課題を読み込めませんでした');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -87,7 +75,6 @@ export default function AssignmentScreen({ navigation }) {
 
   useEffect(() => {
     fetchAssignments();
-    // AssignmentAdd에서 돌아올 때마다 목록 새로고침
     const unsubscribe = navigation.addListener('focus', fetchAssignments);
     return unsubscribe;
   }, [navigation, fetchAssignments]);
@@ -97,12 +84,11 @@ export default function AssignmentScreen({ navigation }) {
     fetchAssignments();
   }, [fetchAssignments]);
 
-  // 카드 탭 → 제출 상태 토글 (미제출/기한초과 → 제출완료, 제출완료 → 미제출)
+  // 카드 탭 → 제출 상태 토글
   const handleToggleStatus = async (assignment) => {
     const currentDisplay = getDisplayStatus(assignment);
     const newStatus = currentDisplay === 'submitted' ? 'pending' : 'submitted';
 
-    // 즉시 UI 반영 (낙관적 업데이트)
     setAssignments(prev =>
       prev.map(a => a.id === assignment.id ? { ...a, status: newStatus } : a)
     );
@@ -113,15 +99,13 @@ export default function AssignmentScreen({ navigation }) {
       .eq('id', assignment.id);
 
     if (error) {
-      // 실패 시 원래 상태로 복구
       setAssignments(prev =>
         prev.map(a => a.id === assignment.id ? { ...a, status: assignment.status } : a)
       );
-      Alert.alert('エラー', '状態の更新に失敗しました');
+      Alert.alert('お知らせ', '状態を更新できませんでした');
     }
   };
 
-  // 카드 길게 누르기 → 삭제 확인 Alert
   const handleDeleteAssignment = (assignment) => {
     Alert.alert(
       '課題を削除',
@@ -132,16 +116,14 @@ export default function AssignmentScreen({ navigation }) {
           text: '削除する',
           style: 'destructive',
           onPress: async () => {
-            // 즉시 UI에서 제거
             setAssignments(prev => prev.filter(a => a.id !== assignment.id));
             const { error } = await supabase
               .from('assignments')
               .delete()
               .eq('id', assignment.id);
             if (error) {
-              // 실패 시 목록 다시 불러오기
               fetchAssignments();
-              Alert.alert('エラー', '削除に失敗しました');
+              Alert.alert('お知らせ', '削除できませんでした');
             }
           },
         },
@@ -149,7 +131,6 @@ export default function AssignmentScreen({ navigation }) {
     );
   };
 
-  // 선택된 필터로 과제 목록 필터링
   const filteredAssignments = selectedFilter === 'all'
     ? assignments
     : assignments.filter(a => getDisplayStatus(a) === selectedFilter);
@@ -160,44 +141,46 @@ export default function AssignmentScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
 
-      {/* ── 상단 헤더 ── */}
+      {/* 상단 헤더 */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>課題</Text>
         <TouchableOpacity
           style={styles.addButton}
           onPress={() => navigation.navigate('AssignmentAdd')}
+          activeOpacity={0.85}
         >
           <Text style={styles.addButtonText}>＋ 追加</Text>
         </TouchableOpacity>
       </View>
 
-      {/* ── 필터 탭 ── */}
-      <View style={styles.filterTabBar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterTabScroll}>
-          {FILTER_TABS.map(tab => (
-            <TouchableOpacity
-              key={tab.key}
-              style={styles.filterTab}
-              onPress={() => setSelectedFilter(tab.key)}
-              activeOpacity={0.7}
-            >
-              <Text style={[
-                styles.filterTabText,
-                selectedFilter === tab.key && { color: colors.primary, fontWeight: '700' },
-              ]}>
-                {tab.label}
-              </Text>
-              {selectedFilter === tab.key && <View style={styles.filterTabIndicator} />}
-            </TouchableOpacity>
-          ))}
+      {/* 필터 칩 */}
+      <View style={styles.filterBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {FILTER_TABS.map(tab => {
+            const active = selectedFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => setSelectedFilter(tab.key)}
+                activeOpacity={0.75}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
       </View>
 
-      {/* ── 로딩 중 ── */}
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : isEmpty ? (
-        /* ── 빈 상태: 필터별 다른 메시지 ── */
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyEmoji}>{emptyInfo.emoji}</Text>
           <Text style={styles.emptyTitle}>{emptyInfo.title}</Text>
@@ -206,13 +189,13 @@ export default function AssignmentScreen({ navigation }) {
             <TouchableOpacity
               style={styles.emptyButton}
               onPress={() => navigation.navigate('AssignmentAdd')}
+              activeOpacity={0.85}
             >
               <Text style={styles.emptyButtonText}>＋ 課題を追加する</Text>
             </TouchableOpacity>
           )}
         </View>
       ) : (
-        /* ── 과제 목록 ── */
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
@@ -220,7 +203,6 @@ export default function AssignmentScreen({ navigation }) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
         >
-          {/* 탭으로 제출 상태 전환, ···버튼으로 삭제 */}
           <Text style={styles.hint}>タップで状態切替 / ···で削除</Text>
 
           {filteredAssignments.map((assignment) => {
@@ -228,49 +210,49 @@ export default function AssignmentScreen({ navigation }) {
             const statusCfg = STATUS_CONFIG[displayStatus] ?? STATUS_CONFIG.pending;
             const dday = calcDday(assignment.due_date);
             const courseName = assignment.courses?.name || '未登録';
-            const isOverdue = displayStatus === 'overdue';
 
             return (
               <TouchableOpacity
                 key={assignment.id}
-                style={[styles.card, isOverdue && styles.cardOverdue]}
-                activeOpacity={0.75}
+                activeOpacity={0.85}
                 onPress={() => handleToggleStatus(assignment)}
+                style={styles.cardWrap}
               >
-                {/* 카드 상단: 수업명 + 상태 배지 + ···버튼 */}
-                <View style={styles.cardHeader}>
-                  <Text style={styles.courseName}>{courseName}</Text>
-                  <View style={styles.cardHeaderRight}>
-                    <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
-                      <Text style={[styles.statusText, { color: statusCfg.text }]}>
-                        {statusCfg.label}
-                      </Text>
+                <Card padding="lg" radius="lg">
+                  {/* 상단: 수업명 + 상태 배지 + ···버튼 */}
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.courseName} numberOfLines={1}>{courseName}</Text>
+                    <View style={styles.cardHeaderRight}>
+                      <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
+                        <Text style={[styles.statusText, { color: statusCfg.text }]}>
+                          {statusCfg.label}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.moreButton}
+                        onPress={() => handleDeleteAssignment(assignment)}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      >
+                        <Text style={styles.moreButtonText}>···</Text>
+                      </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                      style={styles.moreButton}
-                      onPress={() => handleDeleteAssignment(assignment)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <Text style={styles.moreButtonText}>···</Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
 
-                {/* 과제 제목 */}
-                <Text style={styles.title} numberOfLines={2}>{assignment.title}</Text>
+                  <Text style={styles.title} numberOfLines={2}>{assignment.title}</Text>
 
-                {/* 카드 하단: 마감일 + D-day */}
-                <View style={styles.cardFooter}>
-                  <Text style={styles.dueDate}>📅 {assignment.due_date}</Text>
-                  <Text style={[styles.ddayLabel, { color: dday.color }]}>
-                    {dday.label}
-                  </Text>
-                </View>
+                  {/* 하단: 마감일 + D-day */}
+                  <View style={styles.cardFooter}>
+                    <Text style={styles.dueDate}>📅 {assignment.due_date}</Text>
+                    <Text style={[styles.ddayLabel, { color: dday.color }]}>
+                      {dday.label}
+                    </Text>
+                  </View>
+                </Card>
               </TouchableOpacity>
             );
           })}
 
-          <View style={{ height: 32 }} />
+          <View style={{ height: spacing.xxxl }} />
         </ScrollView>
       )}
 
@@ -284,192 +266,163 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // 헤더
+  // 헤더 — 토스 큰 제목
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    ...typography.title2,
     color: colors.textPrimary,
   },
   addButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
   },
   addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '600',
+    color: colors.white,
+    ...typography.captionStrong,
   },
 
-  // 필터 탭
-  filterTabBar: {
+  // 필터 칩 바
+  filterBar: {
+    backgroundColor: colors.background,
+    paddingBottom: spacing.sm,
+  },
+  filterScroll: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginRight: spacing.sm,
   },
-  filterTabScroll: {
-    paddingHorizontal: 4,
-  },
-  filterTab: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    position: 'relative',
-    alignItems: 'center',
-  },
-  filterTabText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: '500',
-  },
-  filterTabIndicator: {
-    position: 'absolute',
-    bottom: 0,
-    left: 8,
-    right: 8,
-    height: 2,
+  chipActive: {
     backgroundColor: colors.primary,
-    borderRadius: 1,
+  },
+  chipText: {
+    ...typography.bodyStrong,
+    color: colors.textSecondary,
+  },
+  chipTextActive: {
+    color: colors.white,
   },
 
-  // 빈 상태 화면
+  // 빈 상태
   emptyContainer: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
     paddingBottom: 60,
   },
   emptyEmoji: {
     fontSize: 56,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
+    ...typography.title3,
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   emptySubtitle: {
-    fontSize: 14,
+    ...typography.body2,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 28,
+    marginBottom: spacing.xxxl,
   },
   emptyButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 13,
-    borderRadius: 24,
+    paddingHorizontal: spacing.xxl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
   },
   emptyButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.white,
+    ...typography.bodyStrong,
   },
 
   // 안내 힌트
   hint: {
-    fontSize: 11,
+    ...typography.micro,
     color: colors.textDisabled,
     textAlign: 'center',
-    marginBottom: 12,
-    marginTop: 4,
+    marginBottom: spacing.md,
   },
 
-  // 목록 컨테이너
+  // 목록
   listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: 84,
   },
-
-  // 과제 카드
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  cardOverdue: {
-    borderLeftWidth: 3,
-    borderLeftColor: colors.danger,
+  cardWrap: {
+    marginBottom: spacing.md,
   },
 
-  // 카드 상단 행: 수업명 + 상태 배지 + ···버튼
+  // 카드 내부
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: spacing.sm,
   },
   cardHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   courseName: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
     flex: 1,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
   },
   statusText: {
-    fontSize: 11,
-    fontWeight: '600',
+    ...typography.captionStrong,
   },
   moreButton: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.xs,
   },
   moreButtonText: {
-    fontSize: 16,
+    fontSize: 18,
     color: colors.textSecondary,
     fontWeight: '600',
     letterSpacing: 1,
   },
 
-  // 과제 제목
   title: {
-    fontSize: 15,
-    fontWeight: '600',
+    ...typography.subtitle,
     color: colors.textPrimary,
-    marginBottom: 10,
-    lineHeight: 21,
+    marginBottom: spacing.md,
   },
 
-  // 카드 하단 행: 마감일 + D-day
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   dueDate: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textSecondary,
   },
   ddayLabel: {
-    fontSize: 13,
-    fontWeight: '700',
+    ...typography.captionStrong,
   },
 });
