@@ -6,6 +6,8 @@ import CourseReviewScreen from '../screens/timetable/CourseReviewScreen';
 import CourseReviewDetailScreen from '../screens/timetable/CourseReviewDetailScreen';
 import CourseReviewCreateScreen from '../screens/timetable/CourseReviewCreateScreen';
 import FreeTimeScreen from '../screens/timetable/FreeTimeScreen';
+import BulkAddInputScreen from '../screens/timetable/BulkAddInputScreen';
+import BulkAddPreviewScreen from '../screens/timetable/BulkAddPreviewScreen';
 
 // 시간표 탭 안에서만 사용하는 스택 네비게이터
 // TimetableScreen(그리드) → CourseAddScreen(수업 추가 폼) 이동을 관리
@@ -19,6 +21,10 @@ export default function TimetableStack() {
       <Stack.Screen name="TimetableMain" component={TimetableScreen} />
       {/* 수업 추가 폼: + 버튼 누르면 이 화면으로 이동 */}
       <Stack.Screen name="CourseAdd" component={CourseAddScreen} />
+      {/* 시간표 일괄 추가 입력 화면 (모달) */}
+      <Stack.Screen name="BulkAddInput" component={BulkAddInputScreen} options={{ headerShown: false, presentation: 'modal' }} />
+      {/* 시간표 일괄 추가 미리보기 화면 */}
+      <Stack.Screen name="BulkAddPreview" component={BulkAddPreviewScreen} options={{ headerShown: false }} />
       {/* 강의평가 목록 화면 */}
       <Stack.Screen name="CourseReview" component={CourseReviewScreen} />
       {/* 강의평가 상세 화면 (수업별 전체 리뷰 목록) */}
