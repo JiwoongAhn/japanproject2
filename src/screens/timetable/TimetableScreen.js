@@ -122,13 +122,22 @@ export default function TimetableScreen({ navigation }) {
           <Text style={styles.semesterLabel}>{getSemesterLabel()}</Text>
           <Text style={styles.headerTitle}>時間割</Text>
         </View>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => navigation.navigate('CourseAdd')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.addButtonText}>＋ 追加</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.bulkButton}
+            onPress={() => navigation.navigate('BulkAddInput')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.bulkButtonText}>📋 一括</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => navigation.navigate('CourseAdd')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.addButtonText}>＋ 追加</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -325,6 +334,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...typography.title2,
     color: colors.textPrimary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  bulkButton: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+  },
+  bulkButtonText: {
+    color: colors.primary,
+    ...typography.captionStrong,
   },
   addButton: {
     backgroundColor: colors.primary,
