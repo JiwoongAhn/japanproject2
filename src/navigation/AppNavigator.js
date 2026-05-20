@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import AuthStack from './AuthStack';
 import MainTab from './MainTab';
 import ManabaStack from './ManabaStack';
+import SchoolWebViewScreen from '../screens/SchoolWebViewScreen';
 import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
@@ -100,6 +101,11 @@ export default function AppNavigator() {
         <RootStack.Screen
           name="Manaba"
           component={ManabaStack}
+          options={{ presentation: 'modal' }}
+        />
+        <RootStack.Screen
+          name="SchoolWeb"
+          component={SchoolWebViewScreen}
           options={{ presentation: 'modal' }}
         />
       </RootStack.Navigator>

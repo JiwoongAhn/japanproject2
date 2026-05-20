@@ -318,18 +318,19 @@ export default function HomeScreen({ navigation }) {
                   ? [{ icon: '📚', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, tint: colors.primary }]
                   : []
               ),
-              { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl,    tint: colors.success },
+              // kaede-i는 앱 내부 WebView로 진입 (autoLogin: ID/PW 자동 로그인)
+              { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl,    webview: true, autoLogin: true, tint: colors.success },
               { icon: '🏫', label: 'ホームページ', url: links.homepageUrl, tint: colors.warning },
             ].filter(item => item.url || item.internal).map((item) => (
               <TouchableOpacity
                 key={item.label}
                 style={styles.schoolCard}
                 activeOpacity={0.7}
-                onPress={() =>
-                  item.internal
-                    ? navigation.navigate(item.internal)
-                    : Linking.openURL(item.url)
-                }
+                onPress={() => {
+                  if (item.internal) navigation.navigate(item.internal);
+                  else if (item.webview) navigation.navigate('SchoolWeb', { url: item.url, title: item.label, autoLogin: item.autoLogin });
+                  else Linking.openURL(item.url);
+                }}
               >
                 <View style={[styles.schoolIconChip, { backgroundColor: item.tint + '18' }]}>
                   <Text style={styles.schoolIcon}>{item.icon}</Text>

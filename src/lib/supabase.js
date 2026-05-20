@@ -38,7 +38,7 @@ function hexToBytes(hex) {
   return new Uint8Array(result);
 }
 
-class LargeSecureStore {
+export class LargeSecureStore {
   // SecureStore에서 AES 키 가져오기. 없으면 신규 생성 후 저장
   async _getEncryptionKey() {
     let keyHex = await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME);
