@@ -87,12 +87,9 @@ export default function ManabaLoginScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
   const [parsing, setParsing] = useState(false);
-  const [currentUrl, setCurrentUrl] = useState(MANABA_LOGIN_URL);
 
   // 페이지 이동 감지 — 로그인 완료 시 공지 페이지로 이동
   const handleNavigationStateChange = (navState) => {
-    setCurrentUrl(navState.url);
-
     if (!loggedIn && isLoggedIn(navState.url)) {
       setLoggedIn(true);
       // 로그인 성공 → 공지 홈으로 이동
@@ -159,7 +156,7 @@ export default function ManabaLoginScreen({ navigation }) {
 
       <WebView
         ref={webViewRef}
-        source={{ uri: currentUrl === MANABA_LOGIN_URL ? MANABA_LOGIN_URL : undefined }}
+        source={{ uri: MANABA_LOGIN_URL }}
         style={styles.webView}
         onNavigationStateChange={handleNavigationStateChange}
         onMessage={handleMessage}

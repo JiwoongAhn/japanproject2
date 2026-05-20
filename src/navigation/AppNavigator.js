@@ -6,12 +6,14 @@ import { useAuth } from '../lib/AuthProvider';
 import { supabase } from '../lib/supabase';
 import AuthStack from './AuthStack';
 import MainTab from './MainTab';
+import ManabaStack from './ManabaStack';
 import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 
 const NicknameStack = createNativeStackNavigator();
 const OnboardingStack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
 
 // 앱 전체 네비게이션 진입점
 // 세션 유무에 따라 AuthStack(로그인 전) / MainTab(로그인 후) 자동 전환
@@ -90,7 +92,18 @@ export default function AppNavigator() {
         </OnboardingStack.Navigator>
       );
     }
-    return <MainTab />;
+    // 로그인 완료 상태: MainTab(하단 탭) + Manaba(모달) 형제 등록
+    // → 어느 화면에서든 navigation.navigate('Manaba')로 WebView 모달 진입 가능
+    return (
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        <RootStack.Screen name="MainTab" component={MainTab} />
+        <RootStack.Screen
+          name="Manaba"
+          component={ManabaStack}
+          options={{ presentation: 'modal' }}
+        />
+      </RootStack.Navigator>
+    );
   };
 
   return (

@@ -310,21 +310,26 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.sectionTitle}>学校情報</Text>
           <View style={styles.schoolGrid}>
             {[
-              // manaba 있으면 manaba, 없으면 lmsUrl(WebClass 등)로 대체
+              // manaba는 앱 내부 WebView 화면(쿠키 저장+공지 파싱)으로 진입
+              // manaba 없으면 lmsUrl(WebClass 등)을 외부 링크로 대체
               ...(links.manabaUrl
-                ? [{ icon: '📚', label: 'manaba', url: links.manabaUrl, tint: colors.primary }]
+                ? [{ icon: '📚', label: 'manaba', internal: 'Manaba', tint: colors.primary }]
                 : links.lmsUrl
                   ? [{ icon: '📚', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, tint: colors.primary }]
                   : []
               ),
               { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl,    tint: colors.success },
               { icon: '🏫', label: 'ホームページ', url: links.homepageUrl, tint: colors.warning },
-            ].filter(item => item.url).map((item) => (
+            ].filter(item => item.url || item.internal).map((item) => (
               <TouchableOpacity
                 key={item.label}
                 style={styles.schoolCard}
                 activeOpacity={0.7}
-                onPress={() => Linking.openURL(item.url)}
+                onPress={() =>
+                  item.internal
+                    ? navigation.navigate(item.internal)
+                    : Linking.openURL(item.url)
+                }
               >
                 <View style={[styles.schoolIconChip, { backgroundColor: item.tint + '18' }]}>
                   <Text style={styles.schoolIcon}>{item.icon}</Text>
