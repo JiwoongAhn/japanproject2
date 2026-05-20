@@ -21,6 +21,7 @@ import { getDdayColor } from '../utils/assignment';
 import { getTodayStr } from '../utils/date';
 import { getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { universities } from '../constants/universities';
+import ManabaNoticePreview from '../components/ManabaNoticePreview';
 
 export default function HomeScreen({ navigation }) {
   const [todayCourses, setTodayCourses] = useState([]);
@@ -160,6 +161,9 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
         </View>
+
+        {/* ── manaba 공지 미리보기 (manaba 쓰는 학교만) ── */}
+        {links.manabaUrl && <ManabaNoticePreview navigation={navigation} />}
 
         {/* ── 今日の授業 ── */}
         <View style={styles.section}>

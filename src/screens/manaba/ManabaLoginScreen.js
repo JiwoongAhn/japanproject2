@@ -17,77 +17,15 @@ import {
   clearCookies,
   cookieKeyForUrl,
 } from '../../utils/schoolCookies';
+import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS } from '../../constants/manaba';
+import { clearCachedNotices } from '../../utils/manabaCache';
 
-const MANABA_LOGIN_URL = 'https://kokushikan.manaba.jp/ct/login';
-
-// 로그인 성공 여부 판단: /ct/login 이외의 manaba 페이지면 로그인 완료
+// 로그인 성공 여부 판단: /ct/login·/ct/logout 이외의 manaba 페이지면 로그인 완료
+// (/ct/logout을 제외하지 않으면 로그아웃 도중 다시 로그인 처리되어 홈으로 튕김)
 const isLoggedIn = (url) =>
-  url.includes('kokushikan.manaba.jp') && !url.includes('/ct/login');
-
-// 공지사항 페이지 URL (로그인 후 이동할 페이지)
-const MANABA_HOME_URL = 'https://kokushikan.manaba.jp/ct/home';
-
-// WebView에 주입하는 JS: 공지사항 리스트를 파싱해서 네이티브로 전달
-const PARSE_NOTICES_JS = `
-(function() {
-  try {
-    var notices = [];
-
-    // manaba 홈 공지사항 셀렉터 (학교별로 다를 수 있음)
-    // 1순위: .home-newsitem (신버전 manaba)
-    // 2순위: table.stdlist tr (구버전 manaba)
-    // 3순위: 전체 링크 목록 fallback
-    var items = document.querySelectorAll('.home-newsitem');
-
-    if (items.length === 0) {
-      items = document.querySelectorAll('table.stdlist tr');
-    }
-
-    if (items.length === 0) {
-      // fallback: 링크가 있는 li 항목들
-      items = document.querySelectorAll('.contents-area li, .news-list li');
-    }
-
-    items.forEach(function(item, i) {
-      if (i >= 30) return;
-      var link = item.querySelector('a');
-      if (!link) return;
-
-      var title = link.textContent.trim();
-      var href = link.getAttribute('href') || '';
-      // 상대경로를 절대경로로 변환
-      if (href && !href.startsWith('http')) {
-        href = 'https://kokushikan.manaba.jp' + href;
-      }
-
-      // 날짜 추출 시도
-      var date = '';
-      var dateEl = item.querySelector('.date, .time, .post-date, td:first-child');
-      if (dateEl) date = dateEl.textContent.trim();
-
-      // 게시판/코스명 추출 시도
-      var board = '';
-      var boardEl = item.querySelector('.course-name, .board-name, td:nth-child(2)');
-      if (boardEl) board = boardEl.textContent.trim();
-
-      if (title) notices.push({ title, href, date, board });
-    });
-
-    window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'notices',
-      data: notices,
-      pageTitle: document.title,
-      currentUrl: window.location.href,
-    }));
-  } catch(e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({
-      type: 'error',
-      message: e.message,
-    }));
-  }
-})();
-true; // injectedJavaScript는 반드시 truthy 값으로 끝나야 함
-`;
+  url.includes('kokushikan.manaba.jp') &&
+  !url.includes('/ct/login') &&
+  !url.includes('/ct/logout');
 
 export default function ManabaLoginScreen({ navigation }) {
   const webViewRef = useRef(null);
@@ -122,10 +60,17 @@ export default function ManabaLoginScreen({ navigation }) {
         text: 'ログアウト',
         style: 'destructive',
         onPress: async () => {
+          // 1) 쿠키가 살아있는 상태에서 서버 로그아웃 URL로 이동 → 서버 세션 종료
+          //    (manaba는 WebView 쿠키만 지워선 세션이 안 끊겨 다시 로그인 화면이 안 뜸)
+          webViewRef.current?.injectJavaScript(
+            `window.location.href = '${MANABA_LOGOUT_URL}';`
+          );
+          // 2) 기기에 저장된 쿠키 삭제 → 다음 실행 때 자동 로그인 방지
           await clearCookies(MANABA_LOGIN_URL, cookieKey);
+          // 3) 홈 화면 공지 캐시도 비워 로그아웃 상태로 되돌림
+          await clearCachedNotices();
           setCookieHeader(null);
           setLoggedIn(false);
-          webViewRef.current?.reload();
         },
       },
     ]);
