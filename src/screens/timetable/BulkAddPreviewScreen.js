@@ -13,6 +13,8 @@ import { colors, pastel } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
+import { supabase } from '../../lib/supabase';
+import { buildCourseRows } from '../../utils/timetable';
 
 // 요일별 파스텔 매핑 — 한 화면에서 5±2색 이내 유지
 const DAY_PASTEL = ['mint', 'peach', 'sky', 'lavender', 'yellow', 'pink'];
@@ -40,6 +42,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
   }, [items]);
 
   const [selected, setSelected] = useState(initialSelected);
+  const [saving, setSaving] = useState(false);
 
   const toggle = (idx) => {
     setSelected((prev) => {
@@ -56,8 +59,63 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
     Alert.alert('お知らせ', '後で対応します');
   };
 
-  const handleConfirm = () => {
-    Alert.alert('お知らせ', 'Phase 2で実装されます');
+  const handleConfirm = async () => {
+    if (selectedCount === 0 || saving) return;
+    setSaving(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        Alert.alert('お知らせ', 'ログインが必要です');
+        setSaving(false);
+        return;
+      }
+
+      // 체크된 항목만 추출
+      const selectedItems = items.filter((_, idx) => selected.has(idx));
+
+      // 기존 시간표를 불러와 중복 칸(같은 요일+교시) 검사에 사용
+      const { data: existing, error: fetchError } = await supabase
+        .from('courses')
+        .select('day_of_week, period')
+        .eq('user_id', user.id);
+
+      if (fetchError) {
+        Alert.alert('お知らせ', '時間割の確認に失敗しました。もう一度お試しください');
+        setSaving(false);
+        return;
+      }
+
+      // 파서 항목 → DB 행으로 변환 (불가·중복 항목은 skipped로 분리)
+      const { rows, skipped } = buildCourseRows(selectedItems, user.id, existing || []);
+
+      if (rows.length === 0) {
+        Alert.alert('お知らせ', '追加できる授業がありませんでした\n（すでに登録済み、または情報が不足しています）');
+        setSaving(false);
+        return;
+      }
+
+      const { error: insertError } = await supabase.from('courses').insert(rows);
+
+      if (insertError) {
+        Alert.alert('お知らせ', '授業をうまく保存できませんでした。もう一度お試しください');
+        setSaving(false);
+        return;
+      }
+
+      // 성공 — 건너뛴 항목이 있으면 함께 안내한 뒤 시간표로 복귀
+      const message = skipped.length > 0
+        ? `${rows.length}件を追加しました\n（${skipped.length}件は重複・情報不足のためスキップ）`
+        : `${rows.length}件を追加しました`;
+
+      Alert.alert('完了', message, [
+        // popToTop: 입력·미리보기 화면을 모두 닫고 시간표 첫 화면으로 한 번에 복귀
+        { text: 'OK', onPress: () => navigation.popToTop() },
+      ]);
+    } catch (e) {
+      Alert.alert('お知らせ', '予期せぬエラーが発生しました。もう一度お試しください');
+      setSaving(false);
+    }
   };
 
   return (
@@ -178,14 +236,14 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
         <TouchableOpacity
           onPress={handleConfirm}
           activeOpacity={0.85}
-          disabled={selectedCount === 0}
+          disabled={selectedCount === 0 || saving}
           style={[
             styles.primaryButton,
-            selectedCount === 0 && styles.primaryButtonDisabled,
+            (selectedCount === 0 || saving) && styles.primaryButtonDisabled,
           ]}
         >
           <Text style={styles.primaryButtonText}>
-            {selectedCount}件を時間割に追加する
+            {saving ? '追加中...' : `${selectedCount}件を時間割に追加する`}
           </Text>
         </TouchableOpacity>
       </View>

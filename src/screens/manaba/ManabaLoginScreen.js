@@ -96,13 +96,14 @@ export default function ManabaLoginScreen({ navigation }) {
     webViewRef.current?.injectJavaScript(PARSE_NOTICES_JS);
   };
 
-  // ‹ 버튼: WebView 내부 히스토리가 있으면 페이지 뒤로, 없으면 manaba 닫기
-  const handleBack = () => {
-    if (canGoBack) {
-      webViewRef.current?.goBack();
-    } else {
-      navigation.goBack();
-    }
+  // ‹ 버튼: WebView 내부 페이지 한 단계 뒤로
+  const handleWebBack = () => {
+    if (canGoBack) webViewRef.current?.goBack();
+  };
+
+  // 閉じる 버튼: manaba 모달 전체를 터치 한 번에 닫고 복귀
+  const handleClose = () => {
+    navigation.goBack();
   };
 
   // WebView에서 파싱 결과를 수신
@@ -134,9 +135,16 @@ export default function ManabaLoginScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* 헤더 */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity onPress={handleClose} style={styles.textBtn}>
+            <Text style={styles.closeText}>閉じる</Text>
+          </TouchableOpacity>
+          {canGoBack && (
+            <TouchableOpacity onPress={handleWebBack} style={styles.backButton}>
+              <Text style={styles.backIcon}>‹</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.headerTitle}>manaba</Text>
         <View style={styles.headerRight}>
           <TouchableOpacity onPress={handleShowNotices} style={styles.textBtn}>
@@ -205,8 +213,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  closeText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
+  },
   backButton: {
-    width: 40,
+    width: 32,
     alignItems: 'center',
   },
   backIcon: {

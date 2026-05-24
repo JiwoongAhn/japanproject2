@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Alert,
+  Share,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../constants/colors';
@@ -24,6 +25,31 @@ import {
   buildAutoFillJS,
   CAPTURE_CREDENTIALS_JS,
 } from '../utils/schoolCookies';
+
+// [Phase B 임시] 시간표 표(table)의 HTML 구조를 뽑아 앱으로 보내는 스크립트
+// innerText는 요일(가로 위치)이 사라져서, td 위치를 알 수 있는 HTML이 필요하다.
+// '限目'(교시)이 들어있는 table 하나만 골라 outerHTML을 보낸다. (전체 페이지는 너무 큼)
+// 카에데 MY時間割 파서 완성 후 제거 예정.
+const EXTRACT_JS = `(function(){
+  try {
+    var tables = document.querySelectorAll('table');
+    var target = null;
+    for (var i = 0; i < tables.length; i++) {
+      var t = tables[i].innerText || '';
+      if (t.indexOf('限目') !== -1 && t.indexOf('シラバス') !== -1) { target = tables[i]; break; }
+    }
+    if (!target) {
+      for (var j = 0; j < tables.length; j++) {
+        if ((tables[j].innerText || '').indexOf('限目') !== -1) { target = tables[j]; break; }
+      }
+    }
+    var html = target ? target.outerHTML : ('NO_TABLE_FOUND tables=' + tables.length);
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'extract', html: html, url: location.href }));
+  } catch (e) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'extract', error: String(e) }));
+  }
+  true;
+})();`;
 
 // 범용 학교 사이트 WebView 화면 (kaede-i, 포털 등 재사용)
 // route.params: { url, title, autoLogin? }
@@ -66,21 +92,31 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     setCanGoBack(navState.canGoBack);
   };
 
-  const handleBack = () => {
-    if (canGoBack) {
-      webViewRef.current?.goBack();
-    } else {
-      navigation.goBack();
-    }
+  // WebView 내부 페이지 뒤로가기 (잘못 들어갔을 때 한 페이지 복귀)
+  const handleWebBack = () => {
+    if (canGoBack) webViewRef.current?.goBack();
+  };
+
+  // 모달 전체 닫기 — 터치 한 번에 시간표/홈으로 복귀
+  const handleClose = () => {
+    navigation.goBack();
   };
 
   // 사용자가 직접 로그인할 때 입력한 ID/PW 캡처 → 암호화 저장
+  // + [Phase B 임시] 추출 결과 수신 → 공유시트로 내보내기
   const handleMessage = async (event) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type === 'credentials' && msg.pw) {
         await saveCredentials(credKey, msg.id, msg.pw);
         setCreds({ id: msg.id, pw: msg.pw });
+      } else if (msg.type === 'extract') {
+        if (msg.error) {
+          Alert.alert('抽出エラー', msg.error);
+          return;
+        }
+        // 시간표 표 HTML을 공유시트로 — "コピー" 또는 メモ로 저장해 개발자에게 전달
+        await Share.share({ message: `URL: ${msg.url}\n\n${msg.html}` });
       }
     } catch (_) {}
   };
@@ -124,17 +160,26 @@ export default function SchoolWebViewScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* 헤더 */}
+      {/* 헤더: [閉じる + ‹뒤로] [제목] [ログアウト] */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack} style={styles.headerBtn}>
-          <Text style={styles.backIcon}>‹</Text>
-        </TouchableOpacity>
+        <View style={styles.headerSide}>
+          <TouchableOpacity onPress={handleClose} style={styles.textBtn}>
+            <Text style={styles.closeText}>閉じる</Text>
+          </TouchableOpacity>
+          {canGoBack && (
+            <TouchableOpacity onPress={handleWebBack} style={styles.headerBtn}>
+              <Text style={styles.backIcon}>‹</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <Text style={styles.headerTitle} numberOfLines={1}>
           {title ?? 'ページ'}
         </Text>
-        <TouchableOpacity onPress={handleLogout} style={styles.textBtn}>
-          <Text style={styles.logoutText}>ログアウト</Text>
-        </TouchableOpacity>
+        <View style={[styles.headerSide, styles.headerSideRight]}>
+          <TouchableOpacity onPress={handleLogout} style={styles.textBtn}>
+            <Text style={styles.logoutText}>ログアウト</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* 로딩 인디케이터 */}
@@ -169,6 +214,18 @@ export default function SchoolWebViewScreen({ navigation, route }) {
           javaScriptEnabled
         />
       )}
+
+      {/* [Phase B 임시] 추출 버튼 — MY時間割 페이지에서 눌러 화면 텍스트를 공유.
+          파서 완성 후 제거 예정. */}
+      {ready && (
+        <TouchableOpacity
+          style={styles.extractFab}
+          onPress={() => webViewRef.current?.injectJavaScript(EXTRACT_JS)}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.extractFabText}>📋 抽出</Text>
+        </TouchableOpacity>
+      )}
     </SafeAreaView>
   );
 }
@@ -189,8 +246,20 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   headerBtn: {
-    width: 40,
+    width: 32,
     alignItems: 'center',
+  },
+  headerSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerSideRight: {
+    justifyContent: 'flex-end',
+  },
+  closeText: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '600',
   },
   backIcon: {
     fontSize: 28,
@@ -222,5 +291,25 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
+  },
+  // [Phase B 임시] 추출 플로팅 버튼
+  extractFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 24,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  extractFabText: {
+    color: colors.white,
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

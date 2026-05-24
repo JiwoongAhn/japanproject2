@@ -15,6 +15,9 @@ import { colors } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
+import { useAuth } from '../../lib/AuthProvider';
+import { getUniversityInfo } from '../../utils/university';
+import { parseTimetable } from '../../utils/timetableRouter';
 
 // 학기 선택 칩 옵션
 const TERMS = [
@@ -23,47 +26,36 @@ const TERMS = [
   { key: 'full', label: '通年' },
 ];
 
-// Phase 2에서 실제 파서 연결 — 지금은 Mock 데이터로만 동작
-const MOCK_PARSE_RESULT = {
-  parsed: [
-    { name: 'ビジネスコミュニケーション', day: 0, period: 1, term: 'spring', professor: '榊原 一也', credit: 2, campus: '町田', confidence: 'high' },
-    { name: 'スポーツ実習Vテニス', day: 0, period: 2, term: 'spring', professor: '山田 美絵子', credit: 1, campus: '町田', confidence: 'high' },
-    { name: '応用英語1', day: 0, period: 3, term: 'spring', professor: 'ヴィンセント ロバート', credit: 2, campus: '町田', confidence: 'high' },
-    { name: '現代の国際経済', day: 1, period: 3, term: 'spring', professor: '金 明花', credit: 2, campus: '町田', confidence: 'high' },
-    { name: '21世紀アジア学演習1', day: 1, period: 4, term: 'spring', professor: '土佐 昌樹', credit: 1, campus: '町田', confidence: 'high' },
-    { name: '異文化理解', day: 2, period: 5, term: 'spring', professor: '濱田 英作', credit: 2, campus: '町田', confidence: 'high' },
-    { name: 'Webデザインの基礎', day: 1, period: 4, term: 'spring', professor: '羽根 秀也', credit: 2, campus: '町田', confidence: 'high' },
-    { name: 'キャリアデザイン3', day: 3, period: 4, term: 'spring', professor: '堤 由紀子', credit: 2, campus: '町田', confidence: 'high' },
-    { name: 'プログラミング', day: null, period: null, term: 'spring', professor: null, credit: null, campus: null, confidence: 'low' },
-  ],
-  unparsed: [],
-  detectedPeriodRanges: {
-    1: { start: '09:00', end: '10:30' },
-    2: { start: '10:45', end: '12:15' },
-    3: { start: '12:55', end: '14:25' },
-    4: { start: '14:40', end: '16:10' },
-    5: { start: '16:25', end: '17:55' },
-  },
-};
-
 export default function BulkAddInputScreen({ navigation, route }) {
+  const { session } = useAuth();
+  // 학교 id — 텍스트 경로는 학교 무관이지만 라우터 시그니처 일관성 위해 전달
+  const universityId = getUniversityInfo(session?.user?.email)?.id;
+
   const [text, setText] = useState('');
   const [term, setTerm] = useState('spring');
   // 누적 모드를 위한 기존 결과 — 상위 화면에서 넘겨준 경우만 표시
   const existingResult = route?.params?.existingResult ?? null;
 
   const handleParse = () => {
-    // 실제 파서는 Phase 2에서 연결. 지금은 Mock 데이터 그대로 전달
+    // 붙여넣은 텍스트를 파서 라우터로 해석 → 미리보기로 전달
+    const parseResult = parseTimetable({
+      universityId,
+      payload: { kind: 'text', data: text, term },
+    });
     navigation.navigate('BulkAddPreview', {
-      parseResult: MOCK_PARSE_RESULT,
+      parseResult,
       defaultTerm: term,
     });
   };
 
   const handleAppendParse = () => {
-    // 기존 결과에 추가하는 시나리오 — Phase 2에서 병합 로직 연결
+    // 기존 결과에 추가하는 시나리오 (병합은 미리보기 측 향후 작업)
+    const parseResult = parseTimetable({
+      universityId,
+      payload: { kind: 'text', data: text, term },
+    });
     navigation.navigate('BulkAddPreview', {
-      parseResult: MOCK_PARSE_RESULT,
+      parseResult,
       defaultTerm: term,
       appendTo: existingResult,
     });
