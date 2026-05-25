@@ -95,6 +95,31 @@ export default function TimetableScreen({ navigation }) {
     [courses]
   );
 
+  // 一括取り込み: kaede 시간표 URL이 있으면 학교사이트 자동접속, 없으면 텍스트 붙여넣기로 폴백
+  const handleBulkImport = () => {
+    if (links.timetableUrl) {
+      Alert.alert(
+        '時間割の一括取り込み',
+        'kaede-i にログインして時間割を自動で取り込みます。よろしいですか?',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          {
+            text: '接続する',
+            onPress: () =>
+              navigation.navigate('SchoolWeb', {
+                url: links.timetableUrl,
+                title: '時間割の取り込み',
+                autoLogin: true,
+              }),
+          },
+        ]
+      );
+    } else {
+      // kaede 미지원 학교 → 텍스트 붙여넣기 폴백
+      navigation.navigate('BulkAddInput');
+    }
+  };
+
   const handleDeleteCourse = async (courseId) => {
     const { error } = await supabase
       .from('courses')
@@ -125,7 +150,7 @@ export default function TimetableScreen({ navigation }) {
         <View style={styles.headerActions}>
           <TouchableOpacity
             style={styles.bulkButton}
-            onPress={() => navigation.navigate('BulkAddInput')}
+            onPress={handleBulkImport}
             activeOpacity={0.8}
           >
             <Text style={styles.bulkButtonText}>📋 一括</Text>
@@ -283,22 +308,6 @@ export default function TimetableScreen({ navigation }) {
             ) : null}
           </View>
         </ScrollView>
-      )}
-
-      {/* 빈 상태 (부드러운 톤) */}
-      {!loading && courses.length === 0 && (
-        <View style={styles.emptyOverlay}>
-          <Text style={styles.emptyEmoji}>📚</Text>
-          <Text style={styles.emptyText}>まだ授業がないみたい</Text>
-          <Text style={styles.emptySubText}>空きコマをタップして授業を追加してみよう</Text>
-          <TouchableOpacity
-            style={styles.emptyButton}
-            onPress={() => navigation.navigate('CourseAdd')}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.emptyButtonText}>＋ 授業を追加する</Text>
-          </TouchableOpacity>
-        </View>
       )}
 
       <CourseDetailModal

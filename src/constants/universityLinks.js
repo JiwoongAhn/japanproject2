@@ -8,6 +8,7 @@ export const universityLinks = {
     homepageUrl: 'https://www.kokushikan.ac.jp',
     manabaUrl:   'https://kokushikan.manaba.jp/ct/login',
     kaedeUrl:    'https://kaedei.kokushikan.ac.jp',
+    timetableUrl:'https://kaedei.kokushikan.ac.jp/Main/MyTimeTable.aspx', // 一括取り込み: 로그인 후 ReturnUrl로 자동 복귀
     syllabusUrl: 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx',
     portalUrl:   'https://portal.kokushikan.ac.jp',
   },

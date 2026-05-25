@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 
 import { colors, pastel } from '../../constants/colors';
@@ -19,6 +21,9 @@ import { buildCourseRows } from '../../utils/timetable';
 // 요일별 파스텔 매핑 — 한 화면에서 5±2색 이내 유지
 const DAY_PASTEL = ['mint', 'peach', 'sky', 'lavender', 'yellow', 'pink'];
 const DAY_LABEL = ['月', '火', '水', '木', '金', '土'];
+// 편집 모달의 요일 선택지 — courses는 月~金(0~4)만 허용
+const EDIT_DAYS = [0, 1, 2, 3, 4];
+const EDIT_PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 function getDayPastel(day) {
   return DAY_PASTEL[day] ?? 'rose';
@@ -30,19 +35,21 @@ function getDayLabel(day) {
 
 export default function BulkAddPreviewScreen({ navigation, route }) {
   const parseResult = route?.params?.parseResult ?? { parsed: [], unparsed: [] };
-  const items = parseResult.parsed ?? [];
+  const defaultTerm = route?.params?.defaultTerm ?? 'spring';
 
-  // 기본 선택: confidence='high'인 항목 모두 체크
-  const initialSelected = useMemo(() => {
+  // 미리보기 항목 — 편집/추가가 가능하도록 state로 관리
+  const [items, setItems] = useState(() => parseResult.parsed ?? []);
+  // 기본 선택: confidence='high'(요일·교시 확실)인 항목 모두 체크
+  const [selected, setSelected] = useState(() => {
     const set = new Set();
-    items.forEach((item, idx) => {
+    (parseResult.parsed ?? []).forEach((item, idx) => {
       if (item.confidence === 'high') set.add(idx);
     });
     return set;
-  }, [items]);
-
-  const [selected, setSelected] = useState(initialSelected);
+  });
   const [saving, setSaving] = useState(false);
+  // 편집 모달 상태 — null이면 닫힘. index===-1이면 신규 추가
+  const [editing, setEditing] = useState(null);
 
   const toggle = (idx) => {
     setSelected((prev) => {
@@ -55,8 +62,39 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
 
   const selectedCount = selected.size;
 
-  const handleLowConfidenceTap = () => {
-    Alert.alert('お知らせ', '後で対応します');
+  // ── 편집/추가 ──────────────────────────────
+  const openEdit = (idx) => {
+    const it = items[idx];
+    setEditing({ index: idx, name: it.name ?? '', day: it.day ?? null, period: it.period ?? null });
+  };
+
+  const openAdd = () => {
+    setEditing({ index: -1, name: '', day: null, period: null });
+  };
+
+  const closeEdit = () => setEditing(null);
+
+  const saveEdit = () => {
+    const name = (editing.name ?? '').trim();
+    if (!name) {
+      Alert.alert('お知らせ', '科目名を入力してください');
+      return;
+    }
+    const { index, day, period } = editing;
+    // 요일·교시가 모두 채워지면 신뢰도 high(자동 체크 대상)
+    const confidence = (day != null && period != null) ? 'high' : 'low';
+
+    if (index === -1) {
+      // 신규 추가 — 새 항목은 자동으로 체크
+      const newIdx = items.length;
+      setItems((prev) => [...prev, { name, day, period, term: defaultTerm, professor: null, confidence }]);
+      setSelected((prev) => new Set(prev).add(newIdx));
+    } else {
+      // 기존 항목 수정 — 교수/학기 등 기존 값 보존
+      setItems((prev) => prev.map((it, i) => (i === index ? { ...it, name, day, period, confidence } : it)));
+      if (confidence === 'high') setSelected((prev) => new Set(prev).add(index));
+    }
+    setEditing(null);
   };
 
   const handleConfirm = async () => {
@@ -137,88 +175,71 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
         {items.map((item, idx) => {
           const isLow = item.confidence === 'low';
           const isSelected = selected.has(idx);
+          const hasSlot = item.day != null && item.period != null;
           const dayPastelKey = item.day != null ? getDayPastel(item.day) : 'rose';
           const dayBg = pastel[dayPastelKey]?.bg ?? colors.gray100;
           const dayAccent = pastel[dayPastelKey]?.accent ?? colors.textSecondary;
 
-          const cardInner = (
-            <View style={styles.row}>
-              {/* 체크박스 */}
-              <TouchableOpacity
-                onPress={() => toggle(idx)}
-                activeOpacity={0.7}
-                style={styles.checkboxTouch}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <View style={[styles.checkbox, isSelected && styles.checkboxOn]}>
-                  {isSelected ? <Text style={styles.checkboxMark}>✓</Text> : null}
-                </View>
-              </TouchableOpacity>
-
-              {/* 본문 */}
-              <View style={styles.body}>
-                {/* 요일·교시 배지 라인 */}
-                <View style={styles.badgeRow}>
-                  {item.day != null && item.period != null ? (
-                    <>
-                      <View style={[styles.dayBadge, { backgroundColor: dayBg }]}>
-                        <Text style={[styles.dayBadgeText, { color: dayAccent }]}>
-                          {getDayLabel(item.day)}
-                        </Text>
-                      </View>
-                      <Text style={styles.periodLabel}>{item.period}限目</Text>
-                    </>
-                  ) : (
-                    <View style={[styles.dayBadge, { backgroundColor: colors.gray100 }]}>
-                      <Text style={[styles.dayBadgeText, { color: colors.textSecondary }]}>
-                        未割当
-                      </Text>
-                    </View>
-                  )}
-
-                  {isLow ? (
-                    <Text style={styles.lowHint}>⚠ タップで修正</Text>
-                  ) : null}
-                </View>
-
-                {/* 과목명 */}
-                <Text style={styles.courseName} numberOfLines={2}>
-                  {item.name}
-                </Text>
-
-                {/* 교수명 + 학점 */}
-                {(item.professor || item.credit) ? (
-                  <View style={styles.metaRow}>
-                    {item.professor ? (
-                      <Text style={styles.metaText}>{item.professor}</Text>
-                    ) : null}
-                    {item.credit ? (
-                      <Text style={styles.metaCredit}>[{item.credit}]</Text>
-                    ) : null}
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          );
-
-          if (isLow) {
-            return (
-              <TouchableOpacity
-                key={idx}
-                onPress={handleLowConfidenceTap}
-                activeOpacity={0.8}
-                style={{ marginBottom: spacing.sm }}
-              >
-                <Card pastel="rose" padding="lg">
-                  {cardInner}
-                </Card>
-              </TouchableOpacity>
-            );
-          }
-
           return (
             <View key={idx} style={{ marginBottom: spacing.sm }}>
-              <Card padding="lg">{cardInner}</Card>
+              <Card pastel={isLow ? 'rose' : undefined} padding="lg">
+                <View style={styles.row}>
+                  {/* 체크박스 */}
+                  <TouchableOpacity
+                    onPress={() => toggle(idx)}
+                    activeOpacity={0.7}
+                    style={styles.checkboxTouch}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <View style={[styles.checkbox, isSelected && styles.checkboxOn]}>
+                      {isSelected ? <Text style={styles.checkboxMark}>✓</Text> : null}
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* 본문 — 탭하면 편집 */}
+                  <TouchableOpacity
+                    style={styles.body}
+                    activeOpacity={0.7}
+                    onPress={() => openEdit(idx)}
+                  >
+                    {/* 요일·교시 배지 라인 */}
+                    <View style={styles.badgeRow}>
+                      {hasSlot ? (
+                        <>
+                          <View style={[styles.dayBadge, { backgroundColor: dayBg }]}>
+                            <Text style={[styles.dayBadgeText, { color: dayAccent }]}>
+                              {getDayLabel(item.day)}
+                            </Text>
+                          </View>
+                          <Text style={styles.periodLabel}>{item.period}限目</Text>
+                        </>
+                      ) : (
+                        <View style={[styles.dayBadge, { backgroundColor: colors.gray100 }]}>
+                          <Text style={[styles.dayBadgeText, { color: colors.textSecondary }]}>
+                            未割当
+                          </Text>
+                        </View>
+                      )}
+
+                      <Text style={[styles.editHint, isLow && styles.editHintWarn]}>
+                        {isLow ? '⚠ タップで修正' : '✎ 編集'}
+                      </Text>
+                    </View>
+
+                    {/* 과목명 */}
+                    <Text style={styles.courseName} numberOfLines={2}>
+                      {item.name}
+                    </Text>
+
+                    {/* 교수명 */}
+                    {item.professor ? (
+                      <View style={styles.metaRow}>
+                        <Text style={styles.metaText}>{item.professor}</Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
+                </View>
+              </Card>
             </View>
           );
         })}
@@ -229,6 +250,11 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
             <Text style={styles.emptyText}>解析できる授業がありませんでした</Text>
           </View>
         ) : null}
+
+        {/* 수동 추가 */}
+        <TouchableOpacity style={styles.addManualBtn} onPress={openAdd} activeOpacity={0.8}>
+          <Text style={styles.addManualText}>＋ 手動で追加</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ── 하단 fixed ── */}
@@ -247,6 +273,79 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* ── 편집/추가 모달 ── */}
+      <Modal
+        visible={editing !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={closeEdit}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>
+              {editing?.index === -1 ? '授業を追加' : '授業を編集'}
+            </Text>
+
+            <Text style={styles.modalLabel}>科目名</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editing?.name ?? ''}
+              onChangeText={(t) => setEditing((e) => ({ ...e, name: t }))}
+              placeholder="例: 経営学概論"
+              placeholderTextColor={colors.textDisabled}
+              maxLength={30}
+            />
+
+            <Text style={styles.modalLabel}>曜日</Text>
+            <View style={styles.chipWrap}>
+              {EDIT_DAYS.map((d) => {
+                const active = editing?.day === d;
+                return (
+                  <TouchableOpacity
+                    key={d}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setEditing((e) => ({ ...e, day: d }))}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {DAY_LABEL[d]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.modalLabel}>時限</Text>
+            <View style={styles.chipWrap}>
+              {EDIT_PERIODS.map((p) => {
+                const active = editing?.period === p;
+                return (
+                  <TouchableOpacity
+                    key={p}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => setEditing((e) => ({ ...e, period: p }))}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                      {p}限
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={closeEdit} activeOpacity={0.8}>
+                <Text style={styles.modalCancelText}>キャンセル</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveBtn} onPress={saveEdit} activeOpacity={0.85}>
+                <Text style={styles.modalSaveText}>保存</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -337,10 +436,13 @@ const styles = StyleSheet.create({
     ...typography.captionStrong,
     color: colors.textSecondary,
   },
-  lowHint: {
+  editHint: {
     ...typography.micro,
-    color: pastel.rose.accent,
+    color: colors.textDisabled,
     marginLeft: 'auto',
+  },
+  editHintWarn: {
+    color: pastel.rose.accent,
   },
 
   // 과목명·메타
@@ -358,10 +460,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  metaCredit: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
 
   // 빈 상태
   empty: {
@@ -375,6 +473,21 @@ const styles = StyleSheet.create({
   emptyText: {
     ...typography.body2,
     color: colors.textSecondary,
+  },
+
+  // 수동 추가 버튼
+  addManualBtn: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+  },
+  addManualText: {
+    ...typography.bodyStrong,
+    color: colors.primary,
   },
 
   // 하단 바
@@ -397,6 +510,88 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     ...typography.subtitle,
+    color: colors.white,
+  },
+
+  // ── 편집 모달 ──
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    padding: spacing.xl,
+    paddingBottom: spacing.huge,
+  },
+  modalTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  modalLabel: {
+    ...typography.captionStrong,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  modalInput: {
+    ...typography.body1,
+    color: colors.textPrimary,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gray50,
+  },
+  chipActive: {
+    backgroundColor: colors.primary,
+  },
+  chipText: {
+    ...typography.bodyStrong,
+    color: colors.textSecondary,
+  },
+  chipTextActive: {
+    color: colors.white,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.xl,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.gray100,
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    ...typography.bodyStrong,
+    color: colors.textSecondary,
+  },
+  modalSaveBtn: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    ...typography.bodyStrong,
     color: colors.white,
   },
 });

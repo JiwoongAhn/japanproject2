@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Alert,
-  Share,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../constants/colors';
@@ -25,28 +24,36 @@ import {
   buildAutoFillJS,
   CAPTURE_CREDENTIALS_JS,
 } from '../utils/schoolCookies';
+import { useAuth } from '../lib/AuthProvider';
+import { getUniversityInfo } from '../utils/university';
+import { parseTimetable } from '../utils/timetableRouter';
+import { getCurrentTerm } from '../utils/timetable';
 
-// [Phase B 임시] 시간표 표(table)의 HTML 구조를 뽑아 앱으로 보내는 스크립트
-// innerText는 요일(가로 위치)이 사라져서, td 위치를 알 수 있는 HTML이 필요하다.
-// '限目'(교시)이 들어있는 table 하나만 골라 outerHTML을 보낸다. (전체 페이지는 너무 큼)
-// 카에데 MY時間割 파서 완성 후 제거 예정.
-const EXTRACT_JS = `(function(){
+// 카에데 MY時間割 셀 추출 스크립트
+// 각 수업 칸은 <td id="Cell{열}_{교시}_{Spring|Autumn}" class="cell"> 구조.
+// id(요일·교시·학기) + 과목명(.lecture_name) + 교수명(教員：…)만 뽑아 배열로 보낸다.
+// 셀 id를 그대로 보내고 요일/교시 해석은 RN의 parseKaedeTimetable이 담당.
+const KAEDE_EXTRACT_JS = `(function(){
   try {
-    var tables = document.querySelectorAll('table');
-    var target = null;
-    for (var i = 0; i < tables.length; i++) {
-      var t = tables[i].innerText || '';
-      if (t.indexOf('限目') !== -1 && t.indexOf('シラバス') !== -1) { target = tables[i]; break; }
-    }
-    if (!target) {
-      for (var j = 0; j < tables.length; j++) {
-        if ((tables[j].innerText || '').indexOf('限目') !== -1) { target = tables[j]; break; }
+    var cells = document.querySelectorAll('td.cell');
+    var out = [];
+    for (var i = 0; i < cells.length; i++) {
+      var td = cells[i];
+      var nameEl = td.querySelector('.lecture_name');
+      if (!nameEl) continue;                       // 빈 칸(공강) 제외
+      var name = (nameEl.textContent || '').trim();
+      if (!name) continue;
+      var prof = '';
+      var hides = td.querySelectorAll('.mobile-hide');
+      for (var j = 0; j < hides.length; j++) {
+        var t = (hides[j].textContent || '').trim();
+        if (t.indexOf('教員：') === 0) prof = t.replace('教員：', '').trim();
       }
+      out.push({ id: td.id, name: name, professor: prof });
     }
-    var html = target ? target.outerHTML : ('NO_TABLE_FOUND tables=' + tables.length);
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'extract', html: html, url: location.href }));
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'kaedeCells', cells: out, url: location.href }));
   } catch (e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'extract', error: String(e) }));
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'kaedeCells', error: String(e) }));
   }
   true;
 })();`;
@@ -60,12 +67,16 @@ const EXTRACT_JS = `(function(){
 //   ※ ID/PW는 기기 내 AES-256 저장, 서버 전송 없음
 export default function SchoolWebViewScreen({ navigation, route }) {
   const { url, title, autoLogin = false } = route.params ?? {};
+  const { session } = useAuth();
+  // 시간표 파싱에 쓸 학교 id (카에데=국사관 → 전용 파서로 라우팅)
+  const universityId = getUniversityInfo(session?.user?.email)?.id;
   const cookieKey = useMemo(() => cookieKeyForUrl(url), [url]);
   const credKey = useMemo(() => credKeyForUrl(url), [url]);
   const webViewRef = useRef(null);
   const autoFilledRef = useRef(false); // 자동 입력 1회만 시도
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState(url ?? ''); // 현재 보고 있는 페이지 URL
   const [ready, setReady] = useState(false);
   const [cookieHeader, setCookieHeader] = useState(null);
   const [creds, setCreds] = useState(null);
@@ -90,7 +101,11 @@ export default function SchoolWebViewScreen({ navigation, route }) {
 
   const handleNavStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
+    setCurrentUrl(navState.url || '');
   };
+
+  // MY時間割 페이지일 때만 추출 버튼 노출 (카에데 진입 직후/다른 페이지에서는 숨김)
+  const isTimetablePage = currentUrl.toLowerCase().includes('mytimetable');
 
   // WebView 내부 페이지 뒤로가기 (잘못 들어갔을 때 한 페이지 복귀)
   const handleWebBack = () => {
@@ -103,22 +118,50 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   };
 
   // 사용자가 직접 로그인할 때 입력한 ID/PW 캡처 → 암호화 저장
-  // + [Phase B 임시] 추출 결과 수신 → 공유시트로 내보내기
+  // + 카에데 시간표 셀 추출 결과 수신 → 파싱 → 확인 → 미리보기 화면으로 이동
   const handleMessage = async (event) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type === 'credentials' && msg.pw) {
         await saveCredentials(credKey, msg.id, msg.pw);
         setCreds({ id: msg.id, pw: msg.pw });
-      } else if (msg.type === 'extract') {
-        if (msg.error) {
-          Alert.alert('抽出エラー', msg.error);
-          return;
-        }
-        // 시간표 표 HTML을 공유시트로 — "コピー" 또는 メモ로 저장해 개발자에게 전달
-        await Share.share({ message: `URL: ${msg.url}\n\n${msg.html}` });
+      } else if (msg.type === 'kaedeCells') {
+        handleExtractedCells(msg);
       }
     } catch (_) {}
+  };
+
+  // 추출된 셀 → 파서 라우터로 해석 → 확인 후 미리보기 화면으로
+  const handleExtractedCells = (msg) => {
+    if (msg.error) {
+      Alert.alert('読み込みエラー', '時間割の読み込みに失敗しました。もう一度お試しください');
+      return;
+    }
+    const parseResult = parseTimetable({
+      universityId,
+      payload: { kind: 'kaedeCells', data: msg.cells, term: getCurrentTerm() },
+    });
+    const count = parseResult.parsed.length;
+    if (count === 0) {
+      Alert.alert('お知らせ', '今学期の授業が見つかりませんでした');
+      return;
+    }
+    Alert.alert(
+      '時間割の取り込み',
+      `${count}件の授業が見つかりました。\n確認画面で追加する授業を選べます。`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '進む',
+          onPress: () =>
+            // 옵션B: 모달을 닫으며 시간표 탭의 미리보기 화면으로 결과 전달
+            navigation.navigate('MainTab', {
+              screen: 'Timetable',
+              params: { screen: 'BulkAddPreview', params: { parseResult } },
+            }),
+        },
+      ]
+    );
   };
 
   // 페이지 로드 완료: 쿠키 저장 + (autoLogin이면) 캡처 hook + 자동 입력
@@ -215,15 +258,14 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         />
       )}
 
-      {/* [Phase B 임시] 추출 버튼 — MY時間割 페이지에서 눌러 화면 텍스트를 공유.
-          파서 완성 후 제거 예정. */}
-      {ready && (
+      {/* 시간표 가져오기 버튼 — MY時間割 페이지에서만 노출 */}
+      {ready && isTimetablePage && (
         <TouchableOpacity
           style={styles.extractFab}
-          onPress={() => webViewRef.current?.injectJavaScript(EXTRACT_JS)}
+          onPress={() => webViewRef.current?.injectJavaScript(KAEDE_EXTRACT_JS)}
           activeOpacity={0.85}
         >
-          <Text style={styles.extractFabText}>📋 抽出</Text>
+          <Text style={styles.extractFabText}>📥 時間割を取り込む</Text>
         </TouchableOpacity>
       )}
     </SafeAreaView>
