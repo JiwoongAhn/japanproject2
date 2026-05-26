@@ -16,7 +16,7 @@ import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
-import { getCourseColor } from '../../constants/courseColors';
+import { getCourseColorFor } from '../../constants/courseColors';
 import CourseDetailModal from './CourseDetailModal';
 import { getPeriodStartTimeStr } from '../../utils/timetable';
 import { TODAY_COLOR_KEY } from '../ProfileScreen';
@@ -205,13 +205,20 @@ export default function TimetableScreen({ navigation }) {
                 {/* 교시 라벨 */}
                 <View style={styles.periodLabelCell}>
                   <Text style={styles.periodLabelText}>{period}</Text>
-                  <Text style={styles.periodTimeText}>{getPeriodStartTimeStr(period, universityInfo)}</Text>
+                  <Text
+                    style={styles.periodTimeText}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                  >
+                    {getPeriodStartTimeStr(period, universityInfo)}
+                  </Text>
                 </View>
 
                 {/* 요일별 셀 */}
                 {DAYS.map((_, dayIndex) => {
                   const course = getCourse(dayIndex, period);
-                  const color = course ? getCourseColor(course.id) : null;
+                  const color = course ? getCourseColorFor(course) : null;
                   return (
                     <TouchableOpacity
                       key={dayIndex}
@@ -314,6 +321,7 @@ export default function TimetableScreen({ navigation }) {
         course={selectedCourse}
         onClose={() => setSelectedCourse(null)}
         onDelete={handleDeleteCourse}
+        onEdit={(course) => navigation.navigate('CourseAdd', { course })}
       />
     </SafeAreaView>
   );

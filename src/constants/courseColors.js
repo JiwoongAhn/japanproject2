@@ -22,3 +22,14 @@ export function getCourseColor(courseId) {
   const sum = digits.split('').reduce((acc, d) => acc + parseInt(d, 10), 0);
   return COURSE_COLORS[sum % COURSE_COLORS.length];
 }
+
+// 수업 객체 기준으로 색상 결정
+// 사용자가 직접 고른 color_index가 있으면 그 색을, 없으면 id 기반 자동 색을 사용
+// (편집 기능으로 사용자가 색을 지정할 수 있게 되면서 추가됨)
+export function getCourseColorFor(course) {
+  const idx = course?.color_index;
+  if (Number.isInteger(idx) && idx >= 0 && idx < COURSE_COLORS.length) {
+    return COURSE_COLORS[idx];
+  }
+  return getCourseColor(course?.id);
+}

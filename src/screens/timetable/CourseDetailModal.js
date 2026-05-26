@@ -8,7 +8,7 @@ import {
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
-import { getCourseColor } from '../../constants/courseColors';
+import { getCourseColorFor } from '../../constants/courseColors';
 
 // 요일 레이블 (일본어)
 const DAY_LABELS = ['月曜日', '火曜日', '水曜日', '木曜日', '金曜日'];
@@ -30,7 +30,8 @@ const PERIOD_TIMES = {
 //   course  — 선택된 수업 객체 (null이면 표시 안 함)
 //   onClose — 모달 닫기 함수
 //   onDelete(courseId) — 삭제 실행 함수
-export default function CourseDetailModal({ course, onClose, onDelete }) {
+//   onEdit(course)     — 편집 화면 열기 함수
+export default function CourseDetailModal({ course, onClose, onDelete, onEdit }) {
   // 삭제 확인 단계 (true면 "정말 삭제?" UI 표시)
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -43,10 +44,14 @@ export default function CourseDetailModal({ course, onClose, onDelete }) {
 
   if (!course) return null;
 
-  const color = getCourseColor(course.id);
+  const color = getCourseColorFor(course);
   const dayLabel = DAY_LABELS[course.day_of_week] ?? '不明';
   const timeLabel = PERIOD_TIMES[course.period] ?? '';
 
+  const handleEditPress = () => {
+    onClose();        // 모달을 닫고
+    onEdit(course);   // 편집 화면으로 이동
+  };
   const handleDeletePress = () => setConfirmDelete(true);
   const handleDeleteConfirm = () => {
     onDelete(course.id);
@@ -99,6 +104,15 @@ export default function CourseDetailModal({ course, onClose, onDelete }) {
             <Text style={styles.infoLabel}>時間帯</Text>
             <Text style={styles.infoValue}>{timeLabel}</Text>
           </View>
+          {course.memo ? (
+            <>
+              <View style={styles.infoDivider} />
+              <View style={styles.memoRow}>
+                <Text style={styles.infoLabel}>メモ</Text>
+                <Text style={styles.memoValue}>{course.memo}</Text>
+              </View>
+            </>
+          ) : null}
         </View>
 
         {/* 삭제 확인 단계 */}
@@ -122,6 +136,13 @@ export default function CourseDetailModal({ course, onClose, onDelete }) {
           </>
         ) : (
           <>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonPrimary]}
+              onPress={handleEditPress}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonPrimaryText}>✏️ 編集する</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.buttonOutlineDanger]}
               onPress={handleDeletePress}
@@ -223,6 +244,16 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     color: colors.textPrimary,
   },
+  // 메모 — 길어질 수 있어 줄바꿈 허용 (라벨 위, 값 아래 정렬)
+  memoRow: {
+    paddingVertical: spacing.md,
+  },
+  memoValue: {
+    ...typography.body2,
+    color: colors.textPrimary,
+    marginTop: spacing.xs,
+    lineHeight: 20,
+  },
 
   // ── 삭제 확인 ──
   confirmText: {
@@ -240,6 +271,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     height: 56,
     justifyContent: 'center',
+  },
+  buttonPrimary: {
+    backgroundColor: colors.primary,
+  },
+  buttonPrimaryText: {
+    ...typography.subtitle,
+    color: colors.white,
+    fontWeight: '700',
   },
   buttonOutlineDanger: {
     borderWidth: 1,

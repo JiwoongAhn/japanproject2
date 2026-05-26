@@ -69,6 +69,10 @@ CREATE TABLE courses (
   -- 교시: 1교시 ~ 8교시
   professor_name  TEXT,
   -- 담당 교수명 (선택 입력)
+  color_index     SMALLINT,
+  -- 사용자가 고른 색상 인덱스 (COURSE_COLORS 0~6). NULL이면 id 기반 자동 색 사용
+  memo            TEXT,
+  -- 간단 메모 (선택 입력, 최대 100자)
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -128,6 +132,11 @@ CREATE POLICY "시간표 opt-in 공유" ON courses
 
 CREATE POLICY "본인 수업만 추가 가능" ON courses
   FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "본인 수업만 수정 가능" ON courses
+  FOR UPDATE USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+  -- USING: 본인 행만 수정 대상으로 선택 / WITH CHECK: 수정 후에도 user_id가 본인이어야 함
 
 CREATE POLICY "본인 수업만 삭제 가능" ON courses
   FOR DELETE USING (auth.uid() = user_id);

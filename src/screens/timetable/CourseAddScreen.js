@@ -32,12 +32,24 @@ const DAYS = [
 const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 export default function CourseAddScreen({ route, navigation }) {
+  // route.params.course 가 있으면 편집 모드 (없으면 신규 추가 모드)
+  const editingCourse = route.params?.course ?? null;
+  const isEditMode = !!editingCourse;
+
   // 빈 셀 탭 시 route.params로 요일/교시 pre-fill 지원
-  const [courseName, setCourseName] = useState('');
-  const [selectedDay, setSelectedDay] = useState(route.params?.day ?? null);
-  const [selectedPeriod, setSelectedPeriod] = useState(route.params?.period ?? null);
-  const [professorName, setProfessorName] = useState('');
-  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
+  // 편집 모드면 기존 수업 값으로 pre-fill
+  const [courseName, setCourseName] = useState(editingCourse?.name ?? '');
+  const [selectedDay, setSelectedDay] = useState(
+    editingCourse?.day_of_week ?? route.params?.day ?? null
+  );
+  const [selectedPeriod, setSelectedPeriod] = useState(
+    editingCourse?.period ?? route.params?.period ?? null
+  );
+  const [professorName, setProfessorName] = useState(editingCourse?.professor_name ?? '');
+  const [memo, setMemo] = useState(editingCourse?.memo ?? '');
+  const [selectedColorIndex, setSelectedColorIndex] = useState(
+    Number.isInteger(editingCourse?.color_index) ? editingCourse.color_index : 0
+  );
   const [saving, setSaving] = useState(false);
 
   // 필수 항목 모두 입력됐을 때만 저장 버튼 활성화
@@ -52,18 +64,38 @@ export default function CourseAddScreen({ route, navigation }) {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from('courses').insert({
-      user_id: user.id,
+    // 추가/편집 공통으로 저장할 값
+    const payload = {
       name: courseName.trim(),
       day_of_week: selectedDay,
       period: selectedPeriod,
       professor_name: professorName.trim() || null,
-      // color_index: selectedColorIndex,  // DB migration 후 활성화
-    });
+      memo: memo.trim() || null,
+      color_index: selectedColorIndex,
+    };
+
+    let error;
+    let data;
+    if (isEditMode) {
+      // 편집 모드 — 기존 행 업데이트 (user_id는 RLS로 보호되므로 그대로 둠)
+      // .select()로 실제 반영된 행을 돌려받아, RLS 등으로 0건 처리되는 조용한 실패를 감지
+      ({ data, error } = await supabase
+        .from('courses')
+        .update(payload)
+        .eq('id', editingCourse.id)
+        .select());
+    } else {
+      // 신규 추가 모드
+      ({ data, error } = await supabase
+        .from('courses')
+        .insert({ ...payload, user_id: user.id })
+        .select());
+    }
 
     setSaving(false);
 
-    if (error) {
+    // error가 없어도 반영된 행이 0건이면 실패로 간주 (RLS 정책 누락 등)
+    if (error || !data || data.length === 0) {
       // 부드러운 실패 문구
       Alert.alert('お知らせ', '授業をうまく保存できませんでした。もう一度お試しください');
     } else {
@@ -82,7 +114,7 @@ export default function CourseAddScreen({ route, navigation }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide}>
             <Text style={styles.cancelText}>キャンセル</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>授業を追加</Text>
+          <Text style={styles.headerTitle}>{isEditMode ? '授業を編集' : '授業を追加'}</Text>
           <View style={styles.headerSide} />
         </View>
 
@@ -170,6 +202,24 @@ export default function CourseAddScreen({ route, navigation }) {
             />
           </Card>
 
+          {/* ── 메모 ── */}
+          <Card style={styles.section}>
+            <Text style={styles.sectionLabel}>
+              メモ <Text style={styles.optional}>(任意)</Text>
+            </Text>
+            <TextInput
+              style={[styles.textInput, styles.textArea]}
+              placeholder="例: テスト範囲は3章まで / 出席重視"
+              placeholderTextColor={colors.textDisabled}
+              value={memo}
+              onChangeText={setMemo}
+              maxLength={100}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+          </Card>
+
           {/* ── 색상 ── */}
           <Card style={styles.section}>
             <Text style={styles.sectionLabel}>カラー</Text>
@@ -193,9 +243,6 @@ export default function CourseAddScreen({ route, navigation }) {
                 );
               })}
             </View>
-            <Text style={styles.colorNote}>
-              カラーはDB連携後に反映されます
-            </Text>
           </Card>
 
           <View style={{ height: spacing.huge }} />
@@ -204,7 +251,7 @@ export default function CourseAddScreen({ route, navigation }) {
         {/* ── 저장 버튼 ── */}
         <View style={styles.saveButtonContainer}>
           <Button
-            title="保存する"
+            title={isEditMode ? '変更を保存' : '保存する'}
             onPress={handleSave}
             disabled={!isFormValid}
             loading={saving}
@@ -280,6 +327,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
   },
+  // 메모 — 여러 줄 입력
+  textArea: {
+    minHeight: 80,
+    paddingTop: spacing.md,
+  },
 
   // ── 칩 (요일·교시) ──
   chipRow: {
@@ -321,11 +373,6 @@ const styles = StyleSheet.create({
   colorDotCheck: {
     ...typography.captionStrong,
     fontWeight: '800',
-  },
-  colorNote: {
-    ...typography.caption,
-    color: colors.textDisabled,
-    marginTop: spacing.md,
   },
 
   // ── 저장 버튼 ──
