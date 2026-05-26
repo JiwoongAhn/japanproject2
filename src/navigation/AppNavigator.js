@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef } from 'react';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
 import { useAuth } from '../lib/AuthProvider';
@@ -11,6 +11,10 @@ import SchoolWebViewScreen from '../screens/SchoolWebViewScreen';
 import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
+import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
+
+// NavigationContainer 밖에서 navigate를 호출하기 위한 ref
+const navigationRef = createNavigationContainerRef();
 
 const NicknameStack = createNativeStackNavigator();
 const OnboardingStack = createNativeStackNavigator();
@@ -28,7 +32,14 @@ const linking = {
 };
 
 export default function AppNavigator() {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading, pendingNotice, clearPendingNotice } = useAuth();
+
+  // 푸시 알림 탭 감지 → NoticePreviewModal로 이동
+  useEffect(() => {
+    if (pendingNotice && navigationRef.isReady()) {
+      navigationRef.navigate('NoticePreview', pendingNotice);
+    }
+  }, [pendingNotice]);
 
   useEffect(() => {
     // 이메일 인증 완료 후 앱으로 돌아올 때 URL에서 토큰을 꺼내 세션 설정
@@ -108,12 +119,17 @@ export default function AppNavigator() {
           component={SchoolWebViewScreen}
           options={{ presentation: 'modal' }}
         />
+        <RootStack.Screen
+          name="NoticePreview"
+          component={NoticePreviewModal}
+          options={{ presentation: 'modal' }}
+        />
       </RootStack.Navigator>
     );
   };
 
   return (
-    <NavigationContainer linking={linking}>
+    <NavigationContainer ref={navigationRef} linking={linking}>
       {renderContent()}
     </NavigationContainer>
   );

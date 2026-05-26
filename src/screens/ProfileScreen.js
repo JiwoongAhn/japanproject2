@@ -13,6 +13,8 @@ import {
   Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
@@ -21,6 +23,16 @@ import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo } from '../utils/university';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
+import { handleMicrosoftAuthResponse } from '../lib/microsoftAuth';
+
+WebBrowser.maybeCompleteAuthSession();
+
+const MS_CLIENT_ID = 'b9f03502-37c5-4e9d-88d8-df79bbf9f63b';
+const MS_REDIRECT_URI = 'msauth.com.jiwoongahn.unipas://auth';
+const MS_DISCOVERY = {
+  authorizationEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+  tokenEndpoint:         'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+};
 
 // 요일 강조 색상 선택지
 const HIGHLIGHT_COLORS = [
@@ -49,6 +61,20 @@ export default function ProfileScreen({ navigation }) {
   const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
   const [newNickname, setNewNickname]                   = useState('');
   const [savingNickname, setSavingNickname]             = useState(false);
+  // Microsoft 연결 상태
+  const [msConnected, setMsConnected]   = useState(false);
+  const [msConnecting, setMsConnecting] = useState(false);
+
+  const [msRequest, msResponse, msPromptAsync] = AuthSession.useAuthRequest(
+    {
+      clientId:     MS_CLIENT_ID,
+      scopes:       ['openid', 'email', 'offline_access', 'Mail.Read'],
+      redirectUri:  MS_REDIRECT_URI,
+      responseType: AuthSession.ResponseType.Code,
+      usePKCE:      true,
+    },
+    MS_DISCOVERY,
+  );
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -94,6 +120,33 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // Microsoft 연결 여부 확인
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('mail_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle()
+      .then(({ data }) => setMsConnected(!!data));
+  }, [userId]);
+
+  // OAuth 응답 처리
+  useEffect(() => {
+    if (!msResponse) return;
+    setMsConnecting(true);
+    handleMicrosoftAuthResponse(msResponse, msRequest)
+      .then(({ success, error }) => {
+        if (success) {
+          setMsConnected(true);
+          Alert.alert('連携完了', 'manabaの新着通知をプッシュで受け取れます！');
+        } else if (error !== 'cancelled') {
+          Alert.alert('エラー', '連携に失敗しました。もう一度お試しください。');
+        }
+      })
+      .finally(() => setMsConnecting(false));
+  }, [msResponse]);
 
   // MyPosts에서 돌아왔을 때 게시글 목록만 재조회
   useEffect(() => {
@@ -455,6 +508,39 @@ export default function ProfileScreen({ navigation }) {
                 trackColor={{ false: colors.border, true: colors.primary + '80' }}
                 thumbColor={shareTimetable ? colors.primary : colors.textDisabled}
               />
+            </View>
+          </View>
+        </View>
+
+        {/* ── manaba 알림 연결 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>manaba通知設定</Text>
+          <View style={styles.infoCard}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>Outlookメール連携</Text>
+                <Text style={styles.toggleHint}>
+                  {msConnected
+                    ? 'manabaの新着通知をプッシュで受け取れます'
+                    : '学校のOutlookアカウントと連携してmanabaの通知を受け取ります'}
+                </Text>
+              </View>
+              {msConnecting ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : msConnected ? (
+                <View style={styles.connectedBadge}>
+                  <Text style={styles.connectedText}>連携済み</Text>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.connectButton, !msRequest && { opacity: 0.5 }]}
+                  onPress={() => msPromptAsync()}
+                  disabled={!msRequest}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.connectButtonText}>連携する</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
@@ -889,5 +975,27 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     textDecorationLine: 'underline',
+  },
+  connectedBadge: {
+    backgroundColor: colors.successSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+  },
+  connectedText: {
+    ...typography.caption,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  connectButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  connectButtonText: {
+    ...typography.caption,
+    color: '#fff',
+    fontWeight: '600',
   },
 });

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Unipas",
     "slug": "unipas",
-    "scheme": "unipas",
+    "scheme": ["unipas", "msauth.com.jiwoongahn.unipas"],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.jiwoongahn.unipas",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -26,8 +27,19 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.jiwoongahn.unipas"
+      "package": "com.jiwoongahn.unipas",
+      "permissions": ["NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"]
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#3182f6",
+          "defaultChannel": "default"
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     },
