@@ -76,6 +76,17 @@ export async function handleMicrosoftAuthResponse(response, request) {
     return { success: false, error: error.message };
   }
 
+  // 디버깅: MS 토큰 교환 실패 시 실제 에러 메시지 표시
+  if (data?.msError) {
+    console.error('[MS Auth] MS 토큰 에러 상세:', data.msError);
+    return { success: false, error: `MS오류(${data.msStatus}): ${data.msError}` };
+  }
+
+  if (!data?.success) {
+    console.error('[MS Auth] 실패 응답:', JSON.stringify(data));
+    return { success: false, error: JSON.stringify(data) };
+  }
+
   console.log('[MS Auth] 연결 완료. subscription_id:', data?.subscriptionId);
   return { success: true };
 }

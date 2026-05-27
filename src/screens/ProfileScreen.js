@@ -24,6 +24,7 @@ import { getUniversityInfo } from '../utils/university';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
 import { handleMicrosoftAuthResponse } from '../lib/microsoftAuth';
+import DuplicateAlertGuideModal from './notice/DuplicateAlertGuideModal';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -64,6 +65,7 @@ export default function ProfileScreen({ navigation }) {
   // Microsoft 연결 상태
   const [msConnected, setMsConnected]   = useState(false);
   const [msConnecting, setMsConnecting] = useState(false);
+  const [duplicateGuideVisible, setDuplicateGuideVisible] = useState(false);
 
   const [msRequest, msResponse, msPromptAsync] = AuthSession.useAuthRequest(
     {
@@ -72,6 +74,7 @@ export default function ProfileScreen({ navigation }) {
       redirectUri:  MS_REDIRECT_URI,
       responseType: AuthSession.ResponseType.Code,
       usePKCE:      true,
+      prompt:       'select_account',
     },
     MS_DISCOVERY,
   );
@@ -140,9 +143,9 @@ export default function ProfileScreen({ navigation }) {
       .then(({ success, error }) => {
         if (success) {
           setMsConnected(true);
-          Alert.alert('連携完了', 'manabaの新着通知をプッシュで受け取れます！');
+          setDuplicateGuideVisible(true);
         } else if (error !== 'cancelled') {
-          Alert.alert('エラー', '連携に失敗しました。もう一度お試しください。');
+          Alert.alert('エラー詳細', error ?? '連携に失敗しました。');
         }
       })
       .finally(() => setMsConnecting(false));
@@ -603,6 +606,11 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <DuplicateAlertGuideModal
+        visible={duplicateGuideVisible}
+        onClose={() => setDuplicateGuideVisible(false)}
+      />
     </SafeAreaView>
   );
 }

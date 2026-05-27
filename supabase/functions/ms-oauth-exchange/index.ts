@@ -34,7 +34,6 @@ Deno.serve(async (req: Request) => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id:     MS_CLIENT_ID,
-          client_secret: MS_CLIENT_SECRET,
           grant_type:    'authorization_code',
           code,
           redirect_uri:  redirectUri,
@@ -45,19 +44,22 @@ Deno.serve(async (req: Request) => {
 
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
-      console.error('[ms-oauth-exchange] 토큰 교환 실패:', err);
-      return json({ error: 'MS 토큰 교환 실패' }, 502);
+      console.error('[ms-oauth-exchange] 토큰 교환 실패 status:', tokenRes.status, 'body:', err);
+      // 200으로 반환해서 앱이 실제 에러 메시지를 받을 수 있게 함 (디버깅용)
+      return json({ success: false, msError: err, msStatus: tokenRes.status });
     }
 
     const tokens = await tokenRes.json();
     const { access_token, refresh_token } = tokens;
 
     // ② 사용자 이메일 확인 (Graph /me)
-    const meRes = await fetch('https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName', {
+    const meRes = await fetch('https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName,displayName', {
       headers: { Authorization: `Bearer ${access_token}` },
     });
-    const me = await meRes.json();
-    const msEmail = me.mail ?? me.userPrincipalName;
+    const me = meRes.ok ? await meRes.json() : {};
+    console.log('[ms-oauth-exchange] /me 응답:', JSON.stringify(me));
+    // 개인 MSA는 mail이 null인 경우 있으므로 여러 필드 시도
+    const msEmail = me.mail ?? me.userPrincipalName ?? me.displayName ?? 'unknown@microsoft.com';
 
     // ③ Microsoft Graph subscription 생성 (메일함 수신 감지)
     const expiresAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(); // 3일 후
@@ -93,8 +95,12 @@ Deno.serve(async (req: Request) => {
     // JWT에서 user_id 추출
     const authHeader = req.headers.get('Authorization') ?? '';
     const jwt = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userErr } = await supabase.auth.getUser(jwt);
-    if (userErr || !user) return json({ error: '인증 오류' }, 401);
+    const { data: userData, error: userErr } = await supabase.auth.getUser(jwt);
+    const user = userData?.user;
+    if (userErr || !user) {
+      console.error('[ms-oauth-exchange] 인증 오류:', userErr?.message);
+      return json({ error: '인증 오류' }, 401);
+    }
 
     const { error: dbErr } = await supabase
       .from('mail_subscriptions')
@@ -107,8 +113,8 @@ Deno.serve(async (req: Request) => {
       }, { onConflict: 'user_id' });
 
     if (dbErr) {
-      console.error('[ms-oauth-exchange] DB 저장 실패:', dbErr.message);
-      return json({ error: 'DB 저장 실패' }, 500);
+      console.error('[ms-oauth-exchange] DB 저장 실패:', dbErr.message, dbErr.code);
+      return json({ error: 'DB 저장 실패', detail: dbErr.message }, 500);
     }
 
     return json({ success: true, subscriptionId: subscription.id });

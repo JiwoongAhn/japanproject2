@@ -16,7 +16,12 @@ import {
   getSavedCookieHeader,
   clearCookies,
   cookieKeyForUrl,
+  credKeyForUrl,
+  getCredentials,
+  buildAutoFillJS,
 } from '../../utils/schoolCookies';
+
+const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
 import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS } from '../../constants/manaba';
 import { clearCachedNotices } from '../../utils/manabaCache';
 
@@ -35,7 +40,10 @@ export default function ManabaLoginScreen({ navigation }) {
   const [ready, setReady] = useState(false);
   const [cookieHeader, setCookieHeader] = useState(null);
   const [canGoBack, setCanGoBack] = useState(false);
+  const [autoRelogging, setAutoRelogging] = useState(false);
+  const autoReloggedRef = useRef(false);
   const cookieKey = useMemo(() => cookieKeyForUrl(MANABA_LOGIN_URL), []);
+  const kaedeCredKey = useMemo(() => credKeyForUrl(KAEDE_URL), []);
 
   // 마운트 시 저장된 쿠키 헤더를 불러온 뒤 WebView 렌더
   // 쿠키가 있으면 /ct/login 진입 시 서버가 /ct/home으로 보내 자동 파싱됨
@@ -79,6 +87,10 @@ export default function ManabaLoginScreen({ navigation }) {
   // 페이지 이동 감지 — 로그인 완료 시 manaba 홈으로 이동 (자동 공지 파싱 X)
   const handleNavigationStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
+    // 자동 재로그인 후 manaba로 돌아오면 오버레이 해제
+    if (autoRelogging && navState.url.includes('kokushikan.manaba.jp')) {
+      setAutoRelogging(false);
+    }
     if (!loggedIn && isLoggedIn(navState.url)) {
       setLoggedIn(true);
       // 로그인 직후 쿠키 저장 (다음 실행 때 자동 로그인)
@@ -125,10 +137,29 @@ export default function ManabaLoginScreen({ navigation }) {
     } catch (_) {}
   };
 
-  // 페이지 로드 완료 — 쿠키 저장만 (자동 공지 파싱은 제거, 📢 버튼으로 수동 실행)
-  const handleLoadEnd = () => {
+  // 페이지 로드 완료 — 쿠키 저장 + kaede 로그인 페이지 감지 시 자동 재로그인
+  const handleLoadEnd = ({ nativeEvent }) => {
     setLoading(false);
     saveCookies(MANABA_LOGIN_URL, cookieKey);
+
+    // manaba 쿠키 만료 시 kaede 로그인 페이지로 리디렉션됨 → 자동 재로그인
+    const loadedUrl = nativeEvent?.url || '';
+    if (loadedUrl.includes('kaedei.kokushikan.ac.jp') && !autoReloggedRef.current) {
+      autoReloggedRef.current = true;
+      setAutoRelogging(true);
+      getCredentials(kaedeCredKey).then((creds) => {
+        if (creds?.id && creds?.pw && webViewRef.current) {
+          webViewRef.current.injectJavaScript(buildAutoFillJS(creds.id, creds.pw));
+        } else {
+          // 저장된 자격증명 없으면 오버레이 해제 (수동 로그인)
+          setAutoRelogging(false);
+        }
+      });
+    }
+    // 다음 번 manaba 재진입 때 다시 시도 가능하도록 manaba 페이지에서 ref 초기화
+    if (loadedUrl.includes('kokushikan.manaba.jp')) {
+      autoReloggedRef.current = false;
+    }
   };
 
   return (
@@ -161,6 +192,14 @@ export default function ManabaLoginScreen({ navigation }) {
         <View style={styles.parsingOverlay}>
           <ActivityIndicator size="large" color={colors.primary} />
           <Text style={styles.parsingText}>お知らせを読み込み中…</Text>
+        </View>
+      )}
+
+      {/* 쿠키 만료 시 자동 재로그인 오버레이 */}
+      {autoRelogging && (
+        <View style={styles.parsingOverlay}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={styles.parsingText}>自動ログイン中…</Text>
         </View>
       )}
 
