@@ -91,8 +91,8 @@ Deno.serve(async (req: Request) => {
       // ⑤ 본문에서 manaba 공지 URL 추출 (정규식)
       const noticeUrl = extractManabaUrl(bodyHtml);
 
-      // ⑥ manaba_notices 저장 (중복 시 무시)
-      const { error: insertErr } = await supabase
+      // ⑥ manaba_notices 저장 (중복 시 무시), id 회수
+      const { data: notice, error: insertErr } = await supabase
         .from('manaba_notices')
         .insert({
           user_id:     sub.user_id,
@@ -102,15 +102,17 @@ Deno.serve(async (req: Request) => {
           body_html:   bodyHtml,
           notice_url:  noticeUrl,
           pushed_at:   new Date().toISOString(),
-        });
+        })
+        .select('id')
+        .single();
 
       // UNIQUE 제약 위반 = 이미 저장된 공지 → 중복 푸시 방지
       if (insertErr?.code === '23505') {
         console.log('[webhook] 중복 공지 — 푸시 생략:', noticeUrl);
         continue;
       }
-      if (insertErr) {
-        console.error('[webhook] DB insert 실패:', insertErr.message);
+      if (insertErr || !notice) {
+        console.error('[webhook] DB insert 실패:', insertErr?.message);
         continue;
       }
 
@@ -122,7 +124,15 @@ Deno.serve(async (req: Request) => {
 
       if (!tokens?.length) continue;
 
-      await sendExpoPush(tokens.map(t => t.expo_token), subject, bodyHtml, noticeUrl);
+      await sendExpoPush(
+        supabase,
+        sub.user_id,
+        notice.id,
+        tokens.map(t => t.expo_token),
+        subject,
+        bodyHtml,
+        noticeUrl,
+      );
     }
 
     return new Response('ok', { status: 200 });
@@ -174,23 +184,123 @@ function extractManabaUrl(html: string): string | null {
   return match ? match[0] : null;
 }
 
-/** Expo Push API로 푸시 알림 발송 */
-async function sendExpoPush(tokens: string[], subject: string, bodyHtml: string, noticeUrl: string | null) {
+/**
+ * Expo Push API로 푸시 알림 발송 + push_delivery_logs 기록.
+ * 응답의 tickets 배열은 요청 순서와 1:1 대응한다.
+ * - ok    → status='pending' (15분 후 receipt 폴러가 delivered 판정)
+ * - error → 영구실패는 즉시 permanent_fail/dead 처리, 그 외는 retry_pending
+ */
+async function sendExpoPush(
+  supabase: any,
+  userId: string,
+  noticeId: string,
+  tokens: string[],
+  subject: string,
+  bodyHtml: string,
+  noticeUrl: string | null,
+) {
+  const payloadBase = { subject, bodyHtml, noticeUrl };
   const messages = tokens.map(to => ({
     to,
     title: '📢 manaba 新着通知',
     body:  subject,
-    data:  { subject, bodyHtml, noticeUrl },
+    data:  payloadBase,
     sound: 'default',
   }));
 
-  const res = await fetch('https://exp.host/--/api/v2/push/send', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(messages),
+  let tickets: any[] = [];
+  let httpOk = true;
+
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(messages),
+    });
+
+    if (!res.ok) {
+      httpOk = false;
+      console.error('[webhook] Expo Push HTTP 실패:', res.status, await res.text());
+    } else {
+      const json = await res.json();
+      tickets = Array.isArray(json?.data) ? json.data : [];
+    }
+  } catch (e) {
+    httpOk = false;
+    console.error('[webhook] Expo Push 네트워크 예외:', e);
+  }
+
+  // HTTP 자체가 실패했으면 모든 토큰을 retry_pending으로 적재 (5분 후 재시도)
+  const rows = tokens.map((expoToken, idx) => {
+    const t = tickets[idx];
+
+    if (!httpOk) {
+      return {
+        user_id: userId,
+        notice_id: noticeId,
+        expo_token: expoToken,
+        ticket_id: null,
+        status: 'retry_pending',
+        attempts: 1,
+        last_error_code: 'NETWORK',
+        last_error_msg: 'Expo Push HTTP/network failure',
+        next_retry_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+        payload: payloadBase,
+      };
+    }
+
+    if (t?.status === 'ok') {
+      return {
+        user_id: userId,
+        notice_id: noticeId,
+        expo_token: expoToken,
+        ticket_id: t.id,
+        status: 'pending',
+        attempts: 1,
+        payload: payloadBase,
+      };
+    }
+
+    // status === 'error'
+    const code = t?.details?.error ?? 'UNKNOWN';
+    const msg  = t?.message ?? '';
+    const permanent = ['DeviceNotRegistered', 'MessageTooBig', 'MismatchSenderId', 'InvalidCredentials'];
+
+    if (permanent.includes(code)) {
+      // DeviceNotRegistered는 토큰 자체를 삭제
+      if (code === 'DeviceNotRegistered') {
+        supabase.from('push_tokens').delete().eq('expo_token', expoToken).then(() => {});
+      }
+      return {
+        user_id: userId,
+        notice_id: noticeId,
+        expo_token: expoToken,
+        ticket_id: null,
+        status: 'permanent_fail',
+        attempts: 1,
+        last_error_code: code,
+        last_error_msg: msg,
+        payload: payloadBase,
+      };
+    }
+
+    // 재시도 가능 (MessageRateExceeded 등)
+    return {
+      user_id: userId,
+      notice_id: noticeId,
+      expo_token: expoToken,
+      ticket_id: null,
+      status: 'retry_pending',
+      attempts: 1,
+      last_error_code: code,
+      last_error_msg: msg,
+      next_retry_at: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+      payload: payloadBase,
+    };
   });
 
-  if (!res.ok) {
-    console.error('[webhook] Expo Push 실패:', await res.text());
+  const { error } = await supabase.from('push_delivery_logs').insert(rows);
+  if (error) {
+    console.error('[webhook] push_delivery_logs insert 실패:', error.message);
   }
 }
