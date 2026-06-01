@@ -13,6 +13,10 @@
 -- ──────────────────────────────────────────────
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 DROP FUNCTION IF EXISTS handle_new_user();
+DROP TABLE IF EXISTS mail_subscriptions;
+DROP TABLE IF EXISTS manaba_notices;
+DROP TABLE IF EXISTS push_tokens;
+DROP TABLE IF EXISTS post_reports;
 DROP TABLE IF EXISTS post_comments;
 DROP TABLE IF EXISTS posts;
 DROP TABLE IF EXISTS course_reviews;
@@ -307,3 +311,89 @@ CREATE POLICY "본인만 강의평가 수정 가능" ON course_reviews
 
 CREATE POLICY "본인만 강의평가 삭제 가능" ON course_reviews
   FOR DELETE USING (auth.uid() = user_id);
+
+
+-- ──────────────────────────────────────────────
+-- 10. push_tokens 테이블 (Phase 3)
+--    역할: 디바이스별 Expo Push Token 저장 (푸시 알림 발송용)
+-- ──────────────────────────────────────────────
+CREATE TABLE push_tokens (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  expo_token  TEXT NOT NULL UNIQUE,
+  -- Expo Push Token (ExponentPushToken[...] 형식). 디바이스 고유값
+  platform    TEXT NOT NULL CHECK (platform IN ('ios', 'android')),
+  updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE push_tokens ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "본인 토큰 조회" ON push_tokens
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "본인 토큰 삽입" ON push_tokens
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "본인 토큰 수정" ON push_tokens
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "본인 토큰 삭제" ON push_tokens
+  FOR DELETE USING (auth.uid() = user_id);
+
+
+-- ──────────────────────────────────────────────
+-- 11. manaba_notices 테이블 (Phase 3)
+--    역할: MS Graph webhook으로 수신한 manaba 공지 메일 캐시
+--    중복 방지: 같은 사용자 + 같은 notice_url 조합은 1개만
+-- ──────────────────────────────────────────────
+CREATE TABLE manaba_notices (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  subject      TEXT,             -- 메일 제목
+  sender       TEXT,             -- 발신자 주소 (manaba 진위 검증용)
+  received_at  TIMESTAMPTZ,      -- 메일 수신 시각
+  body_html    TEXT,             -- 본문 HTML (미리보기 렌더용)
+  notice_url   TEXT,             -- manaba 원본 공지 URL (탭 시 이동)
+  course_hint  TEXT,             -- 추정 강의명 (제목에서 파싱)
+  pushed_at    TIMESTAMPTZ,      -- 푸시 발송 시각 (NULL이면 미발송)
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT manaba_notices_user_notice_unique UNIQUE (user_id, notice_url)
+);
+
+ALTER TABLE manaba_notices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "본인 공지 조회" ON manaba_notices
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- INSERT/UPDATE는 Edge Functions(service_role)에서만 수행
+CREATE POLICY "service_role insert" ON manaba_notices
+  FOR INSERT WITH CHECK (auth.role() = 'service_role');
+
+CREATE POLICY "service_role update" ON manaba_notices
+  FOR UPDATE USING (auth.role() = 'service_role');
+
+
+-- ──────────────────────────────────────────────
+-- 12. mail_subscriptions 테이블 (Phase 3)
+--    역할: MS Graph 메일 webhook 구독 정보 저장
+--    사용자당 1개 (UNIQUE user_id) — 학교 Outlook 계정 1개 연결
+--    refresh_token: 3일마다 subscription 갱신 cron에서 사용
+-- ──────────────────────────────────────────────
+CREATE TABLE mail_subscriptions (
+  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id                  UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  ms_account_email         TEXT NOT NULL,        -- 연결한 학교 Outlook 이메일
+  ms_refresh_token         TEXT,                 -- MS Graph refresh token (subscription 갱신용)
+  subscription_id          TEXT,                 -- MS Graph subscription ID
+  subscription_expires_at  TIMESTAMPTZ,          -- subscription 만료 시각 (최대 3일)
+  created_at               TIMESTAMPTZ DEFAULT NOW(),
+  updated_at               TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE mail_subscriptions ENABLE ROW LEVEL SECURITY;
+
+-- 모든 작업은 Edge Functions(service_role)에서만 수행
+-- (refresh_token 등 민감 정보가 들어있으므로 클라이언트 직접 접근 차단)
+CREATE POLICY "service_role 전용" ON mail_subscriptions
+  FOR ALL USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');

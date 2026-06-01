@@ -7,8 +7,6 @@ WebBrowser.maybeCompleteAuthSession();
 
 // ─────────────────────────────────────────────────────────────
 // Azure AD 앱 설정
-// TODO: 3-1 (Azure 앱 등록) 완료 후 CLIENT_ID 값 채우기
-// 등록 위치: Azure Portal → Entra ID → 앱 등록 → 개요 → "응용 프로그램(클라이언트) ID"
 // ─────────────────────────────────────────────────────────────
 const MS_CLIENT_ID = 'b9f03502-37c5-4e9d-88d8-df79bbf9f63b';
 const MS_TENANT_ID = 'common'; // 학교 계정(work/school) + 개인 계정 모두 허용
