@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 import { colors, pastel } from '../../constants/colors';
@@ -281,6 +283,10 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
         animationType="slide"
         onRequestClose={closeEdit}
       >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
@@ -345,6 +351,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
             </View>
           </View>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

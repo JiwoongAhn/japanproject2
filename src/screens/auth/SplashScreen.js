@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet, SafeAreaView } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -8,7 +8,7 @@ import { typography } from '../../constants/typography';
 // 세션 라우팅은 AppNavigator가 전담 — 여기서 navigation 로직 없음
 export default function SplashScreen() {
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.logo}>ユニパス</Text>
       <Text style={styles.subtitle}>Unipas</Text>
       <ActivityIndicator
@@ -16,7 +16,7 @@ export default function SplashScreen() {
         color={colors.primary}
         style={styles.loader}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -389,6 +389,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
+    paddingBottom: 100,
   },
   postCard: {
     backgroundColor: colors.surface,

@@ -11,6 +11,8 @@ import {
   Switch,
   TextInput,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as AuthSession from 'expo-auth-session';
@@ -364,6 +366,10 @@ export default function ProfileScreen({ navigation }) {
           animationType="fade"
           onRequestClose={() => setNicknameModalVisible(false)}
         >
+          <KeyboardAvoidingView
+            style={{ flex: 1 }}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>ニックネームを変更</Text>
@@ -399,6 +405,7 @@ export default function ProfileScreen({ navigation }) {
               </View>
             </View>
           </View>
+          </KeyboardAvoidingView>
         </Modal>
 
         {/* ── 계정 정보 ── */}
@@ -622,7 +629,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 100,
   },
 
   // 페이지 헤더 (회색 배경 위에 바로)
