@@ -11,6 +11,7 @@ import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../lib/AuthProvider';
 import { colors } from '../../constants/colors';
+import { markNoticeAsRead } from '../../utils/manabaNotices';
 
 // 메일 본문 HTML을 모바일에 맞게 래핑
 function buildHtml(bodyHtml) {
@@ -43,14 +44,22 @@ export default function NoticePreviewModal() {
   const route = useRoute();
   const { clearPendingNotice } = useAuth();
 
-  const { subject, bodyHtml, noticeUrl } = route.params ?? {};
+  const { subject, bodyHtml, noticeUrl, noticeId } = route.params ?? {};
+
+  // 미리보기 모달이 열린 시점 = 사용자가 푸시를 확인한 시점 → 읽음 처리.
+  // 닫기/原本 이동 어느 경로로 빠져나가도 동일하게 적용한다.
+  const markAsReadOnce = () => {
+    if (noticeId) markNoticeAsRead(noticeId); // 결과는 await하지 않음 (UX 지연 방지)
+  };
 
   const handleClose = () => {
+    markAsReadOnce();
     clearPendingNotice();
     navigation.goBack();
   };
 
   const handleOpenManaba = () => {
+    markAsReadOnce();
     clearPendingNotice();
     navigation.navigate('Manaba', {
       screen: 'ManabaNoticeDetail',
