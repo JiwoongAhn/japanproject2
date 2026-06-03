@@ -24,6 +24,12 @@ import {
 const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
 import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS } from '../../constants/manaba';
 import { clearCachedNotices } from '../../utils/manabaCache';
+import {
+  AUTO_RELOGIN_TIMEOUT_MS,
+  canAttemptAutoRelogin,
+  recordAutoReloginSuccess,
+  recordAutoReloginFailure,
+} from '../../utils/manabaSession';
 
 // 로그인 성공 여부 판단: /ct/login·/ct/logout 이외의 manaba 페이지면 로그인 완료
 // (/ct/logout을 제외하지 않으면 로그아웃 도중 다시 로그인 처리되어 홈으로 튕김)
@@ -41,7 +47,10 @@ export default function ManabaLoginScreen({ navigation }) {
   const [cookieHeader, setCookieHeader] = useState(null);
   const [canGoBack, setCanGoBack] = useState(false);
   const [autoRelogging, setAutoRelogging] = useState(false);
+  // 현재 페이지 로드 사이클 내에서 한 번만 트리거하기 위한 가드 (연속 onLoadEnd 방지)
   const autoReloggedRef = useRef(false);
+  // 타임아웃 타이머 핸들 — 자동 재로그인 트리거 시 시작, manaba 도착/언마운트 시 해제.
+  const autoReloginTimerRef = useRef(null);
   const cookieKey = useMemo(() => cookieKeyForUrl(MANABA_LOGIN_URL), []);
   const kaedeCredKey = useMemo(() => credKeyForUrl(KAEDE_URL), []);
 
@@ -59,6 +68,16 @@ export default function ManabaLoginScreen({ navigation }) {
       mounted = false;
     };
   }, [cookieKey]);
+
+  // 언마운트 시 자동 재로그인 타이머가 떠 있다면 정리 (메모리 누수 방지)
+  useEffect(() => {
+    return () => {
+      if (autoReloginTimerRef.current) {
+        clearTimeout(autoReloginTimerRef.current);
+        autoReloginTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // 로그아웃: 쿠키 제거 후 로그인 페이지로
   const handleLogout = () => {
@@ -84,12 +103,24 @@ export default function ManabaLoginScreen({ navigation }) {
     ]);
   };
 
+  // 자동 재로그인 로컬 상태 리셋 (오버레이, 사이클 ref, 타이머).
+  // 글로벌 카운터는 별도로 헬퍼의 recordSuccess/Failure로 갱신.
+  const resetAutoReloginLocal = () => {
+    setAutoRelogging(false);
+    autoReloggedRef.current = false;
+    if (autoReloginTimerRef.current) {
+      clearTimeout(autoReloginTimerRef.current);
+      autoReloginTimerRef.current = null;
+    }
+  };
+
   // 페이지 이동 감지 — 로그인 완료 시 manaba 홈으로 이동 (자동 공지 파싱 X)
   const handleNavigationStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
-    // 자동 재로그인 후 manaba로 돌아오면 오버레이 해제
+    // 자동 재로그인 후 manaba로 돌아오면 로컬+글로벌 모두 성공 처리
     if (autoRelogging && navState.url.includes('kokushikan.manaba.jp')) {
-      setAutoRelogging(false);
+      recordAutoReloginSuccess();
+      resetAutoReloginLocal();
     }
     if (!loggedIn && isLoggedIn(navState.url)) {
       setLoggedIn(true);
@@ -145,20 +176,48 @@ export default function ManabaLoginScreen({ navigation }) {
     // manaba 쿠키 만료 시 kaede 로그인 페이지로 리디렉션됨 → 자동 재로그인
     const loadedUrl = nativeEvent?.url || '';
     if (loadedUrl.includes('kaedei.kokushikan.ac.jp') && !autoReloggedRef.current) {
+      // 글로벌 정책 체크 — 누적 실패 + 쿨다운 (헬퍼가 판단)
+      if (!canAttemptAutoRelogin()) {
+        setAutoRelogging(false);
+        Alert.alert(
+          '自動ログインに失敗しました',
+          'IDまたはパスワードが変わった可能性があります。手動でログインしてください。'
+        );
+        return;
+      }
       autoReloggedRef.current = true;
       setAutoRelogging(true);
+
+      // 타임아웃 가드 — kaede 자동 제출 후 manaba로 돌아오지 않으면 실패로 기록
+      // (네트워크 멈춤/학교 서버 장애로 무한 대기 방지)
+      if (autoReloginTimerRef.current) clearTimeout(autoReloginTimerRef.current);
+      autoReloginTimerRef.current = setTimeout(() => {
+        autoReloginTimerRef.current = null;
+        recordAutoReloginFailure();
+        setAutoRelogging(false);
+        Alert.alert(
+          '自動ログインがタイムアウトしました',
+          'ネットワーク状態を確認して、もう一度お試しください。'
+        );
+      }, AUTO_RELOGIN_TIMEOUT_MS);
+
       getCredentials(kaedeCredKey).then((creds) => {
         if (creds?.id && creds?.pw && webViewRef.current) {
           webViewRef.current.injectJavaScript(buildAutoFillJS(creds.id, creds.pw));
         } else {
-          // 저장된 자격증명 없으면 오버레이 해제 (수동 로그인)
+          // 저장된 자격증명 없으면 오버레이/타이머 해제 (수동 로그인)
+          if (autoReloginTimerRef.current) {
+            clearTimeout(autoReloginTimerRef.current);
+            autoReloginTimerRef.current = null;
+          }
           setAutoRelogging(false);
         }
       });
     }
-    // 다음 번 manaba 재진입 때 다시 시도 가능하도록 manaba 페이지에서 ref 초기화
+    // manaba 페이지 도달 = 자동 재로그인 성공 → 로컬+글로벌 모두 리셋
     if (loadedUrl.includes('kokushikan.manaba.jp')) {
-      autoReloggedRef.current = false;
+      recordAutoReloginSuccess();
+      resetAutoReloginLocal();
     }
   };
 
