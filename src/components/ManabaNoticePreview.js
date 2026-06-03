@@ -18,6 +18,7 @@ import { getSavedCookieHeader, cookieKeyForUrl } from '../utils/schoolCookies';
 import { getCachedNotices, setCachedNotices } from '../utils/manabaCache';
 import { getAutoReloginState } from '../utils/manabaSession';
 import { fetchUnreadNotices, markNoticeAsRead, markAllAsRead } from '../utils/manabaNotices';
+import { summarizeManabaMail } from '../utils/manabaMailSummary';
 import { useAuth } from '../lib/AuthProvider';
 
 const PREVIEW_COUNT = 3; // 카드에 보여줄 공지 개수
@@ -88,14 +89,26 @@ export default function ManabaNoticePreview({ navigation }) {
 
   // DB(푸시) 공지를 WebView 캐시 공지와 동일한 형태({title, href, board, date})로 정규화.
   // 이후 dedup + 렌더 로직이 한 가지 형태만 다루도록 통일한다.
-  const normalizeDbNotice = (n) => ({
-    title: n.subject || '(無題)',
-    href: n.notice_url || null,
-    board: n.course_hint || null,
-    date: n.received_at ? n.received_at.slice(0, 10) : null,
-    _source: 'push',   // 🔴 마커 표시용
-    _id: n.id,         // markNoticeAsRead 호출에 필요
-  });
+  // body_html이 있으면 summarizeManabaMail로 과목/요약/마감/첨부까지 함께 채운다.
+  const normalizeDbNotice = (n) => {
+    const s = summarizeManabaMail({
+      subject: n.subject,
+      sender: n.sender,
+      bodyHtml: n.body_html,
+      courseHint: n.course_hint,
+    });
+    return {
+      title: s.summary || n.subject || '(無題)',
+      href: n.notice_url || null,
+      board: s.courseName || n.course_hint || null,
+      date: n.received_at ? n.received_at.slice(0, 10) : null,
+      _source: 'push',     // 🔴 마커 표시용
+      _id: n.id,           // markNoticeAsRead 호출에 필요
+      _type: s.type,       // {icon, label}
+      _deadline: s.deadline,
+      _hasAttach: s.hasAttach,
+    };
+  };
 
   // 두 데이터 소스 병합 — URL 기준 dedup, DB(읽음 추적 가능) 우선
   const dbUrls = new Set(dbNotices.map((n) => n.notice_url).filter(Boolean));
@@ -228,9 +241,22 @@ export default function ManabaNoticePreview({ navigation }) {
               {/* 푸시 출처는 🔴 점, WebView는 마커 없음 */}
               {item._source === 'push' && <View style={styles.unreadDot} />}
               <View style={styles.noticeBody}>
-                {!!item.board && <Text style={styles.boardTag} numberOfLines={1}>{item.board}</Text>}
+                {/* 과목명 라인: 종류 아이콘 + 과목명 */}
+                {!!item.board && (
+                  <Text style={styles.boardTag} numberOfLines={1}>
+                    {item._type?.icon ? `${item._type.icon} ` : ''}{item.board}
+                  </Text>
+                )}
+                {/* 요약(또는 제목) */}
                 <Text style={styles.noticeTitle} numberOfLines={2}>{item.title}</Text>
-                {!!item.date && <Text style={styles.noticeDate}>{item.date}</Text>}
+                {/* 메타 라인: 마감 / 첨부 / 날짜 */}
+                <View style={styles.metaRow}>
+                  {!!item._deadline && (
+                    <Text style={styles.metaDeadline}>⏰ ~{item._deadline}</Text>
+                  )}
+                  {item._hasAttach && <Text style={styles.metaAttach}>📎 첨부</Text>}
+                  {!!item.date && <Text style={styles.noticeDate}>{item.date}</Text>}
+                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -379,6 +405,22 @@ const styles = StyleSheet.create({
   noticeDate: {
     ...typography.small,
     fontWeight: '400',
+    color: colors.textSecondary,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 2,
+    flexWrap: 'wrap',
+  },
+  metaDeadline: {
+    ...typography.small,
+    fontWeight: '600',
+    color: '#FF6B00', // 마감 강조 (오렌지)
+  },
+  metaAttach: {
+    ...typography.small,
     color: colors.textSecondary,
   },
   emptyCard: {

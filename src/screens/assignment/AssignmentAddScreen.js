@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRoute } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -224,9 +225,14 @@ const STATUS_OPTIONS = [
 // 메인 화면
 // ──────────────────────────────────────────────────
 export default function AssignmentAddScreen({ navigation }) {
-  const [courseName, setCourseName] = useState('');
-  const [title, setTitle]           = useState('');
-  const [dueDate, setDueDate]       = useState('');
+  // manaba 공지 미리보기에서 "과제로 추가하기"로 진입할 때 prefill 값을 받는다.
+  // 일반 "+ 추가" 진입에는 params가 없으므로 빈 값이 기본.
+  const route = useRoute();
+  const prefill = route.params ?? {};
+
+  const [courseName, setCourseName] = useState(prefill.courseName ?? '');
+  const [title, setTitle]           = useState(prefill.title ?? '');
+  const [dueDate, setDueDate]       = useState(prefill.dueDate ?? '');
   const [status, setStatus]         = useState('pending');
   const [saving, setSaving]         = useState(false);
 
