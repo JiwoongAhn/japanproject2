@@ -6,7 +6,7 @@
 // 탭하면 해당 공지의 manaba 원본으로 바로 이동한다.
 //
 // 핵심 원칙: 비밀번호 서버 저장 ❌ — 기존 manaba 쿠키 영속 방식만 재사용.
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,7 +23,7 @@ import { useAuth } from '../lib/AuthProvider';
 
 const PREVIEW_COUNT = 3; // 카드에 보여줄 공지 개수
 
-export default function ManabaNoticePreview({ navigation }) {
+export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   const { user } = useAuth();
   const [notices, setNotices] = useState([]);          // WebView 파싱 결과 (Phase 1)
   const [dbNotices, setDbNotices] = useState([]);      // manaba_notices 안 읽음 (Phase 3)
@@ -119,6 +119,12 @@ export default function ManabaNoticePreview({ navigation }) {
       .map((n) => ({ ...n, _source: 'web' })),
   ];
   const unreadCount = dbNotices.length;
+
+  // 부모(HomeScreen 히어로 카드)에 카운트 보고 — 미리보기 배지와 숫자를 동일하게 맞춤
+  //  unread: 안 읽은 푸시 수 / total: 현재 공지 전체(푸시+WebView 캐시, 중복 제거)
+  useEffect(() => {
+    onCountsChange?.({ unread: unreadCount, total: merged.length });
+  }, [unreadCount, merged.length, onCountsChange]);
 
   const goToDetail = async (item) => {
     // 푸시 출처면 읽음 처리 (UI에서도 즉시 제거)

@@ -14,10 +14,8 @@ import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { getCategoryInfo } from '../constants/boardCategories';
-import { getCourseColor } from '../constants/courseColors';
 import { supabase } from '../lib/supabase';
 import { getCourseStatus, getPeriodRanges } from '../utils/timetable';
-import { getDdayColor } from '../utils/assignment';
 import { getTodayStr } from '../utils/date';
 import { getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { universities } from '../constants/universities';
@@ -32,6 +30,9 @@ export default function HomeScreen({ navigation }) {
   const [userEmail, setUserEmail] = useState('');
   const [nickname, setNickname] = useState('');
   const [universityInfo, setUniversityInfo] = useState(universities[0]);
+  // お知らせ 칸 카운트 — ManabaNoticePreview가 콜백으로 끌어올려줌 (미리보기 배지와 동일)
+  const [noticeCounts, setNoticeCounts] = useState({ unread: 0, total: 0 });
+  const handleNoticeCounts = useCallback((c) => setNoticeCounts(c), []);
 
   // 날짜/인사말 계산
   const now = new Date();
@@ -132,6 +133,55 @@ export default function HomeScreen({ navigation }) {
       ? userEmail[0].toUpperCase()
       : 'A';
 
+  // ── 히어로 카드 데이터 계산 (현재 시각 기준 자동) ─────────────
+  const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+  const periodRanges = getPeriodRanges(universityInfo);
+
+  // 授業: 지금/다음 수업 1개 (진행중 우선, 없으면 가장 가까운 다음 수업 — todayCourses는 period 오름차순)
+  let heroCourse = null;
+  for (const c of todayCourses) {
+    const st = getCourseStatus(c.period, nowMin, todayCourses, universityInfo);
+    if (st === '進行中') { heroCourse = { course: c, status: st }; break; }
+    if (st === '次の授業' && !heroCourse) heroCourse = { course: c, status: st };
+  }
+  let heroCourseTime = '';
+  if (heroCourse) {
+    const r = periodRanges[heroCourse.course.period];
+    const sH = Math.floor(r.start / 60), sM = r.start % 60;
+    const eH = Math.floor(r.end / 60), eM = r.end % 60;
+    heroCourseTime = `${sH}:${String(sM).padStart(2, '0')}-${eH}:${String(eM).padStart(2, '0')}`;
+  }
+
+  // 授業 칸 메인 텍스트 분기 (4가지)
+  //  1) 진행중/다음 수업 있음 → 시간 표시
+  //  2) 주말 → 休日
+  //  3) 평일 + 오늘 수업이 있었지만 다 끝남 → 本日終了
+  //  4) 평일 + 오늘 수업 자체가 없음 → 授業なし
+  let heroCourseMain;
+  if (heroCourse) {
+    heroCourseMain = heroCourseTime;
+  } else if (isWeekend) {
+    heroCourseMain = '休日 🎉';
+  } else if (todayCourses.length > 0) {
+    heroCourseMain = '本日終了';
+  } else {
+    heroCourseMain = '授業なし';
+  }
+
+  // お知らせ: 미리보기 배지와 동일한 숫자 — 안 읽은 게 있으면 그 수, 없으면 현재 공지 전체
+  const hasUnreadNotice = noticeCounts.unread > 0;
+  const noticeDisplayCount = hasUnreadNotice ? noticeCounts.unread : noticeCounts.total;
+  const noticeMain = hasUnreadNotice ? '新着あり' : noticeCounts.total > 0 ? 'すべて既読' : 'なし';
+
+  // 課題: 마감 임박 과제 수 + 가장 가까운 1개의 D-day
+  const nearestAssignment = upcomingAssignments[0] ?? null;
+  let nearestDday = null;
+  if (nearestAssignment) {
+    const due = new Date(nearestAssignment.due_date);
+    const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+    nearestDday = Math.ceil((due - today0) / (1000 * 60 * 60 * 24));
+  }
+
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -162,108 +212,73 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── manaba 공지 미리보기 (manaba 쓰는 학교만) ── */}
-        {links.manabaUrl && <ManabaNoticePreview navigation={navigation} />}
-
-        {/* ── 今日の授業 ── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>今日の授業</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Timetable')}>
-              <Text style={styles.seeAll}>すべて見る</Text>
-            </TouchableOpacity>
-          </View>
-
-          {todayCourses.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>
-                {now.getDay() === 0 || now.getDay() === 6
-                  ? '今日は休日です 🎉'
-                  : '今日の授業はありません'}
+        {/* ── ★ 요약 히어로 카드 (今日のまとめ) ── */}
+        <View style={styles.heroCard}>
+          <Text style={styles.heroTitle}>今日のまとめ</Text>
+          <View style={styles.heroRow}>
+            {/* 授業 — 현재 시각 기준 지금/다음 수업 */}
+            <TouchableOpacity
+              style={styles.heroTile}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Timetable')}
+            >
+              <Text style={styles.heroLabel}>授業</Text>
+              <Text style={styles.heroNumber}>{todayCourses.length}</Text>
+              <Text style={styles.heroDetailStrong} numberOfLines={1}>
+                {heroCourseMain}
               </Text>
-            </View>
-          ) : (
-            todayCourses.map((course, index) => {
-              const status = getCourseStatus(course.period, nowMin, todayCourses, universityInfo);
-              const barColor = getCourseColor(course.id).accent;
-              const range = getPeriodRanges(universityInfo)[course.period];
-              const startH = Math.floor(range.start / 60);
-              const startM = range.start % 60;
-              const endH = Math.floor(range.end / 60);
-              const endM = range.end % 60;
-              const timeStr = `${startH}:${String(startM).padStart(2, '0')} - ${endH}:${String(endM).padStart(2, '0')}`;
-
-              return (
-                <View key={course.id} style={styles.courseCard}>
-                  <View style={[styles.courseColorBar, { backgroundColor: barColor }]} />
-                  <View style={styles.courseInfo}>
-                    <Text style={styles.courseName} numberOfLines={1}>{course.name}</Text>
-                    <Text style={styles.courseDetail}>
-                      {timeStr}{course.room ? ` · ${course.room}` : ''}
-                    </Text>
-                  </View>
-                  {status !== '終了' && (
-                    <View style={[
-                      styles.statusBadge,
-                      status === '進行中' && styles.statusBadgeActive,
-                      status === '次の授業' && styles.statusBadgeNext,
-                    ]}>
-                      <Text style={[
-                        styles.statusBadgeText,
-                        status === '進行中' && styles.statusBadgeTextActive,
-                        status === '次の授業' && styles.statusBadgeTextNext,
-                      ]}>{status}</Text>
-                    </View>
-                  )}
-                </View>
-              );
-            })
-          )}
-        </View>
-
-        {/* ── 締切が近い課題 ── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>締切が近い課題</Text>
-              {upcomingAssignments.length > 0 && (
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{upcomingAssignments.length}件</Text>
-                </View>
+              {heroCourse && (
+                <Text style={styles.heroDetail} numberOfLines={1}>{heroCourse.course.name}</Text>
               )}
-            </View>
-            <TouchableOpacity onPress={() => navigation.navigate('Assignment')}>
-              <Text style={styles.seeAll}>すべて見る</Text>
+              {heroCourse?.course.room ? (
+                <Text style={styles.heroDetail} numberOfLines={1}>{heroCourse.course.room}</Text>
+              ) : null}
+            </TouchableOpacity>
+
+            <View style={styles.heroDivider} />
+
+            {/* 課題 — 마감 임박 1순위 */}
+            <TouchableOpacity
+              style={styles.heroTile}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate('Assignment')}
+            >
+              <Text style={styles.heroLabel}>課題</Text>
+              <Text style={[styles.heroNumber, { color: colors.warning }]}>{upcomingAssignments.length}</Text>
+              <Text style={styles.heroDetailStrong} numberOfLines={1}>
+                {nearestAssignment ? nearestAssignment.title : 'なし'}
+              </Text>
+              {nearestAssignment && (
+                <Text style={[styles.heroDetail, { color: colors.warning, fontWeight: '700' }]} numberOfLines={1}>
+                  D-{nearestDday}
+                </Text>
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.heroDivider} />
+
+            {/* 公示 — 안 읽은 manaba 공지 수 */}
+            <TouchableOpacity
+              style={styles.heroTile}
+              activeOpacity={0.7}
+              onPress={() => { if (links.manabaUrl) navigation.navigate('Manaba'); }}
+            >
+              <View style={styles.heroLabelRow}>
+                <Text style={styles.heroLabel}>お知らせ</Text>
+                {hasUnreadNotice && <View style={styles.redDot} />}
+              </View>
+              <Text style={[styles.heroNumber, { color: colors.danger }]}>{noticeDisplayCount}</Text>
+              <Text style={styles.heroDetailStrong} numberOfLines={1}>
+                {noticeMain}
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {upcomingAssignments.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyCardText}>締切が近い課題はありません ✅</Text>
-            </View>
-          ) : (
-            upcomingAssignments.map((item) => {
-              const due = new Date(item.due_date);
-              const today = new Date(); today.setHours(0, 0, 0, 0);
-              const dday = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-              const courseName = item.courses?.name || '未登録';
-
-              return (
-                <View key={item.id} style={styles.assignmentCard}>
-                  <View style={styles.assignmentInfo}>
-                    <Text style={styles.assignmentCourse}>{courseName}</Text>
-                    <Text style={styles.assignmentTitle} numberOfLines={1}>{item.title}</Text>
-                  </View>
-                  <View style={[styles.ddayBadge, { backgroundColor: getDdayColor(dday) + '18' }]}>
-                    <Text style={[styles.ddayText, { color: getDdayColor(dday) }]}>
-                      D-{dday}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })
-          )}
         </View>
+
+        {/* ── manaba 공지 미리보기 (manaba 쓰는 학교만) ── */}
+        {links.manabaUrl && (
+          <ManabaNoticePreview navigation={navigation} onCountsChange={handleNoticeCounts} />
+        )}
 
         {/* ── 掲示板 미리보기 ── */}
         <View style={styles.section}>
@@ -405,6 +420,27 @@ const styles = StyleSheet.create({
     ...typography.subtitle,
     color: colors.primary,
   },
+
+  // ★ 히어로 카드 (今日のまとめ)
+  heroCard: {
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    borderRadius: radius.lg,
+    ...shadow.card,
+  },
+  heroTitle: { ...typography.subtitle, color: colors.textPrimary, marginBottom: spacing.md },
+  heroRow: { flexDirection: 'row', alignItems: 'stretch' },
+  heroTile: { flex: 1, alignItems: 'center', paddingHorizontal: spacing.xs },
+  heroDivider: { width: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
+  heroLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  heroLabel: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs },
+  heroNumber: { ...typography.display, color: colors.primary, marginBottom: spacing.xs },
+  heroDetailStrong: { ...typography.small, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' },
+  heroDetail: { ...typography.small, color: colors.textSecondary, textAlign: 'center' },
+  redDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger, marginBottom: spacing.xs },
 
   // 섹션 공통 (흰색 카드)
   section: {
