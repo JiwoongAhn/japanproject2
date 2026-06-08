@@ -8,9 +8,9 @@ import {
   Alert,
   ActivityIndicator,
   SafeAreaView,
-  Linking,
 } from 'react-native';
 
+import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
@@ -303,7 +303,10 @@ export default function TimetableScreen({ navigation }) {
               <TouchableOpacity
                 style={styles.menuCard}
                 activeOpacity={0.75}
-                onPress={() => Linking.openURL(links.syllabusUrl)}
+                onPress={() => WebBrowser.openBrowserAsync(links.syllabusUrl, {
+                  toolbarColor: colors.primary,
+                  controlsColor: '#FFFFFF',
+                })}
               >
                 <Text style={styles.menuCardIcon}>📖</Text>
                 <View style={styles.menuCardText}>

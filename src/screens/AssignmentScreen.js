@@ -84,26 +84,43 @@ export default function AssignmentScreen({ navigation }) {
     fetchAssignments();
   }, [fetchAssignments]);
 
-  // 카드 탭 → 제출 상태 토글
-  const handleToggleStatus = async (assignment) => {
+  // 카드 탭 → 제출 상태 토글 (확인 다이얼로그를 거친 뒤 실제 변경)
+  const handleToggleStatus = (assignment) => {
     const currentDisplay = getDisplayStatus(assignment);
     const newStatus = currentDisplay === 'submitted' ? 'pending' : 'submitted';
 
-    setAssignments(prev =>
-      prev.map(a => a.id === assignment.id ? { ...a, status: newStatus } : a)
-    );
-
-    const { error } = await supabase
-      .from('assignments')
-      .update({ status: newStatus })
-      .eq('id', assignment.id);
-
-    if (error) {
+    // 실제 상태 변경 로직 — optimistic 업데이트 + DB 저장 + 실패 시 롤백
+    const applyToggle = async () => {
       setAssignments(prev =>
-        prev.map(a => a.id === assignment.id ? { ...a, status: assignment.status } : a)
+        prev.map(a => a.id === assignment.id ? { ...a, status: newStatus } : a)
       );
-      Alert.alert('お知らせ', '状態を更新できませんでした');
-    }
+
+      const { error } = await supabase
+        .from('assignments')
+        .update({ status: newStatus })
+        .eq('id', assignment.id);
+
+      if (error) {
+        setAssignments(prev =>
+          prev.map(a => a.id === assignment.id ? { ...a, status: assignment.status } : a)
+        );
+        Alert.alert('お知らせ', '状態を更新できませんでした');
+      }
+    };
+
+    // 방향에 따라 확인 다이얼로그 문구 분기
+    const dialog = newStatus === 'submitted'
+      ? { title: '提出完了にしますか？', message: `「${assignment.title}」を提出済みにします`, confirm: '提出完了' }
+      : { title: '未提出に戻しますか？', message: `「${assignment.title}」を未提出に戻します`, confirm: '戻す' };
+
+    Alert.alert(
+      dialog.title,
+      dialog.message,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: dialog.confirm, onPress: applyToggle },
+      ]
+    );
   };
 
   const handleDeleteAssignment = (assignment) => {

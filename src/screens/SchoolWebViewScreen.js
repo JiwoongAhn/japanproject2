@@ -143,7 +143,15 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     });
     const count = parseResult.parsed.length;
     if (count === 0) {
-      Alert.alert('お知らせ', '今学期の授業が見つかりませんでした');
+      // 추출할 수업이 없음 → 드래그로 닫는 대신 "원래 화면으로 돌아가기" 안내
+      Alert.alert(
+        'お知らせ',
+        '今学期の授業が見つかりませんでした。\n元の画面に戻りますか?',
+        [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: '元の画面に戻る', onPress: () => navigation.goBack() },
+        ]
+      );
       return;
     }
     Alert.alert(

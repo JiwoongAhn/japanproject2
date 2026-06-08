@@ -130,8 +130,17 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       const { rows, skipped } = buildCourseRows(selectedItems, user.id, existing || []);
 
       if (rows.length === 0) {
-        Alert.alert('お知らせ', '追加できる授業がありませんでした\n（すでに登録済み、または情報が不足しています）');
         setSaving(false);
+        // 추가할 새 수업이 없음(이미 전부 등록됨/정보 부족) → 막다른 OK 대신
+        // "원래 화면으로 돌아가시겠습니까?" 확인 → 시간표 첫 화면으로 복귀
+        Alert.alert(
+          '追加できる授業がありません',
+          'すべての授業がすでに時間割に登録されています。\n元の画面に戻りますか?',
+          [
+            { text: 'キャンセル', style: 'cancel' },
+            { text: '元の画面に戻る', onPress: () => navigation.popToTop() },
+          ]
+        );
         return;
       }
 
