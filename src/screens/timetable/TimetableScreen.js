@@ -134,6 +134,39 @@ export default function TimetableScreen({ navigation }) {
     }
   };
 
+  // 시간표 전체 삭제 — 되돌릴 수 없으므로 반드시 확인 다이얼로그를 거친다
+  const handleClearAll = () => {
+    if (courses.length === 0) return;
+    Alert.alert(
+      '時間割を全て削除',
+      `${courses.length}件の授業をすべて削除します。\nこの操作は元に戻せません。`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '全て削除',
+          style: 'destructive',
+          onPress: async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // 본인 수업만 삭제 (user_id 기준)
+            const { error } = await supabase
+              .from('courses')
+              .delete()
+              .eq('user_id', user.id);
+
+            if (error) {
+              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+            } else {
+              setCourses([]); // 즉시 UI 비움
+              fetchCourses();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // 오늘 수업 통계 (1 thing/1 page — 화면 상단의 핵심 정보 하나)
   const todayCourseCount = TODAY_COL >= 0
     ? courses.filter(c => c.day_of_week === TODAY_COL).length
@@ -169,15 +202,30 @@ export default function TimetableScreen({ navigation }) {
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
-          {/* ── 오늘 수업 요약 칩 (1 thing — 핵심 정보 하나) ── */}
-          {TODAY_COL >= 0 && (
-            <View style={styles.todaySummary}>
-              <View style={[styles.todayDotLarge, { backgroundColor: todayColor }]} />
-              <Text style={styles.todaySummaryText}>
-                今日は<Text style={[styles.todaySummaryStrong, { color: todayColor }]}>{todayCourseCount}コマ</Text>
-              </Text>
-            </View>
-          )}
+          {/* ── 오늘 수업 요약 + 전체 삭제 (좌: 요약 / 우: 全て削除) ── */}
+          <View style={styles.summaryRow}>
+            {TODAY_COL >= 0 ? (
+              <View style={styles.todaySummary}>
+                <View style={[styles.todayDotLarge, { backgroundColor: todayColor }]} />
+                <Text style={styles.todaySummaryText}>
+                  今日は<Text style={[styles.todaySummaryStrong, { color: todayColor }]}>{todayCourseCount}コマ</Text>
+                </Text>
+              </View>
+            ) : (
+              <View />
+            )}
+
+            {/* 수업이 하나라도 있을 때만 전체 삭제 버튼 노출 */}
+            {courses.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearAllButton}
+                onPress={handleClearAll}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.clearAllText}>🗑 全て削除</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* ── 시간표 카드 (에브리타임 그리드 + 토스 카드) ── */}
           <View style={styles.gridCard}>
@@ -381,12 +429,27 @@ const styles = StyleSheet.create({
     ...typography.captionStrong,
   },
 
-  // ── 오늘 요약 ────────────────────────────────
+  // ── 오늘 요약 + 전체 삭제 줄 ──────────────────
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    marginBottom: spacing.md,
+  },
   todaySummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    marginBottom: spacing.md,
+  },
+  clearAllButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: '#FFECEC', // 연한 빨강 배경 (위험 동작 강조)
+  },
+  clearAllText: {
+    ...typography.captionStrong,
+    color: '#FF3B30',
   },
   todayDotLarge: {
     width: 8,

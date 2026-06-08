@@ -105,7 +105,7 @@ export default function CourseReviewScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* ── 헤더 (보더 없는 토스 스타일) ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>講義評価</Text>

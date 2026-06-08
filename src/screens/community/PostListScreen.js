@@ -5,6 +5,7 @@ import {
   Image,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
@@ -166,7 +167,7 @@ export default function PostListScreen({ navigation }) {
               onPress={() => setSelectedCategory(tab.key)}
               activeOpacity={0.75}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
+              <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -178,20 +179,29 @@ export default function PostListScreen({ navigation }) {
       {loading ? (
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : (
-        <ScrollView
+        <FlatList
+          data={posts}
+          keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
-        >
-          {searchText.trim() !== '' && (
-            <Text style={styles.searchResultCount}>
-              「{searchText}」の検索結果
-            </Text>
-          )}
-
-          {posts.length === 0 ? (
+          // 화면에 보이는 카드만 렌더(가상화) — 글이 쌓여도 스크롤 끊김 방지
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={11}
+          removeClippedSubviews
+          // 검색 중일 때만 결과 안내 텍스트를 리스트 상단에 표시
+          ListHeaderComponent={
+            searchText.trim() !== '' ? (
+              <Text style={styles.searchResultCount}>
+                「{searchText}」の検索結果
+              </Text>
+            ) : null
+          }
+          // 글이 하나도 없을 때 빈 상태 화면
+          ListEmptyComponent={
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>{searchText ? '🔍' : '📭'}</Text>
               <Text style={styles.emptyText}>
@@ -201,68 +211,11 @@ export default function PostListScreen({ navigation }) {
                 <Text style={styles.emptySubText}>最初の投稿者になってみよう！</Text>
               )}
             </View>
-          ) : (
+          }
+          // 더보기 버튼 + 하단 여백 (탭바 가림 방지)
+          ListFooterComponent={
             <>
-              {posts.map((post) => {
-                const catInfo = getCategoryInfo(post.category);
-                const commentCount = post.post_comments?.[0]?.count ?? 0;
-                const hasImage = post.image_urls?.length > 0;
-                return (
-                  <TouchableOpacity
-                    key={post.id}
-                    style={styles.postCard}
-                    activeOpacity={0.85}
-                    onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
-                  >
-                    <View style={styles.postRow}>
-                      <View style={styles.postTextArea}>
-                        <View style={styles.postMeta}>
-                          <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
-                            <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
-                          </View>
-                          <Text style={styles.postAnon}>
-                            {post.is_anonymous ? '匿名' : '実名'}
-                          </Text>
-                          <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
-                        </View>
-
-                        <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
-
-                        {post.body ? (
-                          <Text style={styles.postBody} numberOfLines={1}>{post.body}</Text>
-                        ) : null}
-
-                        <View style={styles.postFooter}>
-                          <View style={styles.reactionItem}>
-                            <Text style={styles.reactionIcon}>♡</Text>
-                            <Text style={styles.reactionCount}>{post.like_count}</Text>
-                          </View>
-                          <View style={styles.reactionItem}>
-                            <Text style={styles.reactionIcon}>💬</Text>
-                            <Text style={styles.reactionCount}>{commentCount}</Text>
-                          </View>
-                        </View>
-                      </View>
-
-                      {hasImage && (
-                        <View style={styles.thumbnailWrapper}>
-                          <Image
-                            source={{ uri: post.image_urls[0] }}
-                            style={styles.thumbnail}
-                          />
-                          {post.image_urls.length > 1 && (
-                            <View style={styles.thumbnailBadge}>
-                              <Text style={styles.thumbnailBadgeText}>+{post.image_urls.length - 1}</Text>
-                            </View>
-                          )}
-                        </View>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-
-              {hasMore && (
+              {hasMore && posts.length > 0 && (
                 <TouchableOpacity
                   style={styles.loadMoreButton}
                   onPress={loadMore}
@@ -276,11 +229,67 @@ export default function PostListScreen({ navigation }) {
                   )}
                 </TouchableOpacity>
               )}
+              <View style={{ height: spacing.xxxl }} />
             </>
-          )}
+          }
+          renderItem={({ item: post }) => {
+            const catInfo = getCategoryInfo(post.category);
+            const commentCount = post.post_comments?.[0]?.count ?? 0;
+            const hasImage = post.image_urls?.length > 0;
+            return (
+              <TouchableOpacity
+                style={styles.postCard}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+              >
+                <View style={styles.postRow}>
+                  <View style={styles.postTextArea}>
+                    <View style={styles.postMeta}>
+                      <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
+                        <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
+                      </View>
+                      <Text style={styles.postAnon}>
+                        {post.is_anonymous ? '匿名' : '実名'}
+                      </Text>
+                      <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
+                    </View>
 
-          <View style={{ height: spacing.xxxl }} />
-        </ScrollView>
+                    <Text style={styles.postTitle} numberOfLines={2}>{post.title}</Text>
+
+                    {post.body ? (
+                      <Text style={styles.postBody} numberOfLines={1}>{post.body}</Text>
+                    ) : null}
+
+                    <View style={styles.postFooter}>
+                      <View style={styles.reactionItem}>
+                        <Text style={styles.reactionIcon}>♡</Text>
+                        <Text style={styles.reactionCount}>{post.like_count}</Text>
+                      </View>
+                      <View style={styles.reactionItem}>
+                        <Text style={styles.reactionIcon}>💬</Text>
+                        <Text style={styles.reactionCount}>{commentCount}</Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  {hasImage && (
+                    <View style={styles.thumbnailWrapper}>
+                      <Image
+                        source={{ uri: post.image_urls[0] }}
+                        style={styles.thumbnail}
+                      />
+                      {post.image_urls.length > 1 && (
+                        <View style={styles.thumbnailBadge}>
+                          <Text style={styles.thumbnailBadgeText}>+{post.image_urls.length - 1}</Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
       )}
     </SafeAreaView>
   );
@@ -361,8 +370,11 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     paddingVertical: spacing.sm,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
   },
@@ -371,6 +383,8 @@ const styles = StyleSheet.create({
   },
   chipText: {
     ...typography.captionStrong,
+    lineHeight: 22,
+    textAlign: 'center',
     color: colors.textSecondary,
   },
   chipTextActive: {

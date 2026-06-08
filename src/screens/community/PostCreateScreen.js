@@ -115,7 +115,7 @@ export default function PostCreateScreen({ navigation }) {
 
       {/* ── 헤더 ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.cancelText}>キャンセル</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>投稿する</Text>

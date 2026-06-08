@@ -19,7 +19,7 @@ const ProfileStack = createNativeStackNavigator();
 // 마이페이지 탭: Profile + MyPosts + PostEdit + PrivacyPolicy 스택
 function ProfileStackNavigator() {
   return (
-    <ProfileStack.Navigator screenOptions={{ headerShown: false }}>
+    <ProfileStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="MyPosts" component={MyPostsScreen} />
       <ProfileStack.Screen name="PostEdit" component={PostEditScreen} />
@@ -32,6 +32,7 @@ function ProfileStackNavigator() {
 export default function MainTab() {
   return (
     <Tab.Navigator
+      sceneContainerStyle={{ backgroundColor: colors.background }}
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textDisabled,

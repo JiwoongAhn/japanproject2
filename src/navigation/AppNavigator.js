@@ -12,6 +12,7 @@ import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
+import { colors } from '../constants/colors';
 
 // NavigationContainer 밖에서 navigate를 호출하기 위한 ref
 const navigationRef = createNavigationContainerRef();
@@ -85,7 +86,7 @@ export default function AppNavigator() {
     if (!session) return <AuthStack />;
     if (needsNickname) {
       return (
-        <NicknameStack.Navigator screenOptions={{ headerShown: false }}>
+        <NicknameStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <NicknameStack.Screen
             name="NicknameSetup"
             component={AcEmailInputScreen}
@@ -99,7 +100,7 @@ export default function AppNavigator() {
     }
     if (needsOnboarding) {
       return (
-        <OnboardingStack.Navigator screenOptions={{ headerShown: false }}>
+        <OnboardingStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <OnboardingStack.Screen name="Onboarding" component={OnboardingScreen} />
         </OnboardingStack.Navigator>
       );
@@ -107,7 +108,7 @@ export default function AppNavigator() {
     // 로그인 완료 상태: MainTab(하단 탭) + Manaba(모달) 형제 등록
     // → 어느 화면에서든 navigation.navigate('Manaba')로 WebView 모달 진입 가능
     return (
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
         <RootStack.Screen name="MainTab" component={MainTab} />
         <RootStack.Screen
           name="Manaba"

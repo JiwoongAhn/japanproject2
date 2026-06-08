@@ -8,6 +8,7 @@ import CourseReviewCreateScreen from '../screens/timetable/CourseReviewCreateScr
 import FreeTimeScreen from '../screens/timetable/FreeTimeScreen';
 import BulkAddInputScreen from '../screens/timetable/BulkAddInputScreen';
 import BulkAddPreviewScreen from '../screens/timetable/BulkAddPreviewScreen';
+import { colors } from '../constants/colors';
 
 // 시간표 탭 안에서만 사용하는 스택 네비게이터
 // TimetableScreen(그리드) → CourseAddScreen(수업 추가 폼) 이동을 관리
@@ -16,7 +17,7 @@ const Stack = createNativeStackNavigator();
 
 export default function TimetableStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       {/* 기본 화면: 시간표 그리드 */}
       <Stack.Screen name="TimetableMain" component={TimetableScreen} />
       {/* 수업 추가 폼: + 버튼 누르면 이 화면으로 이동 */}

@@ -290,7 +290,7 @@ export default function AssignmentAddScreen({ navigation }) {
       >
         {/* 헤더 */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.cancelText}>キャンセル</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>課題を追加</Text>

@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   SafeAreaView,
   ActivityIndicator,
@@ -213,16 +214,24 @@ export default function AssignmentScreen({ navigation }) {
           )}
         </View>
       ) : (
-        <ScrollView
+        <FlatList
+          data={filteredAssignments}
+          keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
           }
-        >
-          <Text style={styles.hint}>タップで状態切替 / ···で削除</Text>
-
-          {filteredAssignments.map((assignment) => {
+          // 화면에 보이는 카드만 렌더(가상화) — 과제가 쌓여도 스크롤 끊김 방지
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={11}
+          removeClippedSubviews
+          ListHeaderComponent={
+            <Text style={styles.hint}>タップで状態切替 / ···で削除</Text>
+          }
+          ListFooterComponent={<View style={{ height: spacing.xxxl }} />}
+          renderItem={({ item: assignment }) => {
             const displayStatus = getDisplayStatus(assignment);
             const statusCfg = STATUS_CONFIG[displayStatus] ?? STATUS_CONFIG.pending;
             const dday = calcDday(assignment.due_date);
@@ -230,7 +239,6 @@ export default function AssignmentScreen({ navigation }) {
 
             return (
               <TouchableOpacity
-                key={assignment.id}
                 activeOpacity={0.85}
                 onPress={() => handleToggleStatus(assignment)}
                 style={styles.cardWrap}
@@ -267,10 +275,8 @@ export default function AssignmentScreen({ navigation }) {
                 </Card>
               </TouchableOpacity>
             );
-          })}
-
-          <View style={{ height: spacing.xxxl }} />
-        </ScrollView>
+          }}
+        />
       )}
 
     </SafeAreaView>

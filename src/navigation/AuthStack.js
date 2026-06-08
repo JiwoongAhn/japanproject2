@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import UniversitySelectScreen from '../screens/auth/UniversitySelectScreen';
 import SchoolPortalAuthScreen from '../screens/auth/SchoolPortalAuthScreen';
 import OtpVerificationScreen from '../screens/auth/OtpVerificationScreen';
+import { colors } from '../constants/colors';
 
 const Stack = createNativeStackNavigator();
 
@@ -12,7 +13,7 @@ const Stack = createNativeStackNavigator();
 // 기존 회원: OTP 인증 후 AppNavigator가 자동으로 MainTab 이동
 export default function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <Stack.Screen name="UniversitySelect" component={UniversitySelectScreen} />
       <Stack.Screen name="SchoolPortalAuth" component={SchoolPortalAuthScreen} />
       <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />

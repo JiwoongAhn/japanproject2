@@ -98,7 +98,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
       >
         <View style={styles.inner}>
           {/* 뒤로가기 */}
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.backText}>‹ 戻る</Text>
           </TouchableOpacity>
 

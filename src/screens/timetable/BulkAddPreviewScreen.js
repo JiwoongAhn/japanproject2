@@ -19,6 +19,7 @@ import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
 import { supabase } from '../../lib/supabase';
 import { buildCourseRows } from '../../utils/timetable';
+import { COURSE_COLORS } from '../../constants/courseColors';
 
 // 요일별 파스텔 매핑 — 한 화면에서 5±2색 이내 유지
 const DAY_PASTEL = ['mint', 'peach', 'sky', 'lavender', 'yellow', 'pink'];
@@ -40,7 +41,13 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
   const defaultTerm = route?.params?.defaultTerm ?? 'spring';
 
   // 미리보기 항목 — 편집/추가가 가능하도록 state로 관리
-  const [items, setItems] = useState(() => parseResult.parsed ?? []);
+  // 각 과목에 colorIndex를 자동 배정(서로 다른 색이 순환되도록) → 사용자가 탭으로 변경 가능
+  const [items, setItems] = useState(() =>
+    (parseResult.parsed ?? []).map((it, i) => ({
+      ...it,
+      colorIndex: i % COURSE_COLORS.length,
+    }))
+  );
   // 기본 선택: confidence='high'(요일·교시 확실)인 항목 모두 체크
   const [selected, setSelected] = useState(() => {
     const set = new Set();
@@ -52,6 +59,8 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
   const [saving, setSaving] = useState(false);
   // 편집 모달 상태 — null이면 닫힘. index===-1이면 신규 추가
   const [editing, setEditing] = useState(null);
+  // 색상 팔레트가 펼쳐진 카드 index — null이면 모두 닫힘
+  const [colorPickerIdx, setColorPickerIdx] = useState(null);
 
   const toggle = (idx) => {
     setSelected((prev) => {
@@ -60,6 +69,17 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       else next.add(idx);
       return next;
     });
+  };
+
+  // 색 동그라미 탭 → 해당 카드의 팔레트 열기/닫기 토글
+  const toggleColorPicker = (idx) => {
+    setColorPickerIdx((prev) => (prev === idx ? null : idx));
+  };
+
+  // 팔레트에서 색 선택 → 해당 과목의 colorIndex 변경 후 팔레트 닫기
+  const setItemColor = (idx, colorIndex) => {
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, colorIndex } : it)));
+    setColorPickerIdx(null);
   };
 
   const selectedCount = selected.size;
@@ -87,9 +107,12 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
     const confidence = (day != null && period != null) ? 'high' : 'low';
 
     if (index === -1) {
-      // 신규 추가 — 새 항목은 자동으로 체크
+      // 신규 추가 — 새 항목은 자동으로 체크 + 색상 자동 배정
       const newIdx = items.length;
-      setItems((prev) => [...prev, { name, day, period, term: defaultTerm, professor: null, confidence }]);
+      setItems((prev) => [
+        ...prev,
+        { name, day, period, term: defaultTerm, professor: null, confidence, colorIndex: newIdx % COURSE_COLORS.length },
+      ]);
       setSelected((prev) => new Set(prev).add(newIdx));
     } else {
       // 기존 항목 수정 — 교수/학기 등 기존 값 보존
@@ -171,7 +194,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
     <SafeAreaView style={styles.container}>
       {/* ── 헤더 ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.headerBack}>← 戻る</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>確認 ({selectedCount}件)</Text>
@@ -249,7 +272,47 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
                       </View>
                     ) : null}
                   </TouchableOpacity>
+
+                  {/* 현재 색 동그라미 — 탭하면 팔레트 펼침 */}
+                  <TouchableOpacity
+                    onPress={() => toggleColorPicker(idx)}
+                    activeOpacity={0.7}
+                    style={styles.colorTrigger}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <View
+                      style={[
+                        styles.currentColorDot,
+                        {
+                          backgroundColor: COURSE_COLORS[item.colorIndex]?.bg ?? colors.gray100,
+                          borderColor: COURSE_COLORS[item.colorIndex]?.accent ?? colors.gray300,
+                        },
+                      ]}
+                    />
+                  </TouchableOpacity>
                 </View>
+
+                {/* 색상 팔레트 — 이 카드가 선택됐을 때만 펼침 */}
+                {colorPickerIdx === idx ? (
+                  <View style={styles.palette}>
+                    {COURSE_COLORS.map((color, ci) => {
+                      const on = item.colorIndex === ci;
+                      return (
+                        <TouchableOpacity
+                          key={ci}
+                          style={[
+                            styles.paletteDot,
+                            { backgroundColor: color.bg, borderColor: on ? color.accent : 'transparent' },
+                          ]}
+                          onPress={() => setItemColor(idx, ci)}
+                          activeOpacity={0.8}
+                        >
+                          {on ? <Text style={[styles.paletteCheck, { color: color.accent }]}>✓</Text> : null}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </Card>
             </View>
           );
@@ -459,6 +522,40 @@ const styles = StyleSheet.create({
   },
   editHintWarn: {
     color: pastel.rose.accent,
+  },
+
+  // 색상 — 트리거 동그라미 + 펼침 팔레트
+  colorTrigger: {
+    paddingLeft: spacing.sm,
+    paddingTop: 2,
+    justifyContent: 'center',
+  },
+  currentColorDot: {
+    width: 24,
+    height: 24,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+  },
+  palette: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray100,
+  },
+  paletteDot: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.pill,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paletteCheck: {
+    ...typography.captionStrong,
+    fontWeight: '800',
   },
 
   // 과목명·메타

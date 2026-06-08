@@ -111,7 +111,7 @@ export default function CourseAddScreen({ route, navigation }) {
       >
         {/* ── 헤더 (보더 없는 토스 스타일) ── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.cancelText}>キャンセル</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{isEditMode ? '授業を編集' : '授業を追加'}</Text>

@@ -163,12 +163,16 @@ export function buildCourseRows(items, userId, existing = []) {
     }
     occupied.add(key);
 
+    // 사용자가 미리보기에서 고른 색(colorIndex)이 있으면 저장. 없으면 NULL → id 기반 자동색
+    const colorIndex = Number.isInteger(item?.colorIndex) ? item.colorIndex : null;
+
     rows.push({
       user_id: userId,
       name,
       day_of_week: item.day,
       period: item.period,
       professor_name: item.professor ? String(item.professor).trim() : null,
+      color_index: colorIndex,
     });
   }
 

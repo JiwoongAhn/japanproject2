@@ -67,7 +67,7 @@ export default function BulkAddInputScreen({ navigation, route }) {
     <SafeAreaView style={styles.container}>
       {/* ── 헤더 ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.headerCancel}>キャンセル</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>時間割を貼り付け</Text>

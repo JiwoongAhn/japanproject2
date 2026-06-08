@@ -8,6 +8,7 @@
 // 핵심 원칙: 비밀번호 서버 저장 ❌ — 기존 manaba 쿠키 영속 방식만 재사용.
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Swipeable } from 'react-native-gesture-handler';
 import { WebView } from 'react-native-webview';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../constants/colors';
@@ -15,7 +16,7 @@ import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { MANABA_LOGIN_URL, MANABA_HOME_URL, PARSE_NOTICES_JS } from '../constants/manaba';
 import { getSavedCookieHeader, cookieKeyForUrl } from '../utils/schoolCookies';
-import { getCachedNotices, setCachedNotices } from '../utils/manabaCache';
+import { getCachedNotices, setCachedNotices, getDismissedKeys, addDismissedKey, noticeKey } from '../utils/manabaCache';
 import { getAutoReloginState } from '../utils/manabaSession';
 import { fetchUnreadNotices, markNoticeAsRead, markAllAsRead } from '../utils/manabaNotices';
 import { summarizeManabaMail } from '../utils/manabaMailSummary';
@@ -27,6 +28,7 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   const { user } = useAuth();
   const [notices, setNotices] = useState([]);          // WebView 파싱 결과 (Phase 1)
   const [dbNotices, setDbNotices] = useState([]);      // manaba_notices 안 읽음 (Phase 3)
+  const [dismissedKeys, setDismissedKeys] = useState([]); // 사용자가 既読 처리한 WebView 공지 식별자
   const [cookieHeader, setCookieHeader] = useState(null);
   const [cookieChecked, setCookieChecked] = useState(false);
   const [reloadKey, setReloadKey] = useState(0); // 화면 재진입 시 WebView 재마운트용
@@ -43,6 +45,10 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
         // 캐시 내용을 항상 반영 (로그아웃으로 캐시가 비면 화면도 비워짐)
         const cached = await getCachedNotices();
         if (active) setNotices(cached?.notices || []);
+
+        // 既読(숨김) 처리된 WebView 공지 식별자 로드 — 화면에서 가리는 데 사용
+        const dismissed = await getDismissedKeys();
+        if (active) setDismissedKeys(dismissed);
 
         // 푸시로 들어온 공지(안 읽음만) 로드 — Phase 3 데이터
         if (user?.id) {
@@ -111,12 +117,15 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   };
 
   // 두 데이터 소스 병합 — URL 기준 dedup, DB(읽음 추적 가능) 우선
+  // WebView 공지는 사용자가 既読 처리한 것(dismissedKeys)을 제외한다.
   const dbUrls = new Set(dbNotices.map((n) => n.notice_url).filter(Boolean));
+  const dismissedSet = new Set(dismissedKeys);
   const merged = [
     ...dbNotices.map(normalizeDbNotice),
     ...notices
       .filter((n) => !n.href || !dbUrls.has(n.href))
-      .map((n) => ({ ...n, _source: 'web' })),
+      .map((n) => ({ ...n, _source: 'web' }))
+      .filter((n) => !dismissedSet.has(noticeKey(n))),
   ];
   const unreadCount = dbNotices.length;
 
@@ -126,16 +135,27 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
     onCountsChange?.({ unread: unreadCount, total: merged.length });
   }, [unreadCount, merged.length, onCountsChange]);
 
-  const goToDetail = async (item) => {
-    // 푸시 출처면 읽음 처리 (UI에서도 즉시 제거)
-    if (item._source === 'push' && item._id) {
-      setDbNotices((prev) => prev.filter((n) => n.id !== item._id));
-      markNoticeAsRead(item._id); // 실패해도 UX는 그대로 진행
-    }
+  const goToDetail = (item) => {
+    // 탭 = 확인 → 읽음/숨김 처리 후 원본으로 이동 (push·web 공통, 목록에서 즉시 제거)
+    dismissNotice(item);
     navigation.navigate('Manaba', {
       screen: 'ManabaNoticeDetail',
       params: { url: item.href, title: item.title },
     });
+  };
+
+  // 既読(삭제) 처리 — 출처에 따라 다르게 영구 반영하고 화면에서 즉시 제거
+  //  · push: manaba_notices.is_read = true (DB)
+  //  · web : 식별자를 숨김 목록에 저장 (다시 파싱돼도 안 보이게)
+  const dismissNotice = (item) => {
+    if (item._source === 'push' && item._id) {
+      setDbNotices((prev) => prev.filter((n) => n.id !== item._id));
+      markNoticeAsRead(item._id);
+    } else {
+      const key = noticeKey(item);
+      setDismissedKeys((prev) => (prev.includes(key) ? prev : [key, ...prev]));
+      addDismissedKey(key);
+    }
   };
 
   const goToList = () =>
@@ -237,35 +257,48 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
         )}
 
         {top.map((item, i) => (
-          <TouchableOpacity
+          <Swipeable
             key={item._id || item.href || i}
-            style={styles.noticeCard}
-            activeOpacity={0.7}
-            onPress={() => goToDetail(item)}
+            overshootRight={false}
+            renderRightActions={() => (
+              <TouchableOpacity
+                style={styles.swipeAction}
+                activeOpacity={0.8}
+                onPress={() => dismissNotice(item)}
+              >
+                <Text style={styles.swipeActionText}>既読</Text>
+              </TouchableOpacity>
+            )}
           >
-            <View style={styles.noticeRow}>
-              {/* 푸시 출처는 🔴 점, WebView는 마커 없음 */}
-              {item._source === 'push' && <View style={styles.unreadDot} />}
-              <View style={styles.noticeBody}>
-                {/* 과목명 라인: 종류 아이콘 + 과목명 */}
-                {!!item.board && (
-                  <Text style={styles.boardTag} numberOfLines={1}>
-                    {item._type?.icon ? `${item._type.icon} ` : ''}{item.board}
-                  </Text>
-                )}
-                {/* 요약(또는 제목) */}
-                <Text style={styles.noticeTitle} numberOfLines={2}>{item.title}</Text>
-                {/* 메타 라인: 마감 / 첨부 / 날짜 */}
-                <View style={styles.metaRow}>
-                  {!!item._deadline && (
-                    <Text style={styles.metaDeadline}>⏰ ~{item._deadline}</Text>
+            <TouchableOpacity
+              style={styles.noticeCard}
+              activeOpacity={0.7}
+              onPress={() => goToDetail(item)}
+            >
+              <View style={styles.noticeRow}>
+                {/* 푸시 출처는 🔴 점, WebView는 마커 없음 */}
+                {item._source === 'push' && <View style={styles.unreadDot} />}
+                <View style={styles.noticeBody}>
+                  {/* 과목명 라인: 종류 아이콘 + 과목명 */}
+                  {!!item.board && (
+                    <Text style={styles.boardTag} numberOfLines={1}>
+                      {item._type?.icon ? `${item._type.icon} ` : ''}{item.board}
+                    </Text>
                   )}
-                  {item._hasAttach && <Text style={styles.metaAttach}>📎 첨부</Text>}
-                  {!!item.date && <Text style={styles.noticeDate}>{item.date}</Text>}
+                  {/* 요약(또는 제목) */}
+                  <Text style={styles.noticeTitle} numberOfLines={2}>{item.title}</Text>
+                  {/* 메타 라인: 마감 / 첨부 / 날짜 */}
+                  <View style={styles.metaRow}>
+                    {!!item._deadline && (
+                      <Text style={styles.metaDeadline}>⏰ ~{item._deadline}</Text>
+                    )}
+                    {item._hasAttach && <Text style={styles.metaAttach}>📎 첨부</Text>}
+                    {!!item.date && <Text style={styles.noticeDate}>{item.date}</Text>}
+                  </View>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </Swipeable>
         ))}
 
         {hiddenWebView}
@@ -396,6 +429,21 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.sm,
     gap: 3,
+  },
+  // 스와이프 시 오른쪽에 나타나는 빨간 '既読' 버튼 (카드와 같은 높이·간격)
+  swipeAction: {
+    backgroundColor: '#FF3B30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 72,
+    marginLeft: spacing.sm,
+    marginBottom: spacing.sm,
+    borderRadius: radius.md,
+  },
+  swipeActionText: {
+    ...typography.caption,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   boardTag: {
     ...typography.small,

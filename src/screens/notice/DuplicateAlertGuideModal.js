@@ -32,7 +32,7 @@ export default function DuplicateAlertGuideModal({ visible, onClose }) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>重複通知を防ぐ設定</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.closeBtnText}>完了</Text>
           </TouchableOpacity>
         </View>

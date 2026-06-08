@@ -8,8 +8,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
-  Linking,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
@@ -348,7 +348,7 @@ export default function HomeScreen({ navigation }) {
                 onPress={() => {
                   if (item.internal) navigation.navigate(item.internal);
                   else if (item.webview) navigation.navigate('SchoolWeb', { url: item.url, title: item.label, autoLogin: item.autoLogin });
-                  else Linking.openURL(item.url);
+                  else WebBrowser.openBrowserAsync(item.url);
                 }}
               >
                 <View style={[styles.schoolIconChip, { backgroundColor: item.tint + '18' }]}>

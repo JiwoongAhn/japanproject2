@@ -122,7 +122,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
       >
         {/* ── 헤더 ── */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.cancelText}>キャンセル</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>評価を書く</Text>
