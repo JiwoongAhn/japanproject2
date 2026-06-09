@@ -2,6 +2,11 @@
 // 홈 화면 공지 미리보기(ManabaNoticePreview)가 같은 파서/URL을 공유한다.
 // (한 곳에서만 관리해 한쪽만 고쳐 버그 나는 일을 방지)
 
+// 학교 서버에 접속하는 WebView의 UA 끝에 덧붙이는 앱 식별자.
+// applicationNameForUserAgent prop으로 주입 → 기존 브라우저 UA는 유지하고 식별자만 추가.
+// (학교가 트래픽 출처를 식별할 수 있게 하는 투명성/선의 장치 — 약관 컴플라이언스)
+export const UNIPAS_USER_AGENT = 'Unipas/1.0 (+https://unipas.app)';
+
 export const MANABA_LOGIN_URL = 'https://kokushikan.manaba.jp/ct/login';
 
 // 로그인 후 이동할 manaba 홈(공지가 모여 있는 페이지)

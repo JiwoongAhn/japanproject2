@@ -9,6 +9,8 @@ import {
   Alert,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { UNIPAS_USER_AGENT } from '../constants/manaba';
+import UnofficialNotice from '../components/UnofficialNotice';
 import { colors } from '../constants/colors';
 import {
   DISABLE_AUTOCAPS_JS,
@@ -249,6 +251,7 @@ export default function SchoolWebViewScreen({ navigation, route }) {
             headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
           }}
           style={styles.webView}
+          applicationNameForUserAgent={UNIPAS_USER_AGENT}
           injectedJavaScriptBeforeContentLoaded={DISABLE_AUTOCAPS_JS}
           onNavigationStateChange={handleNavStateChange}
           onMessage={handleMessage}
@@ -276,6 +279,9 @@ export default function SchoolWebViewScreen({ navigation, route }) {
           <Text style={styles.extractFabText}>📥 時間割を取り込む</Text>
         </TouchableOpacity>
       )}
+
+      {/* 비공식 앱 면책 고지 — 약관 컴플라이언스(투명성) */}
+      <UnofficialNotice />
     </SafeAreaView>
   );
 }
@@ -346,7 +352,7 @@ const styles = StyleSheet.create({
   extractFab: {
     position: 'absolute',
     right: 16,
-    bottom: 24,
+    bottom: 72, // 하단 면책 고지 바와 겹치지 않도록 올림
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,

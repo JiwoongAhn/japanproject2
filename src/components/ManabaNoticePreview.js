@@ -14,7 +14,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
-import { MANABA_LOGIN_URL, MANABA_HOME_URL, PARSE_NOTICES_JS } from '../constants/manaba';
+import { MANABA_LOGIN_URL, MANABA_HOME_URL, PARSE_NOTICES_JS, UNIPAS_USER_AGENT } from '../constants/manaba';
 import { getSavedCookieHeader, cookieKeyForUrl } from '../utils/schoolCookies';
 import { getCachedNotices, setCachedNotices, getDismissedKeys, addDismissedKey, noticeKey } from '../utils/manabaCache';
 import { getAutoReloginState } from '../utils/manabaSession';
@@ -204,6 +204,7 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
       <WebView
         key={reloadKey}
         source={{ uri: MANABA_HOME_URL, headers: { Cookie: cookieHeader } }}
+        applicationNameForUserAgent={UNIPAS_USER_AGENT}
         injectedJavaScript={PARSE_NOTICES_JS}
         onMessage={handleMessage}
         style={styles.hiddenWebView}

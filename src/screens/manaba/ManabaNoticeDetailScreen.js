@@ -8,6 +8,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import { UNIPAS_USER_AGENT } from '../../constants/manaba';
 import { colors } from '../../constants/colors';
 
 export default function ManabaNoticeDetailScreen({ route, navigation }) {
@@ -36,6 +37,7 @@ export default function ManabaNoticeDetailScreen({ route, navigation }) {
       <WebView
         source={{ uri: url }}
         style={styles.webView}
+        applicationNameForUserAgent={UNIPAS_USER_AGENT}
         onLoadEnd={() => setLoading(false)}
         onError={() => setLoading(false)}
         sharedCookiesEnabled

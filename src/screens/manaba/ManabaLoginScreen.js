@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../../constants/colors';
+import UnofficialNotice from '../../components/UnofficialNotice';
 import {
   DISABLE_AUTOCAPS_JS,
   saveCookies,
@@ -22,7 +23,7 @@ import {
 } from '../../utils/schoolCookies';
 
 const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
-import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS } from '../../constants/manaba';
+import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS, UNIPAS_USER_AGENT } from '../../constants/manaba';
 import { clearCachedNotices } from '../../utils/manabaCache';
 import {
   AUTO_RELOGIN_TIMEOUT_MS,
@@ -278,6 +279,7 @@ export default function ManabaLoginScreen({ navigation }) {
             headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
           }}
           style={styles.webView}
+          applicationNameForUserAgent={UNIPAS_USER_AGENT}
           injectedJavaScriptBeforeContentLoaded={DISABLE_AUTOCAPS_JS}
           onNavigationStateChange={handleNavigationStateChange}
           onMessage={handleMessage}
@@ -292,6 +294,9 @@ export default function ManabaLoginScreen({ navigation }) {
           javaScriptEnabled
         />
       )}
+
+      {/* 비공식 앱 면책 고지 — 약관 컴플라이언스(투명성) */}
+      <UnofficialNotice />
     </SafeAreaView>
   );
 }
