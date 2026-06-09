@@ -20,6 +20,7 @@ import { getCachedNotices, setCachedNotices, getDismissedKeys, addDismissedKey, 
 import { getAutoReloginState } from '../utils/manabaSession';
 import { fetchUnreadNotices, markNoticeAsRead, markAllAsRead } from '../utils/manabaNotices';
 import { summarizeManabaMail } from '../utils/manabaMailSummary';
+import { openManaba } from '../utils/mailOnboarding';
 import { useAuth } from '../lib/AuthProvider';
 
 const PREVIEW_COUNT = 3; // 카드에 보여줄 공지 개수
@@ -248,7 +249,7 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
           <TouchableOpacity
             style={styles.expiredBanner}
             activeOpacity={0.7}
-            onPress={() => navigation.navigate('Manaba')}
+            onPress={() => openManaba(navigation)}
           >
             <Text style={styles.expiredBannerText}>
               ⚠️ ログインの有効期限が切れました。{expiredMessage()}
@@ -314,7 +315,7 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
         <TouchableOpacity
           style={styles.emptyCard}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('Manaba')}
+          onPress={() => openManaba(navigation)}
         >
           <Text style={styles.emptyText}>
             ログインの有効期限が切れました。{'\n'}{expiredMessage()}
@@ -334,7 +335,7 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
         <TouchableOpacity
           style={styles.emptyCard}
           activeOpacity={0.7}
-          onPress={() => navigation.navigate('Manaba')}
+          onPress={() => openManaba(navigation)}
         >
           <Text style={styles.emptyText}>
             manabaにログインするとお知らせが表示されます

@@ -11,6 +11,7 @@ import SchoolWebViewScreen from '../screens/SchoolWebViewScreen';
 import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
+import MailConnectOnboardingScreen from '../screens/auth/MailConnectOnboardingScreen';
 import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
 import { colors } from '../constants/colors';
 
@@ -123,6 +124,11 @@ export default function AppNavigator() {
         <RootStack.Screen
           name="NoticePreview"
           component={NoticePreviewModal}
+          options={{ presentation: 'modal' }}
+        />
+        <RootStack.Screen
+          name="MailConnectOnboarding"
+          component={MailConnectOnboardingScreen}
           options={{ presentation: 'modal' }}
         />
       </RootStack.Navigator>

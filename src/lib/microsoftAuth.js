@@ -11,13 +11,30 @@ WebBrowser.maybeCompleteAuthSession();
 const MS_CLIENT_ID = 'b9f03502-37c5-4e9d-88d8-df79bbf9f63b';
 const MS_TENANT_ID = 'common'; // 학교 계정(work/school) + 개인 계정 모두 허용
 
-const DISCOVERY = {
+// expo-auth-session의 useAuthRequest에 그대로 넘길 수 있도록 export
+// (ProfileScreen·MailConnectOnboardingScreen 등 여러 화면이 동일 설정을 공유)
+export const MS_DISCOVERY = {
   authorizationEndpoint: `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/authorize`,
   tokenEndpoint:         `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/token`,
 };
 
 // Azure 포털 iOS/macOS 번들 ID 등록으로 자동 생성된 URI와 일치
-const REDIRECT_URI = 'msauth.com.jiwoongahn.unipas://auth';
+export const MS_REDIRECT_URI = 'msauth.com.jiwoongahn.unipas://auth';
+
+// 내부 참조용 별칭 (기존 코드 호환)
+const DISCOVERY = MS_DISCOVERY;
+const REDIRECT_URI = MS_REDIRECT_URI;
+
+// useAuthRequest 첫 번째 인자로 그대로 사용 가능한 OAuth 요청 설정
+// scopes: Mail.Read(받은편지함 읽기) + offline_access(refresh_token 발급용)
+export const MS_AUTH_REQUEST = {
+  clientId:     MS_CLIENT_ID,
+  scopes:       ['openid', 'email', 'offline_access', 'Mail.Read'],
+  redirectUri:  MS_REDIRECT_URI,
+  responseType: AuthSession.ResponseType.Code,
+  usePKCE:      true,
+  prompt:       'select_account',
+};
 
 /**
  * Microsoft OAuth PKCE 흐름 실행

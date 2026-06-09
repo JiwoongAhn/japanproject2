@@ -20,6 +20,7 @@ import { getTodayStr } from '../utils/date';
 import { getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { universities } from '../constants/universities';
 import ManabaNoticePreview from '../components/ManabaNoticePreview';
+import { openManaba } from '../utils/mailOnboarding';
 
 export default function HomeScreen({ navigation }) {
   const [todayCourses, setTodayCourses] = useState([]);
@@ -261,7 +262,7 @@ export default function HomeScreen({ navigation }) {
             <TouchableOpacity
               style={styles.heroTile}
               activeOpacity={0.7}
-              onPress={() => { if (links.manabaUrl) navigation.navigate('Manaba'); }}
+              onPress={() => { if (links.manabaUrl) openManaba(navigation); }}
             >
               <View style={styles.heroLabelRow}>
                 <Text style={styles.heroLabel}>お知らせ</Text>
