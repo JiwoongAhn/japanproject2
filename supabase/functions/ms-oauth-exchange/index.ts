@@ -110,6 +110,7 @@ Deno.serve(async (req: Request) => {
         ms_refresh_token:         refresh_token,  // TODO: 암호화 추가 (pgcrypto)
         subscription_id:          subscription.id,
         subscription_expires_at:  expiresAt,
+        needs_reauth:             false,  // 재연결 성공 → 배지 신호 리셋
       }, { onConflict: 'user_id' });
 
     if (dbErr) {

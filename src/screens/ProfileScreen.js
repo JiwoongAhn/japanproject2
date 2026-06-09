@@ -67,6 +67,8 @@ export default function ProfileScreen({ navigation }) {
   // Microsoft 연결 상태
   const [msConnected, setMsConnected]   = useState(false);
   const [msConnecting, setMsConnecting] = useState(false);
+  // refresh_token 만료 → 재연결 필요 신호 (배지 표시용)
+  const [needsReauth, setNeedsReauth]   = useState(false);
   const [duplicateGuideVisible, setDuplicateGuideVisible] = useState(false);
 
   const [msRequest, msResponse, msPromptAsync] = AuthSession.useAuthRequest(
@@ -131,10 +133,13 @@ export default function ProfileScreen({ navigation }) {
     if (!userId) return;
     supabase
       .from('mail_subscriptions')
-      .select('id')
+      .select('id, needs_reauth')
       .eq('user_id', userId)
       .maybeSingle()
-      .then(({ data }) => setMsConnected(!!data));
+      .then(({ data }) => {
+        setMsConnected(!!data);
+        setNeedsReauth(!!data?.needs_reauth);
+      });
   }, [userId]);
 
   // OAuth 응답 처리
@@ -145,6 +150,7 @@ export default function ProfileScreen({ navigation }) {
       .then(({ success, error }) => {
         if (success) {
           setMsConnected(true);
+          setNeedsReauth(false); // 재연결 성공 → 배지 제거
           setDuplicateGuideVisible(true);
         } else if (error !== 'cancelled') {
           Alert.alert('エラー詳細', error ?? '連携に失敗しました。');
@@ -529,14 +535,25 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.toggleRow}>
               <View style={styles.toggleInfo}>
                 <Text style={styles.toggleLabel}>Outlookメール連携</Text>
-                <Text style={styles.toggleHint}>
-                  {msConnected
+                <Text style={msConnected && needsReauth ? styles.toggleHintWarning : styles.toggleHint}>
+                  {msConnected && needsReauth
+                    ? '⚠️ 連携が切れました。通知を受け取るには再連携が必要です'
+                    : msConnected
                     ? 'manabaの新着通知をプッシュで受け取れます'
                     : '学校のOutlookアカウントと連携してmanabaの通知を受け取ります'}
                 </Text>
               </View>
               {msConnecting ? (
                 <ActivityIndicator color={colors.primary} />
+              ) : msConnected && needsReauth ? (
+                <TouchableOpacity
+                  style={[styles.reauthButton, !msRequest && { opacity: 0.5 }]}
+                  onPress={() => msPromptAsync()}
+                  disabled={!msRequest}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.connectButtonText}>再連携</Text>
+                </TouchableOpacity>
               ) : msConnected ? (
                 <View style={styles.connectedBadge}>
                   <Text style={styles.connectedText}>連携済み</Text>
@@ -845,6 +862,12 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: colors.textDisabled,
   },
+  // 재연결 필요 안내 (빨간 강조)
+  toggleHintWarning: {
+    ...typography.small,
+    fontWeight: '500',
+    color: colors.danger,
+  },
 
   // 표시 설정
   settingLabel: {
@@ -1004,6 +1027,13 @@ const styles = StyleSheet.create({
   },
   connectButton: {
     backgroundColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 8,
+  },
+  // 재연결 버튼 (빨강)
+  reauthButton: {
+    backgroundColor: colors.danger,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: 8,

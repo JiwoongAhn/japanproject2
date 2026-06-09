@@ -46,8 +46,17 @@ Deno.serve(async (_req: Request) => {
     );
 
     if (!tokenRes.ok) {
-      console.error(`[ms-graph-renew] 토큰 갱신 실패 user=${sub.user_id}`);
-      // TODO: 사용자에게 재인증 안내 (마이페이지 배지)
+      const errBody = await tokenRes.text();
+      console.error(`[ms-graph-renew] 토큰 갱신 실패 user=${sub.user_id}:`, errBody);
+      // invalid_grant = refresh_token이 만료/무효화됨 → 사용자가 직접 재연결해야 함
+      // (5xx 같은 일시 오류는 다음 실행에서 자동 재시도되므로 배지 띄우지 않음)
+      if (errBody.includes('invalid_grant')) {
+        await supabase
+          .from('mail_subscriptions')
+          .update({ needs_reauth: true })
+          .eq('user_id', sub.user_id);
+        console.log(`[ms-graph-renew] 재연결 필요 표시 user=${sub.user_id}`);
+      }
       continue;
     }
 

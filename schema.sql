@@ -386,6 +386,7 @@ CREATE TABLE mail_subscriptions (
   ms_refresh_token         TEXT,                 -- MS Graph refresh token (subscription 갱신용)
   subscription_id          TEXT,                 -- MS Graph subscription ID
   subscription_expires_at  TIMESTAMPTZ,          -- subscription 만료 시각 (최대 3일)
+  needs_reauth             BOOLEAN NOT NULL DEFAULT FALSE, -- refresh_token 만료(invalid_grant) → 마이페이지 재연결 배지 표시
   created_at               TIMESTAMPTZ DEFAULT NOW(),
   updated_at               TIMESTAMPTZ DEFAULT NOW()
 );
