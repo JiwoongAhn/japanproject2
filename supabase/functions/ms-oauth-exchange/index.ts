@@ -14,6 +14,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ── 메일 refresh_token 암호화 (AES-256-GCM, 키=Supabase secret MAIL_TOKEN_ENC_KEY) ──
+// 키는 DB가 아니라 함수 시크릿에만 보관 → DB가 통째로 유출돼도 토큰은 해독 불가.
+const ENC_PREFIX = 'enc:v1:';
+async function getEncKey(): Promise<CryptoKey> {
+  const bytes = Uint8Array.from(atob(Deno.env.get('MAIL_TOKEN_ENC_KEY') ?? ''), (c) => c.charCodeAt(0));
+  return await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+async function encryptToken(plain: string | null | undefined): Promise<string | null> {
+  if (!plain) return plain ?? null;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await getEncKey(), new TextEncoder().encode(plain)));
+  const out = new Uint8Array(iv.length + ct.length);
+  out.set(iv); out.set(ct, iv.length);
+  return ENC_PREFIX + btoa(String.fromCharCode(...out));
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -107,7 +123,7 @@ Deno.serve(async (req: Request) => {
       .upsert({
         user_id:                  user.id,
         ms_account_email:         msEmail,
-        ms_refresh_token:         refresh_token,  // TODO: 암호화 추가 (pgcrypto)
+        ms_refresh_token:         await encryptToken(refresh_token),  // AES-256-GCM 암호화 저장
         subscription_id:          subscription.id,
         subscription_expires_at:  expiresAt,
         needs_reauth:             false,  // 재연결 성공 → 배지 신호 리셋

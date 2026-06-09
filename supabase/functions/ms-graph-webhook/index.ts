@@ -10,6 +10,29 @@ const ALLOWED_SENDERS = [
 const WEBHOOK_CLIENT_STATE = Deno.env.get('WEBHOOK_CLIENT_STATE') ?? 'unipas-secret';
 const MS_TENANT_ID = 'common';
 
+// ── 메일 refresh_token 암호화 (AES-256-GCM, 키=Supabase secret MAIL_TOKEN_ENC_KEY) ──
+// 키는 DB가 아니라 함수 시크릿에만 보관 → DB가 통째로 유출돼도 토큰은 해독 불가.
+const ENC_PREFIX = 'enc:v1:';
+async function getEncKey(): Promise<CryptoKey> {
+  const bytes = Uint8Array.from(atob(Deno.env.get('MAIL_TOKEN_ENC_KEY') ?? ''), (c) => c.charCodeAt(0));
+  return await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+async function encryptToken(plain: string | null | undefined): Promise<string | null> {
+  if (!plain) return plain ?? null;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await getEncKey(), new TextEncoder().encode(plain)));
+  const out = new Uint8Array(iv.length + ct.length);
+  out.set(iv); out.set(ct, iv.length);
+  return ENC_PREFIX + btoa(String.fromCharCode(...out));
+}
+async function decryptToken(stored: string | null | undefined): Promise<string> {
+  if (!stored) return '';
+  if (!stored.startsWith(ENC_PREFIX)) return stored; // 레거시 평문 호환
+  const raw = Uint8Array.from(atob(stored.slice(ENC_PREFIX.length)), (c) => c.charCodeAt(0));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12) }, await getEncKey(), raw.slice(12));
+  return new TextDecoder().decode(pt);
+}
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -144,7 +167,8 @@ Deno.serve(async (req: Request) => {
 });
 
 /** refresh_token으로 새 access_token 발급, 실패 시 DB 갱신 */
-async function refreshAccessToken(refreshToken: string, supabase: any, userId: string): Promise<string | null> {
+async function refreshAccessToken(storedToken: string, supabase: any, userId: string): Promise<string | null> {
+  const refreshToken = await decryptToken(storedToken); // 저장된 암호문 복호화 후 사용
   const res = await fetch(
     `https://login.microsoftonline.com/${MS_TENANT_ID}/oauth2/v2.0/token`,
     {
@@ -161,17 +185,25 @@ async function refreshAccessToken(refreshToken: string, supabase: any, userId: s
   );
 
   if (!res.ok) {
-    console.error('[webhook] access_token 갱신 실패 — 사용자 재인증 필요:', userId);
+    const errBody = await res.text();
+    console.error('[webhook] access_token 갱신 실패 — 사용자 재인증 필요:', userId, errBody);
+    // refresh_token 만료(invalid_grant) → 마이페이지 재연결 배지 표시
+    if (errBody.includes('invalid_grant')) {
+      await supabase
+        .from('mail_subscriptions')
+        .update({ needs_reauth: true })
+        .eq('user_id', userId);
+    }
     return null;
   }
 
   const tokens = await res.json();
 
-  // 새 refresh_token이 발급된 경우 DB 업데이트
+  // 새 refresh_token이 발급된 경우 암호화해 DB 업데이트
   if (tokens.refresh_token && tokens.refresh_token !== refreshToken) {
     await supabase
       .from('mail_subscriptions')
-      .update({ ms_refresh_token: tokens.refresh_token })
+      .update({ ms_refresh_token: await encryptToken(tokens.refresh_token) })
       .eq('user_id', userId);
   }
 

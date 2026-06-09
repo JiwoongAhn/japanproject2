@@ -6,6 +6,29 @@ const RENEW_BEFORE_HOURS = 24;
 const NEW_EXPIRY_DAYS    = 3;
 const MS_TENANT_ID       = 'common';
 
+// ── 메일 refresh_token 암호화 (AES-256-GCM, 키=Supabase secret MAIL_TOKEN_ENC_KEY) ──
+// 키는 DB가 아니라 함수 시크릿에만 보관 → DB가 통째로 유출돼도 토큰은 해독 불가.
+const ENC_PREFIX = 'enc:v1:';
+async function getEncKey(): Promise<CryptoKey> {
+  const bytes = Uint8Array.from(atob(Deno.env.get('MAIL_TOKEN_ENC_KEY') ?? ''), (c) => c.charCodeAt(0));
+  return await crypto.subtle.importKey('raw', bytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+async function encryptToken(plain: string | null | undefined): Promise<string | null> {
+  if (!plain) return plain ?? null;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, await getEncKey(), new TextEncoder().encode(plain)));
+  const out = new Uint8Array(iv.length + ct.length);
+  out.set(iv); out.set(ct, iv.length);
+  return ENC_PREFIX + btoa(String.fromCharCode(...out));
+}
+async function decryptToken(stored: string | null | undefined): Promise<string> {
+  if (!stored) return '';
+  if (!stored.startsWith(ENC_PREFIX)) return stored; // 레거시 평문 호환
+  const raw = Uint8Array.from(atob(stored.slice(ENC_PREFIX.length)), (c) => c.charCodeAt(0));
+  const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: raw.slice(0, 12) }, await getEncKey(), raw.slice(12));
+  return new TextDecoder().decode(pt);
+}
+
 Deno.serve(async (_req: Request) => {
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -39,7 +62,7 @@ Deno.serve(async (_req: Request) => {
           client_id:     Deno.env.get('MS_CLIENT_ID') ?? '',
           client_secret: Deno.env.get('MS_CLIENT_SECRET') ?? '',
           grant_type:    'refresh_token',
-          refresh_token: sub.ms_refresh_token ?? '',
+          refresh_token: await decryptToken(sub.ms_refresh_token), // 복호화해서 사용
           scope:         'Mail.Read offline_access',
         }),
       }
@@ -87,7 +110,8 @@ Deno.serve(async (_req: Request) => {
       .from('mail_subscriptions')
       .update({
         subscription_expires_at: newExpiry,
-        ms_refresh_token:        tokens.refresh_token ?? sub.ms_refresh_token,
+        // 새 토큰이 오면 암호화해 저장, 없으면 기존 암호문 유지
+        ms_refresh_token:        tokens.refresh_token ? await encryptToken(tokens.refresh_token) : sub.ms_refresh_token,
       })
       .eq('user_id', sub.user_id);
 
