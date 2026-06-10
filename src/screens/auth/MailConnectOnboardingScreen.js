@@ -117,7 +117,7 @@ const ConnectVisual = () => (
 const SLIDES = [
   {
     title: '新しいお知らせを、\n見逃さない',
-    subtitle: 'manabaのお知らせは、まず大学メールに届きます。\nメールを連携すると、届いた瞬間に通知でお知らせ。',
+    subtitle: 'メールを開かなくても大丈夫。\n新しいお知らせは、通知でお届けします。',
     Visual: () => (
       <PhoneMockup>
         <PushNotificationMock />
