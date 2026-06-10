@@ -38,6 +38,7 @@ export default function PostListScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [universityName, setUniversityName] = useState('');
+  const [authorMap, setAuthorMap] = useState({}); // { userId: nickname } 실명 게시 작성자 맵
 
   // 로그인 유저의 대학 이름 가져오기
   useEffect(() => {
@@ -86,6 +87,25 @@ export default function PostListScreen({ navigation }) {
       setPosts(prev => reset ? data : [...prev, ...data]);
       setHasMore(data.length === PAGE_SIZE);
       pageRef.current += 1;
+
+      // 실명 게시글 작성자 닉네임 — 이번 페이지의 실명 user_id 모아 한 번에 조회
+      const realUserIds = [
+        ...new Set(data.filter((p) => !p.is_anonymous).map((p) => p.user_id)),
+      ];
+      if (realUserIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, nickname')
+          .in('id', realUserIds);
+        if (profilesData) {
+          const newEntries = {};
+          profilesData.forEach((p) => { newEntries[p.id] = p.nickname; });
+          // reset이면 맵 초기화 후 새 값, 아니면 기존 맵에 병합
+          setAuthorMap((prev) => reset ? newEntries : { ...prev, ...newEntries });
+        }
+      } else if (reset) {
+        setAuthorMap({});
+      }
     }
 
     setLoading(false);
@@ -249,7 +269,7 @@ export default function PostListScreen({ navigation }) {
                         <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
                       </View>
                       <Text style={styles.postAnon}>
-                        {post.is_anonymous ? '匿名' : '実名'}
+                        {post.is_anonymous ? '匿名' : (authorMap[post.user_id] ?? '実名')}
                       </Text>
                       <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
                     </View>

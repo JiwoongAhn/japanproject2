@@ -80,6 +80,9 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   const [canGoBack, setCanGoBack] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(url ?? ''); // 현재 보고 있는 페이지 URL
   const [ready, setReady] = useState(false);
+  // 로그인 상태 추적: 초기 URL(로그인 페이지)에서 다른 URL로 이동하면 로그인 완료로 판단
+  // 한 번 true가 되면 되돌아오지 않음 (면책 고지 재표시 방지)
+  const [loggedIn, setLoggedIn] = useState(false);
   const [cookieHeader, setCookieHeader] = useState(null);
   const [creds, setCreds] = useState(null);
 
@@ -104,6 +107,10 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   const handleNavStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
     setCurrentUrl(navState.url || '');
+    // 초기 URL과 다른 URL로 이동하면 로그인 완료로 판단 (단방향)
+    if (!loggedIn && navState.url && navState.url !== url) {
+      setLoggedIn(true);
+    }
   };
 
   // MY時間割 페이지일 때만 추출 버튼 노출 (카에데 진입 직후/다른 페이지에서는 숨김)
@@ -280,8 +287,8 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         </TouchableOpacity>
       )}
 
-      {/* 비공식 앱 면책 고지 — 약관 컴플라이언스(투명성) */}
-      <UnofficialNotice />
+      {/* 비공식 앱 면책 고지 — 로그인 전(처음 로그인 화면)에만 표시, 로그인 후 숨김 */}
+      {!loggedIn && <UnofficialNotice />}
     </SafeAreaView>
   );
 }

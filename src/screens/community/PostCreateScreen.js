@@ -40,10 +40,14 @@ export default function PostCreateScreen({ navigation }) {
   // 저장 버튼 활성화 조건: 카테고리 + 제목 모두 입력
   const canSubmit = category !== '' && title.trim() !== '';
 
-  // 사진 추가: 권한 확인 → 갤러리 → 리사이즈+EXIF 제거 → 목록 추가
-  const handleAddImage = async () => {
+  // 사진 추가 버튼 → 권한 확인 후 바로 갤러리 열기 (중간 시트 없음)
+  const handleAddImage = () => {
     if (pickedImages.length >= MAX_IMAGES || picking) return;
+    handlePickFromLibrary();
+  };
 
+  // 갤러리에서 선택: 권한 확인 → 갤러리 → 리사이즈+EXIF 제거 → 목록 추가
+  const handlePickFromLibrary = async () => {
     const granted = await ensureMediaLibraryPermission();
     if (!granted) {
       Alert.alert('写真へのアクセスを許可してください', '設定アプリから許可できます');

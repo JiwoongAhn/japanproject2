@@ -55,6 +55,8 @@ export default function PostDetailScreen({ navigation, route }) {
   const [likedComments, setLikedComments] = useState({}); // { commentId: true/false }
   const [likingComment, setLikingComment] = useState(null); // 현재 좋아요 처리 중인 댓글 ID
   const [viewerIndex, setViewerIndex] = useState(null); // 풀스크린 이미지 인덱스 (null이면 닫힘)
+  const [authorNickname, setAuthorNickname] = useState(null); // 실명 게시 시 작성자 닉네임
+  const [commentAuthors, setCommentAuthors] = useState({}); // { userId: nickname } 댓글 작성자 맵
   const scrollViewRef = useRef(null);
 
   // 게시글 + 댓글 + 내 좋아요 여부 한 번에 불러오기
@@ -87,6 +89,37 @@ export default function PostDetailScreen({ navigation, route }) {
       likedMap[row.comment_id] = true;
     });
     setLikedComments(likedMap);
+
+    // ── 실명 표시용 닉네임 조회 ──
+    // 게시글 작성자 (실명 게시인 경우)
+    if (postRes.data && !postRes.data.is_anonymous) {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('nickname')
+        .eq('id', postRes.data.user_id)
+        .single();
+      setAuthorNickname(profileData?.nickname ?? null);
+    }
+
+    // 댓글 작성자 (실명 댓글이 있는 경우) — user_id 목록을 한 번에 조회
+    const realNameCommentUserIds = [
+      ...new Set(
+        (commentsRes.data ?? [])
+          .filter((c) => !c.is_anonymous)
+          .map((c) => c.user_id)
+      ),
+    ];
+    if (realNameCommentUserIds.length > 0) {
+      const { data: commentProfilesData } = await supabase
+        .from('profiles')
+        .select('id, nickname')
+        .in('id', realNameCommentUserIds);
+      const authorsMap = {};
+      (commentProfilesData ?? []).forEach((p) => {
+        authorsMap[p.id] = p.nickname;
+      });
+      setCommentAuthors(authorsMap);
+    }
 
     setLoading(false);
   }, [postId]);
@@ -325,7 +358,7 @@ export default function PostDetailScreen({ navigation, route }) {
                 <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
               </View>
               <Text style={styles.postAnon}>
-                {post.is_anonymous ? '匿名' : '実名'}
+                {post.is_anonymous ? '匿名' : (authorNickname ?? '実名')}
               </Text>
               <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
             </View>
@@ -391,7 +424,9 @@ export default function PostDetailScreen({ navigation, route }) {
                   >
                     <View style={styles.commentHeader}>
                       <Text style={styles.commentAuthor}>
-                        {comment.is_anonymous ? `匿名${index + 1}` : '実名'}
+                        {comment.is_anonymous
+                          ? `匿名${index + 1}`
+                          : (commentAuthors[comment.user_id] ?? '実名')}
                       </Text>
                       <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
                     </View>

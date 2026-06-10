@@ -24,6 +24,21 @@ import {
 
 const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
 import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS, UNIPAS_USER_AGENT } from '../../constants/manaba';
+
+// manaba는 PC용 레이아웃이라 viewport에 user-scalable=no / maximum-scale=1 이 설정되어 있음.
+// 페이지 로드 후 해당 제약을 제거해 핀치줌을 허용한다 (iOS + Android 공통).
+const ENABLE_PINCH_ZOOM_JS = `
+(function() {
+  var meta = document.querySelector('meta[name="viewport"]');
+  if (meta) {
+    var content = meta.getAttribute('content') || '';
+    content = content.replace(/user-scalable\s*=\s*no/gi, 'user-scalable=yes');
+    content = content.replace(/maximum-scale\s*=\s*1(\.0)?/gi, 'maximum-scale=5.0');
+    meta.setAttribute('content', content);
+  }
+})();
+true;
+`;
 import { clearCachedNotices } from '../../utils/manabaCache';
 import {
   AUTO_RELOGIN_TIMEOUT_MS,
@@ -281,6 +296,8 @@ export default function ManabaLoginScreen({ navigation }) {
           style={styles.webView}
           applicationNameForUserAgent={UNIPAS_USER_AGENT}
           injectedJavaScriptBeforeContentLoaded={DISABLE_AUTOCAPS_JS}
+          injectedJavaScript={ENABLE_PINCH_ZOOM_JS}
+          scalesPageToFit={true}
           onNavigationStateChange={handleNavigationStateChange}
           onMessage={handleMessage}
           onLoadEnd={handleLoadEnd}
@@ -295,8 +312,8 @@ export default function ManabaLoginScreen({ navigation }) {
         />
       )}
 
-      {/* 비공식 앱 면책 고지 — 약관 컴플라이언스(투명성) */}
-      <UnofficialNotice />
+      {/* 비공식 앱 면책 고지 — 로그인 전(처음 로그인 화면)에만 표시, 로그인 후 숨김 */}
+      {!loggedIn && <UnofficialNotice />}
     </SafeAreaView>
   );
 }

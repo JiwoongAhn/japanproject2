@@ -11,6 +11,20 @@ import { WebView } from 'react-native-webview';
 import { UNIPAS_USER_AGENT } from '../../constants/manaba';
 import { colors } from '../../constants/colors';
 
+// manaba 공지 원문도 PC용 레이아웃이므로 핀치줌 제약 제거
+const ENABLE_PINCH_ZOOM_JS = `
+(function() {
+  var meta = document.querySelector('meta[name="viewport"]');
+  if (meta) {
+    var content = meta.getAttribute('content') || '';
+    content = content.replace(/user-scalable\s*=\s*no/gi, 'user-scalable=yes');
+    content = content.replace(/maximum-scale\s*=\s*1(\.0)?/gi, 'maximum-scale=5.0');
+    meta.setAttribute('content', content);
+  }
+})();
+true;
+`;
+
 export default function ManabaNoticeDetailScreen({ route, navigation }) {
   const { url, title } = route.params ?? {};
   const [loading, setLoading] = useState(true);
@@ -38,6 +52,8 @@ export default function ManabaNoticeDetailScreen({ route, navigation }) {
         source={{ uri: url }}
         style={styles.webView}
         applicationNameForUserAgent={UNIPAS_USER_AGENT}
+        injectedJavaScript={ENABLE_PINCH_ZOOM_JS}
+        scalesPageToFit={true}
         onLoadEnd={() => setLoading(false)}
         onError={() => setLoading(false)}
         sharedCookiesEnabled
