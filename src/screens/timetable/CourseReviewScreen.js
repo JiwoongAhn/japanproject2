@@ -277,8 +277,10 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...typography.body2,
+    fontSize: 15,
+    fontWeight: '400',
     color: colors.textPrimary,
+    textAlignVertical: 'center',
   },
   clearButton: {
     ...typography.caption,

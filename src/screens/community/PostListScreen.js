@@ -351,9 +351,11 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    ...typography.body2,
+    fontSize: 15,
+    fontWeight: '400',
     color: colors.textPrimary,
     padding: 0,
+    textAlignVertical: 'center',
   },
   clearButton: {
     fontSize: 12,

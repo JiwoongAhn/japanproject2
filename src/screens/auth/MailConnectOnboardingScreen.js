@@ -320,6 +320,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   slide: {
     width: SCREEN_WIDTH,
+    flex: 1,
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
@@ -328,6 +329,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: spacing.lg,
+    paddingBottom: spacing.xl,
     width: '100%',
   },
   title: {

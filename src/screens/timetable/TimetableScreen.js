@@ -28,9 +28,15 @@ const DAYS = ['月', '火', '水', '木', '金'];
 // 교시 열(가장 왼쪽) 너비 — 시간 텍스트 공간 확보
 const PERIOD_COL_WIDTH = 32;
 
-// 오늘 요일 → 시간표 열 인덱스 (월=0 ~ 금=4, 주말=-1)
-const jsDay = new Date().getDay();
-const TODAY_COL = (jsDay >= 1 && jsDay <= 5) ? jsDay - 1 : -1;
+// JST(UTC+9) 기준 오늘 요일 → 시간표 열 인덱스 (월=0 ~ 금=4, 주말=-1)
+// 렌더 시점마다 호출해 날짜 경계에서도 정확하게 반영
+function getTodayCol() {
+  const now = new Date();
+  // UTC에 9시간 더한 뒤 UTC 메서드로 읽으면 기기 로컬 시간대와 무관하게 JST 기준 요일을 얻음
+  const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const jsDay = jst.getUTCDay(); // 0=일, 1=월, 2=화 ... 6=토
+  return (jsDay >= 1 && jsDay <= 5) ? jsDay - 1 : -1;
+}
 
 // 일본 학기 라벨 — 5월이면 春学期, 11월이면 秋学期 등
 function getSemesterLabel() {
@@ -44,6 +50,9 @@ export default function TimetableScreen({ navigation }) {
   const { session } = useAuth();
   const universityInfo = getUniversityInfo(session?.user?.email);
   const links = getUniversityLinks(universityInfo.id);
+
+  // 렌더 시점에 JST 기준으로 오늘 열 계산 (날짜가 바뀌어도 다음 렌더에서 자동 갱신)
+  const TODAY_COL = getTodayCol();
 
   // 학교별 교시 수
   const periodCount = universityInfo?.periodRanges ? Object.keys(universityInfo.periodRanges).length : 6;

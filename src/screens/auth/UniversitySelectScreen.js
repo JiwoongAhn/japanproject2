@@ -123,7 +123,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: colors.textPrimary,
-    paddingVertical: 2,
+    paddingVertical: 0,
+    textAlignVertical: 'center',
   },
   list: {
     paddingHorizontal: spacing.xxl,
