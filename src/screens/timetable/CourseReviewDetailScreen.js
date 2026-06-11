@@ -8,11 +8,13 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { colors, pastel } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
+import { deleteReview } from '../../utils/review';
 import Card from '../../components/Card';
 
 // 별점 표시 컴포넌트
@@ -43,9 +45,15 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // 현재 로그인 사용자 ID (내 리뷰 판별용)
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   const fetchReviews = useCallback(async () => {
     try {
+      // 현재 유저 ID 취득 (내 리뷰 판별)
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id ?? null);
+
       let query = supabase
         .from('course_reviews')
         .select('*')
@@ -66,6 +74,51 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
       setRefreshing(false);
     }
   }, [courseName, professorName]);
+
+  // 내 리뷰 수정: 작성 폼을 편집 모드로 재사용
+  const handleEditReview = useCallback((review) => {
+    navigation.navigate('CourseReviewCreate', {
+      courseName: review.course_name,
+      professorName: review.professor_name ?? '',
+      editMode: true,
+      reviewId: review.id,
+      initialRating: review.rating,
+      initialComment: review.comment ?? '',
+      initialTags: review.tags ?? [],
+    });
+  }, [navigation]);
+
+  // 내 리뷰 삭제: Alert 확인 후 삭제 → 목록 갱신
+  const handleDeleteReview = useCallback((review) => {
+    Alert.alert(
+      '評価を削除',
+      'この評価を削除しますか？\nこの操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除する',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteReview(review.id);
+              setReviews(prev => prev.filter(r => r.id !== review.id));
+            } catch {
+              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
+  // ··· 메뉴 (내 평가: 수정/삭제) — 게시판 상세와 동일 패턴
+  const handleReviewMenu = useCallback((review) => {
+    Alert.alert('評価の管理', '', [
+      { text: '編集する', onPress: () => handleEditReview(review) },
+      { text: '削除する', style: 'destructive', onPress: () => handleDeleteReview(review) },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
+  }, [handleEditReview, handleDeleteReview]);
 
   useEffect(() => {
     fetchReviews();
@@ -130,33 +183,47 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
           ) : (
             <>
               <Text style={styles.listLabel}>みんなの評価</Text>
-              {reviews.map((review) => (
-                <View key={review.id} style={styles.reviewCardWrap}>
-                  <Card>
-                    {/* 별점 + 날짜 */}
-                    <View style={styles.cardTop}>
-                      <StarRating rating={review.rating} size={14} />
-                      <Text style={styles.cardDate}>{formatDate(review.created_at)}</Text>
-                    </View>
-
-                    {/* 태그 */}
-                    {review.tags && review.tags.length > 0 && (
-                      <View style={styles.tagRow}>
-                        {review.tags.map((tag, i) => (
-                          <View key={i} style={styles.tag}>
-                            <Text style={styles.tagText}>#{tag}</Text>
-                          </View>
-                        ))}
+              {reviews.map((review) => {
+                const isMyReview = currentUserId && review.user_id === currentUserId;
+                return (
+                  <View key={review.id} style={styles.reviewCardWrap}>
+                    <Card>
+                      {/* 별점 + 날짜 + (내 리뷰면) 수정·삭제 */}
+                      <View style={styles.cardTop}>
+                        <StarRating rating={review.rating} size={14} />
+                        <View style={styles.cardTopRight}>
+                          {isMyReview && (
+                            <TouchableOpacity
+                              style={styles.moreBtn}
+                              onPress={() => handleReviewMenu(review)}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Text style={styles.moreBtnText}>⋯</Text>
+                            </TouchableOpacity>
+                          )}
+                          <Text style={styles.cardDate}>{formatDate(review.created_at)}</Text>
+                        </View>
                       </View>
-                    )}
 
-                    {/* 코멘트 */}
-                    {review.comment ? (
-                      <Text style={styles.comment}>{review.comment}</Text>
-                    ) : null}
-                  </Card>
-                </View>
-              ))}
+                      {/* 태그 */}
+                      {review.tags && review.tags.length > 0 && (
+                        <View style={styles.tagRow}>
+                          {review.tags.map((tag, i) => (
+                            <View key={i} style={styles.tag}>
+                              <Text style={styles.tagText}>#{tag}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+
+                      {/* 코멘트 */}
+                      {review.comment ? (
+                        <Text style={styles.comment}>{review.comment}</Text>
+                      ) : null}
+                    </Card>
+                  </View>
+                );
+              })}
             </>
           )}
 
@@ -264,8 +331,21 @@ const styles = StyleSheet.create({
   cardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.md,
+  },
+  cardTopRight: {
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  moreBtn: {
+    paddingHorizontal: spacing.xs,
+  },
+  moreBtnText: {
+    fontSize: 20,
+    lineHeight: 20,
+    color: colors.textSecondary,
+    fontWeight: '700',
   },
   starRow: {
     flexDirection: 'row',

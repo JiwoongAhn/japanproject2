@@ -17,7 +17,7 @@ import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
-import { toggleTag as toggleTagFn, addCustomTag as addCustomTagFn } from '../../utils/review';
+import { toggleTag as toggleTagFn, addCustomTag as addCustomTagFn, updateReview } from '../../utils/review';
 import Card from '../../components/Card';
 
 // 미리 정의된 태그 추천 목록 (밀러 7±2 — 10개로 컴팩트하게)
@@ -61,13 +61,22 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
   const { session, profile } = useAuth();
 
   // 시간표 셀에서 넘어온 경우 과목명/교수명 미리 채우기
-  const { courseName: preCourseName = '', professorName: preProfessorName = '' } = route.params || {};
+  // editMode=true 일 때: reviewId + 기존 값(initialRating 등) prefill → 수정 모드
+  const {
+    courseName: preCourseName = '',
+    professorName: preProfessorName = '',
+    editMode = false,
+    reviewId = null,
+    initialRating = 0,
+    initialComment = '',
+    initialTags = [],
+  } = route.params || {};
 
   const [courseName, setCourseName] = useState(preCourseName);
   const [professorName, setProfessorName] = useState(preProfessorName);
-  const [rating, setRating] = useState(0);
-  const [comment, setComment] = useState('');
-  const [selectedTags, setSelectedTags] = useState([]);
+  const [rating, setRating] = useState(editMode ? initialRating : 0);
+  const [comment, setComment] = useState(editMode ? (initialComment ?? '') : '');
+  const [selectedTags, setSelectedTags] = useState(editMode ? (initialTags ?? []) : []);
   const [customTag, setCustomTag] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -95,21 +104,27 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
       return;
     }
 
-    const { error } = await supabase.from('course_reviews').insert({
-      user_id: session.user.id,
-      university: profile.university,
-      course_name: courseName.trim(),
-      professor_name: professorName.trim() || null,
-      rating,
-      comment: comment.trim() || null,
-      tags: selectedTags,
-    });
-
-    if (error) {
+    try {
+      if (editMode && reviewId) {
+        // 수정 모드: 별점·코멘트·태그만 업데이트 (과목명·교수명은 변경 불가)
+        await updateReview(reviewId, { rating, comment: comment.trim(), tags: selectedTags });
+      } else {
+        // 신규 작성
+        const { error } = await supabase.from('course_reviews').insert({
+          user_id: session.user.id,
+          university: profile.university,
+          course_name: courseName.trim(),
+          professor_name: professorName.trim() || null,
+          rating,
+          comment: comment.trim() || null,
+          tags: selectedTags,
+        });
+        if (error) throw error;
+      }
+      navigation.goBack();
+    } catch {
       // 부드러운 실패 문구
       Alert.alert('お知らせ', 'うまく投稿できませんでした。もう一度お試しください');
-    } else {
-      navigation.goBack();
     }
     setSubmitting(false);
   };
@@ -125,7 +140,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Text style={styles.cancelText}>キャンセル</Text>
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>評価を書く</Text>
+          <Text style={styles.headerTitle}>{editMode ? '評価を編集' : '評価を書く'}</Text>
           <TouchableOpacity
             style={[styles.submitButton, !canSubmit && styles.submitButtonDisabled]}
             onPress={handleSubmit}
@@ -147,27 +162,42 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
           {/* ── 과목명 ── */}
           <Card>
             <Text style={styles.label}>科目名 <Text style={styles.required}>*</Text></Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="例: 経営学概論"
-              placeholderTextColor={colors.textDisabled}
-              value={courseName}
-              onChangeText={setCourseName}
-              maxLength={40}
-            />
+            {editMode ? (
+              // 수정 모드: 과목명은 변경 불가 (읽기 전용)
+              <View style={styles.readonlyField}>
+                <Text style={styles.readonlyText}>{courseName}</Text>
+                <Text style={styles.readonlyHint}>科目名は変更できません</Text>
+              </View>
+            ) : (
+              <TextInput
+                style={styles.textInput}
+                placeholder="例: 経営学概論"
+                placeholderTextColor={colors.textDisabled}
+                value={courseName}
+                onChangeText={setCourseName}
+                maxLength={40}
+              />
+            )}
           </Card>
 
           {/* ── 교수명 ── */}
           <Card>
             <Text style={styles.label}>担当教員名 <Text style={styles.optional}>(任意)</Text></Text>
-            <TextInput
-              style={styles.textInput}
-              placeholder="例: 田中 一郎"
-              placeholderTextColor={colors.textDisabled}
-              value={professorName}
-              onChangeText={setProfessorName}
-              maxLength={30}
-            />
+            {editMode ? (
+              <View style={styles.readonlyField}>
+                <Text style={styles.readonlyText}>{professorName || '未記入'}</Text>
+                <Text style={styles.readonlyHint}>担当教員名は変更できません</Text>
+              </View>
+            ) : (
+              <TextInput
+                style={styles.textInput}
+                placeholder="例: 田中 一郎"
+                placeholderTextColor={colors.textDisabled}
+                value={professorName}
+                onChangeText={setProfessorName}
+                maxLength={30}
+              />
+            )}
           </Card>
 
           {/* ── 별점 ── */}
@@ -336,6 +366,22 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
+  },
+  // ── 읽기 전용 필드 (수정 모드) ──
+  readonlyField: {
+    backgroundColor: colors.gray100,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+  },
+  readonlyText: {
+    ...typography.body1,
+    color: colors.textPrimary,
+  },
+  readonlyHint: {
+    ...typography.small,
+    color: colors.textDisabled,
+    marginTop: spacing.xs,
   },
 
   // ── 태그 ──

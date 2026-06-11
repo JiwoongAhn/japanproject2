@@ -1,6 +1,8 @@
 // 강의평가 태그 관련 순수 함수
 // 테스트 대상: review.test.js
 
+import { supabase } from '../lib/supabase';
+
 // 태그 토글: 이미 있으면 제거, 없으면 추가
 // tag: 토글할 태그 문자열
 // selectedTags: 현재 선택된 태그 배열
@@ -21,4 +23,43 @@ export function addCustomTag(tag, selectedTags) {
     return selectedTags;
   }
   return [...selectedTags, trimmed];
+}
+
+// ── Supabase 비동기 함수 ────────────────────────────────────────────
+
+// 내가 쓴 강의평가 전체 조회 (마이페이지 "내 글" 탭용)
+// userId: 현재 로그인 사용자 UUID
+export async function getMyReviews(userId) {
+  const { data, error } = await supabase
+    .from('course_reviews')
+    .select('id, course_name, professor_name, rating, comment, tags, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+// 강의평가 수정 (본인 것만 — DB RLS로 2중 보호)
+// reviewId: 수정할 리뷰 UUID
+// fields: { rating, comment, tags }
+export async function updateReview(reviewId, { rating, comment, tags }) {
+  const { error } = await supabase
+    .from('course_reviews')
+    .update({
+      rating,
+      comment: comment?.trim() || null,
+      tags: tags ?? [],
+    })
+    .eq('id', reviewId);
+  if (error) throw error;
+}
+
+// 강의평가 삭제 (본인 것만 — DB RLS로 2중 보호)
+// reviewId: 삭제할 리뷰 UUID
+export async function deleteReview(reviewId) {
+  const { error } = await supabase
+    .from('course_reviews')
+    .delete()
+    .eq('id', reviewId);
+  if (error) throw error;
 }
