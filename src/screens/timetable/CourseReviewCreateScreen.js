@@ -18,6 +18,7 @@ import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
 import { toggleTag as toggleTagFn, addCustomTag as addCustomTagFn, updateReview } from '../../utils/review';
+import { findProfanity } from '../../utils/profanity';
 import Card from '../../components/Card';
 
 // 미리 정의된 태그 추천 목록 (밀러 7±2 — 10개로 컴팩트하게)
@@ -96,6 +97,13 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
 
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
+
+    // 금칙어 검사 — 발견 시 저장 차단 (자유 입력인 코멘트만)
+    if (findProfanity(comment)) {
+      Alert.alert('投稿できません', '不適切な表現が含まれています。内容を修正してください。');
+      return;
+    }
+
     setSubmitting(true);
 
     if (!session?.user) {

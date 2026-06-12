@@ -177,6 +177,7 @@ CREATE TABLE posts (
   image_urls   TEXT[] DEFAULT '{}',          -- 첨부 이미지 URL 배열
   is_anonymous BOOLEAN NOT NULL DEFAULT true,
   like_count   INTEGER NOT NULL DEFAULT 0,
+  is_hidden    BOOLEAN NOT NULL DEFAULT false,   -- 누적신고(3명) 자동숨김
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -215,6 +216,7 @@ CREATE TABLE post_comments (
   user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   body         TEXT NOT NULL,
   is_anonymous BOOLEAN NOT NULL DEFAULT true,
+  is_hidden    BOOLEAN NOT NULL DEFAULT false,   -- 누적신고(3명) 자동숨김
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -257,6 +259,7 @@ CREATE TABLE course_reviews (
   rating         SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
   comment        TEXT,
   tags           TEXT[] DEFAULT '{}',
+  is_hidden      BOOLEAN NOT NULL DEFAULT false,   -- 누적신고(3명) 자동숨김
   created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -399,3 +402,131 @@ CREATE POLICY "service_role 쓰기 전용" ON mail_subscriptions
 -- 본인 row는 조회 허용 (앱이 전달주소/전달확인 상태를 마이페이지·온보딩에 표시)
 CREATE POLICY "본인 구독 조회" ON mail_subscriptions
   FOR SELECT USING (auth.uid() = user_id);
+
+
+-- ══════════════════════════════════════════════
+-- UGC 안전장치 (App Store 1.2): 신고 확장 / 사용자 차단 / 누적신고 자동숨김
+-- ══════════════════════════════════════════════
+
+-- ── 사용자 차단 ──
+CREATE TABLE user_blocks (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  blocker_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  blocked_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (blocker_id, blocked_id)
+);
+CREATE INDEX idx_user_blocks_blocker ON user_blocks(blocker_id);
+ALTER TABLE user_blocks ENABLE ROW LEVEL SECURITY;
+
+-- 본인이 차단한 내역만 보고/추가/삭제 가능
+CREATE POLICY "본인 차단 관리" ON user_blocks
+  FOR ALL USING (auth.uid() = blocker_id) WITH CHECK (auth.uid() = blocker_id);
+
+-- ── 댓글 신고 (post_reports 패턴 복제) ──
+CREATE TABLE comment_reports (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  comment_id UUID NOT NULL REFERENCES post_comments(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reason     TEXT NOT NULL CHECK (reason IN ('insult', 'abuse', 'defamation')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (comment_id, user_id)
+);
+ALTER TABLE comment_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "로그인 사용자 댓글신고 가능" ON comment_reports
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "본인 댓글신고 조회" ON comment_reports
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- ── 수업평가 신고 (post_reports 패턴 복제) ──
+CREATE TABLE course_review_reports (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  review_id  UUID NOT NULL REFERENCES course_reviews(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reason     TEXT NOT NULL CHECK (reason IN ('insult', 'abuse', 'defamation')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (review_id, user_id)
+);
+ALTER TABLE course_review_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "로그인 사용자 평가신고 가능" ON course_review_reports
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "본인 평가신고 조회" ON course_review_reports
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- ── 누적신고 자동숨김 트리거: 서로 다른 3명 신고 시 is_hidden=true ──
+CREATE OR REPLACE FUNCTION hide_post_on_reports()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF (SELECT count(DISTINCT user_id) FROM post_reports WHERE post_id = NEW.post_id) >= 3 THEN
+    UPDATE posts SET is_hidden = true WHERE id = NEW.post_id;
+  END IF;
+  RETURN NEW;
+END; $$;
+CREATE TRIGGER trg_hide_post AFTER INSERT ON post_reports
+  FOR EACH ROW EXECUTE FUNCTION hide_post_on_reports();
+
+CREATE OR REPLACE FUNCTION hide_comment_on_reports()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF (SELECT count(DISTINCT user_id) FROM comment_reports WHERE comment_id = NEW.comment_id) >= 3 THEN
+    UPDATE post_comments SET is_hidden = true WHERE id = NEW.comment_id;
+  END IF;
+  RETURN NEW;
+END; $$;
+CREATE TRIGGER trg_hide_comment AFTER INSERT ON comment_reports
+  FOR EACH ROW EXECUTE FUNCTION hide_comment_on_reports();
+
+CREATE OR REPLACE FUNCTION hide_review_on_reports()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  IF (SELECT count(DISTINCT user_id) FROM course_review_reports WHERE review_id = NEW.review_id) >= 3 THEN
+    UPDATE course_reviews SET is_hidden = true WHERE id = NEW.review_id;
+  END IF;
+  RETURN NEW;
+END; $$;
+CREATE TRIGGER trg_hide_review AFTER INSERT ON course_review_reports
+  FOR EACH ROW EXECUTE FUNCTION hide_review_on_reports();
+
+-- ── SELECT RLS 재정의: 숨김 제외 + 차단 사용자 제외 (본인 콘텐츠는 항상 노출) ──
+DROP POLICY "같은 학교 게시글만 조회" ON posts;
+CREATE POLICY "같은 학교 게시글만 조회" ON posts
+  FOR SELECT USING (
+    university = get_my_university()
+    AND (
+      auth.uid() = user_id
+      OR (
+        is_hidden = false
+        AND user_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = auth.uid())
+      )
+    )
+  );
+
+DROP POLICY "같은 학교 댓글만 조회" ON post_comments;
+CREATE POLICY "같은 학교 댓글만 조회" ON post_comments
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM posts
+      WHERE posts.id = post_comments.post_id
+        AND posts.university = get_my_university()
+    )
+    AND (
+      auth.uid() = user_id
+      OR (
+        is_hidden = false
+        AND user_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = auth.uid())
+      )
+    )
+  );
+
+DROP POLICY "같은 학교 강의평가만 조회" ON course_reviews;
+CREATE POLICY "같은 학교 강의평가만 조회" ON course_reviews
+  FOR SELECT USING (
+    university = get_my_university()
+    AND (
+      auth.uid() = user_id
+      OR (
+        is_hidden = false
+        AND user_id NOT IN (SELECT blocked_id FROM user_blocks WHERE blocker_id = auth.uid())
+      )
+    )
+  );

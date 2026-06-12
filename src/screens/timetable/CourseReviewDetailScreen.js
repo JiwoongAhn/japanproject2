@@ -15,6 +15,7 @@ import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
 import { deleteReview } from '../../utils/review';
+import { reportContent, blockUser } from '../../utils/moderation';
 import Card from '../../components/Card';
 
 // 별점 표시 컴포넌트
@@ -120,6 +121,34 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
     ]);
   }, [handleEditReview, handleDeleteReview]);
 
+  // ··· 메뉴 (타인 평가: 신고/차단)
+  const handleReviewReportMenu = useCallback((review) => {
+    const report = (reason) => async () => {
+      const r = await reportContent('course_review_reports', 'review_id', review.id, reason);
+      if (r.ok) Alert.alert('通報完了', '通報を受け付けました。ありがとうございます。');
+      else if (r.already) Alert.alert('通報済み', 'すでに通報しています');
+      else Alert.alert('お知らせ', '通報できませんでした');
+    };
+    Alert.alert('評価', '', [
+      { text: '通報する', onPress: () => Alert.alert('通報する', '通報する理由を選択してください', [
+        { text: '侮辱・嫌がらせ', onPress: report('insult') },
+        { text: '暴言・脅迫', onPress: report('abuse') },
+        { text: '誹謗中傷', onPress: report('defamation') },
+        { text: 'キャンセル', style: 'cancel' },
+      ]) },
+      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => Alert.alert(
+        'ユーザーをブロック', 'このユーザーの評価が表示されなくなります。', [
+          { text: 'キャンセル', style: 'cancel' },
+          { text: 'ブロック', style: 'destructive', onPress: async () => {
+            const r = await blockUser(review.user_id);
+            if (r.ok) { Alert.alert('ブロックしました'); fetchReviews(); }
+            else Alert.alert('お知らせ', 'ブロックできませんでした');
+          } },
+        ]) },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
+  }, [fetchReviews]);
+
   useEffect(() => {
     fetchReviews();
     const unsubscribe = navigation.addListener('focus', fetchReviews);
@@ -192,15 +221,13 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
                       <View style={styles.cardTop}>
                         <StarRating rating={review.rating} size={14} />
                         <View style={styles.cardTopRight}>
-                          {isMyReview && (
-                            <TouchableOpacity
-                              style={styles.moreBtn}
-                              onPress={() => handleReviewMenu(review)}
-                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                              <Text style={styles.moreBtnText}>⋯</Text>
-                            </TouchableOpacity>
-                          )}
+                          <TouchableOpacity
+                            style={styles.moreBtn}
+                            onPress={() => (isMyReview ? handleReviewMenu(review) : handleReviewReportMenu(review))}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          >
+                            <Text style={styles.moreBtnText}>⋯</Text>
+                          </TouchableOpacity>
                           <Text style={styles.cardDate}>{formatDate(review.created_at)}</Text>
                         </View>
                       </View>

@@ -24,6 +24,8 @@ import { typography } from '../../constants/typography';
 import { getCategoryInfo } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
 import { deleteImagesFromStorage } from '../../utils/imageUpload';
+import { findProfanity } from '../../utils/profanity';
+import { reportContent, blockUser } from '../../utils/moderation';
 
 // 시간 경과 표시
 function formatTimeAgo(timestamp) {
@@ -218,55 +220,77 @@ export default function PostDetailScreen({ navigation, route }) {
     );
   };
 
-  // 신고 기능
-  const handleReport = () => {
-    Alert.alert(
-      '投稿を通報する',
-      '通報する理由を選択してください',
-      [
-        {
-          text: '侮辱・嫌がらせ',
-          onPress: () => submitReport('insult'),
-        },
-        {
-          text: '暴言・脅迫',
-          onPress: () => submitReport('abuse'),
-        },
-        {
-          text: '誹謗中傷',
-          onPress: () => submitReport('defamation'),
-        },
-        { text: 'キャンセル', style: 'cancel' },
-      ]
-    );
+  // 신고 사유 선택 → onPick(reason)
+  const promptReportReason = (onPick) => {
+    Alert.alert('通報する', '通報する理由を選択してください', [
+      { text: '侮辱・嫌がらせ', onPress: () => onPick('insult') },
+      { text: '暴言・脅迫', onPress: () => onPick('abuse') },
+      { text: '誹謗中傷', onPress: () => onPick('defamation') },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
   };
 
-  const submitReport = async (reason) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      Alert.alert('エラー', 'ログインが必要です');
-      return;
-    }
+  // 신고 결과 공통 안내
+  const notifyReportResult = (r) => {
+    if (r.ok) Alert.alert('通報完了', '通報を受け付けました。ありがとうございます。');
+    else if (r.already) Alert.alert('通報済み', 'すでに通報しています');
+    else if (r.error === 'auth') Alert.alert('エラー', 'ログインが必要です');
+    else Alert.alert('エラー', '通報に失敗しました');
+  };
 
-    const { error } = await supabase
-      .from('post_reports')
-      .insert({ post_id: postId, user_id: user.id, reason });
+  // 사용자 차단 확인 → 성공 시 목록으로
+  const confirmBlockUser = (blockedId) => {
+    if (!blockedId) return;
+    Alert.alert('ユーザーをブロック', 'このユーザーの投稿・コメントが表示されなくなります。', [
+      { text: 'キャンセル', style: 'cancel' },
+      {
+        text: 'ブロック',
+        style: 'destructive',
+        onPress: async () => {
+          const r = await blockUser(blockedId);
+          if (r.ok) {
+            Alert.alert('ブロックしました');
+            navigation.goBack();
+          } else {
+            Alert.alert('エラー', 'ブロックに失敗しました');
+          }
+        },
+      },
+    ]);
+  };
 
-    if (error) {
-      if (error.code === '23505') {
-        // UNIQUE 제약 위반 → 이미 신고한 게시글
-        Alert.alert('通報済み', 'この投稿はすでに通報しています');
-      } else {
-        Alert.alert('エラー', `通報に失敗しました\n${error.message}`);
-      }
-    } else {
-      Alert.alert('通報完了', '通報を受け付けました。ありがとうございます。');
-    }
+  // 게시글 신고/차단
+  const handleReport = () => {
+    Alert.alert('投稿', '', [
+      { text: '通報する', onPress: () => promptReportReason(async (reason) => {
+        notifyReportResult(await reportContent('post_reports', 'post_id', postId, reason));
+      }) },
+      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlockUser(post?.user_id) },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
+  };
+
+  // 댓글 신고/차단 (타인 댓글)
+  const handleCommentMenu = (comment) => {
+    Alert.alert('コメント', '', [
+      { text: '通報する', onPress: () => promptReportReason(async (reason) => {
+        notifyReportResult(await reportContent('comment_reports', 'comment_id', comment.id, reason));
+      }) },
+      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlockUser(comment.user_id) },
+      { text: 'キャンセル', style: 'cancel' },
+    ]);
   };
 
   // 댓글 작성
   const handleSubmitComment = async () => {
     if (!commentText.trim() || submitting) return;
+
+    // 금칙어 검사 — 발견 시 작성 차단
+    if (findProfanity(commentText)) {
+      Alert.alert('コメントできません', '不適切な表現が含まれています。内容を修正してください。');
+      return;
+    }
+
     setSubmitting(true);
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -428,7 +452,18 @@ export default function PostDetailScreen({ navigation, route }) {
                           ? `匿名${index + 1}`
                           : (commentAuthors[comment.user_id] ?? '実名')}
                       </Text>
-                      <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
+                      <View style={styles.commentHeaderRight}>
+                        <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
+                        {comment.user_id !== currentUserId && (
+                          <TouchableOpacity
+                            onPress={() => handleCommentMenu(comment)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.commentMore}
+                          >
+                            <Text style={styles.commentMoreText}>⋯</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </View>
                     <Text style={styles.commentBody}>{comment.body}</Text>
                     {/* 댓글 좋아요 버튼 */}
@@ -739,6 +774,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 0,
     paddingTop: 0,
   },
+  commentHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  commentMore: { paddingHorizontal: 2 },
+  commentMoreText: { fontSize: 18, color: colors.textDisabled, lineHeight: 18 },
   commentHeader: {
     flexDirection: 'row',
     alignItems: 'center',

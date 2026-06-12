@@ -19,6 +19,7 @@ import { typography } from '../../constants/typography';
 import { BOARD_CATEGORIES } from '../../constants/boardCategories';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
+import { findProfanityInAny } from '../../utils/profanity';
 import {
   ensureMediaLibraryPermission,
   pickAndProcessImage,
@@ -73,6 +74,13 @@ export default function PostCreateScreen({ navigation }) {
   // Supabase에 게시글 저장
   const handleSubmit = async () => {
     if (!canSubmit || submitting) return;
+
+    // 금칙어 검사 — 발견 시 저장 차단
+    if (findProfanityInAny(title, body)) {
+      Alert.alert('投稿できません', '不適切な表現が含まれています。内容を修正してください。');
+      return;
+    }
+
     setSubmitting(true);
 
     if (!session?.user) {

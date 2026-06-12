@@ -519,6 +519,24 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* ── 안전·프라이버시: 차단 관리 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>安全とプライバシー</Text>
+          <TouchableOpacity
+            style={styles.infoCard}
+            onPress={() => navigation.navigate('BlockedUsers')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>ブロックしたユーザー</Text>
+                <Text style={styles.toggleHint}>ブロックの確認・解除ができます</Text>
+              </View>
+              <Text style={styles.menuArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* ── 표시 설정 — 오늘 요일 강조 색상 ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>表示設定</Text>
@@ -803,6 +821,11 @@ const styles = StyleSheet.create({
     ...typography.small,
     fontWeight: '400',
     color: colors.textDisabled,
+  },
+  menuArrow: {
+    fontSize: 24,
+    color: colors.textDisabled,
+    fontWeight: '300',
   },
   // 재연결 필요 안내 (빨간 강조)
   toggleHintWarning: {

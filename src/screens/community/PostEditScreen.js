@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
+import { findProfanityInAny } from '../../utils/profanity';
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -65,6 +66,13 @@ export default function PostEditScreen({ navigation, route }) {
 
   const handleSave = async () => {
     if (!canSave || saving) return;
+
+    // 금칙어 검사 — 발견 시 저장 차단
+    if (findProfanityInAny(title, body)) {
+      Alert.alert('保存できません', '不適切な表現が含まれています。内容を修正してください。');
+      return;
+    }
+
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
