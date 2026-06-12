@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/AuthProvider';
 import { supabase } from '../lib/supabase';
 import AuthStack from './AuthStack';
@@ -13,6 +14,7 @@ import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import MailConnectOnboardingScreen from '../screens/auth/MailConnectOnboardingScreen';
 import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
+import PrivacyConsentScreen, { PRIVACY_CONSENT_KEY } from '../screens/auth/PrivacyConsentScreen';
 import { colors } from '../constants/colors';
 
 // NavigationContainer 밖에서 navigate를 호출하기 위한 ref
@@ -35,6 +37,14 @@ const linking = {
 
 export default function AppNavigator() {
   const { session, profile, loading, pendingNotice, clearPendingNotice } = useAuth();
+
+  // 개인정보처리방침 동의 여부 (첫 실행 1회 게이트). null=확인중
+  const [consented, setConsented] = useState(null);
+  useEffect(() => {
+    AsyncStorage.getItem(PRIVACY_CONSENT_KEY)
+      .then((v) => setConsented(!!v))
+      .catch(() => setConsented(false));
+  }, []);
 
   // 푸시 알림 탭 감지 → NoticePreviewModal로 이동
   useEffect(() => {
@@ -75,8 +85,13 @@ export default function AppNavigator() {
     return () => subscription.remove();
   }, []);
 
-  // 세션 확인 중일 때 스플래시 화면 표시 (갑작스러운 화면 전환 방지)
-  if (loading) return <SplashScreen />;
+  // 세션/동의 확인 중일 때 스플래시 화면 표시 (갑작스러운 화면 전환 방지)
+  if (loading || consented === null) return <SplashScreen />;
+
+  // 개인정보처리방침 미동의 시 가장 먼저 동의 화면 (로그인보다 앞 단계)
+  if (!consented) {
+    return <PrivacyConsentScreen onConsent={() => setConsented(true)} />;
+  }
 
   // 세션은 있지만 닉네임이 없으면 닉네임 입력 화면 표시 (profile이 null이면 아직 로딩 중)
   const needsNickname = session && profile !== null && !profile?.nickname;

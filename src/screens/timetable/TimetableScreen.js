@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 
 import * as WebBrowser from 'expo-web-browser';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -19,7 +18,6 @@ import { typography } from '../../constants/typography';
 import { getCourseColorFor } from '../../constants/courseColors';
 import CourseDetailModal from './CourseDetailModal';
 import { getPeriodStartTimeStr } from '../../utils/timetable';
-import { TODAY_COLOR_KEY } from '../ProfileScreen';
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 
@@ -63,7 +61,8 @@ export default function TimetableScreen({ navigation }) {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState(null);
-  const [todayColor, setTodayColor] = useState(colors.primary);
+  // 오늘 요일 강조색은 파란색으로 고정 (사용자 색상 설정 기능 제거)
+  const todayColor = colors.primary;
 
   // Supabase에서 본인 수업 목록 불러오기
   const fetchCourses = useCallback(async () => {
@@ -90,10 +89,8 @@ export default function TimetableScreen({ navigation }) {
 
   useEffect(() => {
     fetchCourses();
-    const unsubscribe = navigation.addListener('focus', async () => {
+    const unsubscribe = navigation.addListener('focus', () => {
       fetchCourses();
-      const saved = await AsyncStorage.getItem(TODAY_COLOR_KEY);
-      if (saved) setTodayColor(saved);
     });
     return unsubscribe;
   }, [navigation, fetchCourses]);

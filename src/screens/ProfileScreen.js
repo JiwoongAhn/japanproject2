@@ -14,7 +14,6 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
@@ -24,17 +23,6 @@ import { getUniversityInfo } from '../utils/university';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
 
-// 요일 강조 색상 선택지
-const HIGHLIGHT_COLORS = [
-  { label: 'ブルー',   value: '#3182F6' },
-  { label: 'グリーン', value: '#05C072' },
-  { label: 'パープル', value: '#A855F7' },
-  { label: 'オレンジ', value: '#F97316' },
-  { label: 'レッド',   value: '#EF4444' },
-];
-
-export const TODAY_COLOR_KEY = 'unipas_today_highlight_color';
-
 export default function ProfileScreen({ navigation }) {
   const { refreshProfile } = useAuth();
   const [userEmail, setUserEmail]           = useState('');
@@ -42,7 +30,6 @@ export default function ProfileScreen({ navigation }) {
   const [universityName, setUniversityName] = useState('');
   const [loading, setLoading]               = useState(true);
   const [loggingOut, setLoggingOut]         = useState(false);
-  const [todayColor, setTodayColor]         = useState(HIGHLIGHT_COLORS[0].value);
   const [myPosts, setMyPosts]               = useState([]);
   const [postsLoading, setPostsLoading]     = useState(false);
   const [shareTimetable, setShareTimetable] = useState(false); // 공강맞추기 공개 여부
@@ -74,10 +61,6 @@ export default function ProfileScreen({ navigation }) {
       setNickname(profile?.nickname ?? '');
       setShareTimetable(profile?.share_timetable ?? false);
 
-      // 저장된 오늘 강조 색상 불러오기
-      const saved = await AsyncStorage.getItem(TODAY_COLOR_KEY);
-      if (saved) setTodayColor(saved);
-
       // 내가 올린 게시글 불러오기
       setPostsLoading(true);
       const { data: posts } = await supabase
@@ -85,7 +68,7 @@ export default function ProfileScreen({ navigation }) {
         .select('id, title, category, created_at, like_count, post_comments(count)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(6); // 5개 초과 여부 확인용으로 6개 조회
+        .limit(4); // 3개 초과 여부 확인용으로 4개 조회
       setMyPosts(posts ?? []);
     } catch {
       // 조용히 실패
@@ -125,7 +108,7 @@ export default function ProfileScreen({ navigation }) {
         .select('id, title, category, created_at, like_count, post_comments(count)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
-        .limit(6);
+        .limit(4);
       setMyPosts(posts ?? []);
     });
     return unsubscribe;
@@ -191,12 +174,6 @@ export default function ProfileScreen({ navigation }) {
       .from('profiles')
       .update({ share_timetable: value })
       .eq('id', userId);
-  };
-
-  // 오늘 강조 색상 변경
-  const handleColorChange = async (colorValue) => {
-    setTodayColor(colorValue);
-    await AsyncStorage.setItem(TODAY_COLOR_KEY, colorValue);
   };
 
   // 탈퇴 (2단계 확인)
@@ -397,7 +374,7 @@ export default function ProfileScreen({ navigation }) {
           {/* 섹션 타이틀 + 전체보기 버튼 */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>投稿した掲示物</Text>
-            {myPosts.length > 0 && (
+            {myPosts.length > 3 && (
               <TouchableOpacity
                 onPress={() => navigation.navigate('MyPosts')}
                 activeOpacity={0.7}
@@ -416,7 +393,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
           ) : (
             <View style={styles.postListCard}>
-              {myPosts.slice(0, 5).map((post, idx) => {
+              {myPosts.slice(0, 3).map((post, idx) => {
                 const cat = getCategoryInfo(post.category);
                 return (
                   <React.Fragment key={post.id}>
@@ -446,20 +423,6 @@ export default function ProfileScreen({ navigation }) {
                   </React.Fragment>
                 );
               })}
-              {/* 5개 초과 시 전체보기 행 */}
-              {myPosts.length > 5 && (
-                <>
-                  <View style={styles.divider} />
-                  <TouchableOpacity
-                    style={styles.seeAllRow}
-                    onPress={() => navigation.navigate('MyPosts')}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.seeAllRowText}>投稿をすべて見る</Text>
-                    <Text style={styles.chevron}>›</Text>
-                  </TouchableOpacity>
-                </>
-              )}
             </View>
           )}
         </View>
@@ -535,33 +498,6 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.menuArrow}>›</Text>
             </View>
           </TouchableOpacity>
-        </View>
-
-        {/* ── 표시 설정 — 오늘 요일 강조 색상 ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>表示設定</Text>
-          <View style={styles.infoCard}>
-            <Text style={styles.settingLabel}>今日の曜日ハイライト色</Text>
-            <View style={styles.colorRow}>
-              {HIGHLIGHT_COLORS.map((c) => (
-                <TouchableOpacity
-                  key={c.value}
-                  style={[
-                    styles.colorCircle,
-                    { backgroundColor: c.value },
-                    todayColor === c.value && styles.colorCircleSelected,
-                  ]}
-                  onPress={() => handleColorChange(c.value)}
-                  activeOpacity={0.8}
-                >
-                  {todayColor === c.value && (
-                    <Text style={styles.colorCheck}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.settingHint}>時間割の今日の曜日列に反映されます</Text>
-          </View>
         </View>
 
         {/* ── 로그아웃 ── */}
@@ -698,18 +634,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  seeAllRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md + 1,
-  },
-  seeAllRowText: {
-    ...typography.body2,
-    color: colors.primary,
-    fontWeight: '600',
-  },
 
   // 정보 카드
   infoCard: {
@@ -832,47 +756,6 @@ const styles = StyleSheet.create({
     ...typography.small,
     fontWeight: '500',
     color: colors.danger,
-  },
-
-  // 표시 설정
-  settingLabel: {
-    ...typography.body2,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    paddingTop: spacing.md + 2,
-    marginBottom: spacing.md,
-  },
-  colorRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.sm + 2,
-  },
-  colorCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  colorCircleSelected: {
-    borderWidth: 3,
-    borderColor: colors.white,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  colorCheck: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  settingHint: {
-    ...typography.small,
-    fontWeight: '400',
-    color: colors.textDisabled,
-    paddingBottom: spacing.md + 2,
   },
 
   // 닉네임 변경 모달
