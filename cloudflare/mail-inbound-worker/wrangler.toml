@@ -1,0 +1,8 @@
+name = "mail-inbound-worker"
+main = "src/index.js"
+compatibility_date = "2024-09-02"
+compatibility_flags = ["nodejs_compat"]
+
+# 환경변수는 평문 저장 금지 → wrangler secret 으로 등록:
+#   npx wrangler secret put SUPABASE_FUNC_URL
+#   npx wrangler secret put MAIL_INBOUND_SECRET

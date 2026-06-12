@@ -15,8 +15,6 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
@@ -25,17 +23,6 @@ import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo } from '../utils/university';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
-import { handleMicrosoftAuthResponse } from '../lib/microsoftAuth';
-import DuplicateAlertGuideModal from './notice/DuplicateAlertGuideModal';
-
-WebBrowser.maybeCompleteAuthSession();
-
-const MS_CLIENT_ID = 'b9f03502-37c5-4e9d-88d8-df79bbf9f63b';
-const MS_REDIRECT_URI = 'msauth.com.jiwoongahn.unipas://auth';
-const MS_DISCOVERY = {
-  authorizationEndpoint: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-  tokenEndpoint:         'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-};
 
 // 요일 강조 색상 선택지
 const HIGHLIGHT_COLORS = [
@@ -64,24 +51,8 @@ export default function ProfileScreen({ navigation }) {
   const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
   const [newNickname, setNewNickname]                   = useState('');
   const [savingNickname, setSavingNickname]             = useState(false);
-  // Microsoft 연결 상태
-  const [msConnected, setMsConnected]   = useState(false);
-  const [msConnecting, setMsConnecting] = useState(false);
-  // refresh_token 만료 → 재연결 필요 신호 (배지 표시용)
-  const [needsReauth, setNeedsReauth]   = useState(false);
-  const [duplicateGuideVisible, setDuplicateGuideVisible] = useState(false);
-
-  const [msRequest, msResponse, msPromptAsync] = AuthSession.useAuthRequest(
-    {
-      clientId:     MS_CLIENT_ID,
-      scopes:       ['openid', 'email', 'offline_access', 'Mail.Read'],
-      redirectUri:  MS_REDIRECT_URI,
-      responseType: AuthSession.ResponseType.Code,
-      usePKCE:      true,
-      prompt:       'select_account',
-    },
-    MS_DISCOVERY,
-  );
+  // manaba 통지 메일전달 상태: 'none'(미설정) | 'pending'(주소발급, 전달대기) | 'verified'(전달확인)
+  const [forwardStatus, setForwardStatus] = useState('none');
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -128,41 +99,27 @@ export default function ProfileScreen({ navigation }) {
     fetchProfile();
   }, [fetchProfile]);
 
-  // Microsoft 연결 여부 확인
-  useEffect(() => {
+  // manaba 메일전달 설정 상태 조회 (전달주소 발급 여부 + 전달 확인 여부)
+  const fetchForwardStatus = useCallback(async () => {
     if (!userId) return;
-    supabase
+    const { data } = await supabase
       .from('mail_subscriptions')
-      .select('id, needs_reauth')
+      .select('verified_at')
       .eq('user_id', userId)
-      .maybeSingle()
-      .then(({ data }) => {
-        setMsConnected(!!data);
-        setNeedsReauth(!!data?.needs_reauth);
-      });
+      .maybeSingle();
+    if (!data) setForwardStatus('none');
+    else setForwardStatus(data.verified_at ? 'verified' : 'pending');
   }, [userId]);
 
-  // OAuth 응답 처리
   useEffect(() => {
-    if (!msResponse) return;
-    setMsConnecting(true);
-    handleMicrosoftAuthResponse(msResponse, msRequest)
-      .then(({ success, error }) => {
-        if (success) {
-          setMsConnected(true);
-          setNeedsReauth(false); // 재연결 성공 → 배지 제거
-          setDuplicateGuideVisible(true);
-        } else if (error !== 'cancelled') {
-          Alert.alert('エラー詳細', error ?? '連携に失敗しました。');
-        }
-      })
-      .finally(() => setMsConnecting(false));
-  }, [msResponse]);
+    fetchForwardStatus();
+  }, [fetchForwardStatus]);
 
   // MyPosts에서 돌아왔을 때 게시글 목록만 재조회
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', async () => {
       if (!userId) return;
+      fetchForwardStatus();
       const { data: posts } = await supabase
         .from('posts')
         .select('id, title, category, created_at, like_count, post_comments(count)')
@@ -528,48 +485,38 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── manaba 알림 연결 ── */}
+        {/* ── manaba 알림 메일전달 설정 ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>manaba通知設定</Text>
-          <View style={styles.infoCard}>
+          <TouchableOpacity
+            style={styles.infoCard}
+            onPress={() => navigation.navigate('MailConnectOnboarding')}
+            activeOpacity={0.8}
+          >
             <View style={styles.toggleRow}>
               <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>Outlookメール連携</Text>
-                <Text style={msConnected && needsReauth ? styles.toggleHintWarning : styles.toggleHint}>
-                  {msConnected && needsReauth
-                    ? '⚠️ 連携が切れました。通知を受け取るには再連携が必要です'
-                    : msConnected
-                    ? 'manabaの新着通知をプッシュで受け取れます'
-                    : '学校のOutlookアカウントと連携してmanabaの通知を受け取ります'}
+                <Text style={styles.toggleLabel}>manaba通知メール転送</Text>
+                <Text style={styles.toggleHint}>
+                  {forwardStatus === 'verified'
+                    ? '✅ 転送が確認できました。新着通知をお届けします'
+                    : forwardStatus === 'pending'
+                    ? '⏳ 転送待ち。Outlookの転送ルールを設定してください'
+                    : 'manabaの通知をメール転送で受け取れます'}
                 </Text>
               </View>
-              {msConnecting ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : msConnected && needsReauth ? (
-                <TouchableOpacity
-                  style={[styles.reauthButton, !msRequest && { opacity: 0.5 }]}
-                  onPress={() => msPromptAsync()}
-                  disabled={!msRequest}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.connectButtonText}>再連携</Text>
-                </TouchableOpacity>
-              ) : msConnected ? (
+              {forwardStatus === 'verified' ? (
                 <View style={styles.connectedBadge}>
-                  <Text style={styles.connectedText}>連携済み</Text>
+                  <Text style={styles.connectedText}>設定済み</Text>
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={[styles.connectButton, !msRequest && { opacity: 0.5 }]}
-                  onPress={() => msPromptAsync()}
-                  disabled={!msRequest}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.connectButtonText}>連携する</Text>
-                </TouchableOpacity>
+                <View style={styles.connectButton}>
+                  <Text style={styles.connectButtonText}>
+                    {forwardStatus === 'pending' ? '設定を見る' : '設定する'}
+                  </Text>
+                </View>
               )}
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
         {/* ── 표시 설정 — 오늘 요일 강조 색상 ── */}
@@ -630,11 +577,6 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
-
-      <DuplicateAlertGuideModal
-        visible={duplicateGuideVisible}
-        onClose={() => setDuplicateGuideVisible(false)}
-      />
     </SafeAreaView>
   );
 }

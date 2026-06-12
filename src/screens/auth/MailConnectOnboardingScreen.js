@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,23 +11,25 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
+import * as Clipboard from 'expo-clipboard';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 import { spacing, radius } from '../../constants/spacing';
 import Button from '../../components/Button';
 import PhoneMockup from '../../components/PhoneMockup';
-import {
-  MS_AUTH_REQUEST,
-  MS_DISCOVERY,
-  handleMicrosoftAuthResponse,
-} from '../../lib/microsoftAuth';
-
-// expo-auth-session이 OAuth 브라우저 세션을 올바르게 닫도록 등록
-WebBrowser.maybeCompleteAuthSession();
+import { supabase } from '../../lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Outlook 전달규칙 설정 단계 (출시 전 실제 캡처 가이드로 교체 예정)
+const OUTLOOK_STEPS = [
+  'PCのブラウザで outlook.office.com にログイン',
+  '設定 ⚙ → メール → ルール を開く',
+  '「新しいルールを追加」を選ぶ',
+  '条件: 差出人に「manaba」を含む',
+  '操作: 「転送」→ 上のアドレスを指定',
+  '保存して完了',
+];
 
 // ─────────────────────────────────────────────────────────────
 // 슬라이드 1 비주얼: 잠금화면에 푸시 알림이 뜬 모습 (왜 연결하는가)
@@ -60,19 +62,19 @@ const PushNotificationMock = () => (
 // ─────────────────────────────────────────────────────────────
 const PRIVACY_POINTS = [
   {
-    icon: 'lock-closed',
-    title: '読み取り専用',
-    body: 'メールの閲覧のみ。送信・削除・編集はできません。',
+    icon: 'key',
+    title: 'パスワードは不要',
+    body: 'Outlookで転送ルールを設定するだけ。アプリがパスワードを預かることはありません。',
   },
   {
     icon: 'mail-unread',
-    title: 'お知らせの検知に使用',
-    body: '受信メールを読み取る権限で、manabaからのお知らせを自動で検知します。それ以外には使いません。',
+    title: 'manabaのメールだけ',
+    body: 'manabaからのお知らせメールだけが転送されます。その他のメールは届きません。',
   },
   {
-    icon: 'key',
-    title: 'パスワードは保存しません',
-    body: 'Microsoftの公式ログイン画面で安全に連携します。',
+    icon: 'power',
+    title: 'いつでも停止できます',
+    body: 'Outlookの転送ルールを削除すれば、すぐに通知を止められます。',
   },
 ];
 
@@ -130,8 +132,8 @@ const SLIDES = [
     Visual: PrivacyVisual,
   },
   {
-    title: 'メールを連携して、\n通知を受け取る',
-    subtitle: '最後にひとつ。Microsoftアカウントで連携します。',
+    title: 'メール転送で、\n通知を受け取る',
+    subtitle: 'manabaからのメールを、あなた専用アドレスに自動転送します。',
     Visual: ConnectVisual,
   },
 ];
@@ -141,33 +143,13 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
   const nextRoute = route?.params?.next ?? 'Manaba';
 
   const [index, setIndex] = useState(0);
-  const [connecting, setConnecting] = useState(false);
-  const [done, setDone] = useState(false); // 연결 성공 → 완료 화면
+  const [provisioning, setProvisioning] = useState(false);
+  const [address, setAddress] = useState(null); // 발급된 전달주소 → 가이드 화면 표시
+  const [copied, setCopied] = useState(false);
   const scrollRef = useRef(null);
 
   const isLast = index === SLIDES.length - 1;
   const isFirst = index === 0;
-
-  // Microsoft OAuth 요청 훅 (ProfileScreen과 동일 설정 공유)
-  const [msRequest, msResponse, msPromptAsync] = AuthSession.useAuthRequest(
-    MS_AUTH_REQUEST,
-    MS_DISCOVERY,
-  );
-
-  // OAuth 응답 처리: 성공 → 완료 화면 / 취소 → 무시 / 실패 → 안내
-  useEffect(() => {
-    if (!msResponse) return;
-    setConnecting(true);
-    handleMicrosoftAuthResponse(msResponse, msRequest)
-      .then(({ success, error }) => {
-        if (success) {
-          setDone(true);
-        } else if (error !== 'cancelled') {
-          Alert.alert('連携できませんでした', 'もう一度お試しください。');
-        }
-      })
-      .finally(() => setConnecting(false));
-  }, [msResponse]);
 
   const goToSlide = (i) => {
     scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true });
@@ -193,25 +175,83 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
     else navigation.navigate(nextRoute);
   };
 
-  const handleConnect = () => {
-    if (connecting || !msRequest) return;
-    msPromptAsync();
+  // 전달주소 발급 → 가이드 화면으로 전환
+  const handleProvision = async () => {
+    if (provisioning) return;
+    setProvisioning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mail-provision');
+      if (error || !data?.address) {
+        Alert.alert('発行できませんでした', 'もう一度お試しください。');
+        return;
+      }
+      setAddress(data.address);
+    } catch (e) {
+      Alert.alert('発行できませんでした', 'もう一度お試しください。');
+    } finally {
+      setProvisioning(false);
+    }
   };
 
-  // ── 연결 완료 화면 ──
-  if (done) {
+  const handleCopy = async () => {
+    if (!address) return;
+    await Clipboard.setStringAsync(address);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  // ── 전달주소 발급 후: Outlook 전달규칙 설정 가이드 화면 ──
+  if (address) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
-        <View style={styles.doneWrap}>
-          <View style={styles.doneCircle}>
-            <Ionicons name="checkmark" size={48} color={colors.white} />
-          </View>
-          <Text style={styles.doneTitle}>連携が完了しました</Text>
-          <Text style={styles.doneSubtitle}>
-            これからは新しいお知らせを{'\n'}プッシュ通知でお届けします。
+        <ScrollView contentContainerStyle={guide.scroll}>
+          <Text style={guide.heading}>転送設定をしましょう</Text>
+          <Text style={guide.lead}>
+            下のアドレスを、Outlookの転送ルールに設定してください。
           </Text>
-        </View>
+
+          {/* ① 전달주소 + 복사 */}
+          <Text style={guide.stepLabel}>① あなた専用の転送先アドレス</Text>
+          <View style={guide.addressBox}>
+            <Text style={guide.addressText} numberOfLines={1} selectable>
+              {address}
+            </Text>
+            <TouchableOpacity
+              style={guide.copyButton}
+              onPress={handleCopy}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={copied ? 'checkmark' : 'copy-outline'}
+                size={16}
+                color={colors.white}
+              />
+              <Text style={guide.copyText}>{copied ? 'コピー済み' : 'コピー'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ② Outlook 규칙 단계 */}
+          <Text style={guide.stepLabel}>② Outlookで転送ルールを作成</Text>
+          <View style={guide.stepsBox}>
+            {OUTLOOK_STEPS.map((s, i) => (
+              <View key={i} style={guide.stepRow}>
+                <View style={guide.stepNum}>
+                  <Text style={guide.stepNumText}>{i + 1}</Text>
+                </View>
+                <Text style={guide.stepText}>{s}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={guide.hintRow}>
+            <Ionicons name="time-outline" size={16} color={colors.gray500} />
+            <Text style={guide.hintText}>
+              転送が確認されると、マイページに ✅ が表示されます。
+            </Text>
+          </View>
+        </ScrollView>
+
         <View style={styles.bottomArea}>
           <Button title="manabaを開く" onPress={goNext} />
         </View>
@@ -278,10 +318,9 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
         {isLast ? (
           <>
             <Button
-              title="Microsoftアカウントを連携"
-              onPress={handleConnect}
-              loading={connecting}
-              disabled={!msRequest}
+              title="転送アドレスを発行"
+              onPress={handleProvision}
+              loading={provisioning}
             />
             <TouchableOpacity
               onPress={goNext}
@@ -291,8 +330,8 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
               <Text style={styles.laterText}>あとで</Text>
             </TouchableOpacity>
             <Text style={styles.footnote}>
-              連携しなくても、アプリのすべての機能は使えます。{'\n'}
-              設定からいつでも連携できます。
+              設定しなくても、アプリのすべての機能は使えます。{'\n'}
+              マイページからいつでも設定できます。
             </Text>
           </>
         ) : (
@@ -368,33 +407,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 
-  // 완료 화면
-  doneWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  doneCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: colors.success,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xl,
-  },
-  doneTitle: {
-    ...typography.title2,
-    color: colors.gray900,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  doneSubtitle: {
-    ...typography.body1,
-    color: colors.gray600,
-    textAlign: 'center',
-  },
 });
 
 // ── 슬라이드 1: 잠금화면 푸시 목업 스타일 ──
@@ -478,4 +490,54 @@ const conn = StyleSheet.create({
   },
   iconCircleAccent: { backgroundColor: colors.primary },
   arrow: { marginHorizontal: spacing.lg },
+});
+
+// ── 전달주소 가이드 화면 스타일 ──
+const guide = StyleSheet.create({
+  scroll: { padding: spacing.xl, paddingBottom: spacing.lg },
+  heading: { ...typography.title2, color: colors.gray900, marginBottom: spacing.xs },
+  lead: { ...typography.body2, color: colors.gray600, marginBottom: spacing.xl },
+  stepLabel: { ...typography.bodyStrong, color: colors.gray900, marginBottom: spacing.sm },
+  addressBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.gray50,
+    borderRadius: radius.lg,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.xl,
+  },
+  addressText: { ...typography.body2, color: colors.gray900, flex: 1, fontWeight: '600' },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+  },
+  copyText: { ...typography.caption, color: colors.white, fontWeight: '700' },
+  stepsBox: {
+    backgroundColor: colors.gray50,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  stepRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  stepNum: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.primaryLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  stepNumText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+  stepText: { ...typography.body2, color: colors.gray700, flex: 1, lineHeight: 20 },
+  hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  hintText: { ...typography.caption, color: colors.gray500, flex: 1 },
 });

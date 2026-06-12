@@ -375,26 +375,27 @@ CREATE POLICY "service_role update" ON manaba_notices
 
 -- ──────────────────────────────────────────────
 -- 12. mail_subscriptions 테이블 (Phase 3)
---    역할: MS Graph 메일 webhook 구독 정보 저장
---    사용자당 1개 (UNIQUE user_id) — 학교 Outlook 계정 1개 연결
---    refresh_token: 3일마다 subscription 갱신 cron에서 사용
+--    역할: 메일전달(Cloudflare Email Routing) 방식 푸시용 학생 식별 정보
+--    사용자당 1개 (UNIQUE user_id)
+--    forward_token: 학생 전용 전달주소 {token}@unipas.app 의 식별 토큰
 -- ──────────────────────────────────────────────
 CREATE TABLE mail_subscriptions (
-  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id                  UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  ms_account_email         TEXT NOT NULL,        -- 연결한 학교 Outlook 이메일
-  ms_refresh_token         TEXT,                 -- MS Graph refresh token (subscription 갱신용)
-  subscription_id          TEXT,                 -- MS Graph subscription ID
-  subscription_expires_at  TIMESTAMPTZ,          -- subscription 만료 시각 (최대 3일)
-  needs_reauth             BOOLEAN NOT NULL DEFAULT FALSE, -- refresh_token 만료(invalid_grant) → 마이페이지 재연결 배지 표시
-  created_at               TIMESTAMPTZ DEFAULT NOW(),
-  updated_at               TIMESTAMPTZ DEFAULT NOW()
+  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id           UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  forward_token     TEXT NOT NULL UNIQUE,  -- {token}@unipas.app 의 토큰 (추측 불가 랜덤)
+  ms_account_email  TEXT,                  -- (선택) 학생이 입력한 학교 메일 주소, 안내용
+  verified_at       TIMESTAMPTZ,           -- 첫 정상 메일 수신 시각 (전달설정 성공 신호)
+  created_at        TIMESTAMPTZ DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE mail_subscriptions ENABLE ROW LEVEL SECURITY;
 
--- 모든 작업은 Edge Functions(service_role)에서만 수행
--- (refresh_token 등 민감 정보가 들어있으므로 클라이언트 직접 접근 차단)
-CREATE POLICY "service_role 전용" ON mail_subscriptions
+-- INSERT/UPDATE/DELETE는 Edge Functions(service_role)에서만 수행 (forward_token 발급·검증 통제)
+CREATE POLICY "service_role 쓰기 전용" ON mail_subscriptions
   FOR ALL USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
+
+-- 본인 row는 조회 허용 (앱이 전달주소/전달확인 상태를 마이페이지·온보딩에 표시)
+CREATE POLICY "본인 구독 조회" ON mail_subscriptions
+  FOR SELECT USING (auth.uid() = user_id);

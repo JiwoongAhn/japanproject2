@@ -1,5 +1,5 @@
 // manaba 푸시 공지(manaba_notices 테이블) 접근 유틸
-// Phase 3: ms-graph-webhook이 적재한 메일 기반 공지를 홈 화면에 노출/읽음 처리
+// Phase 4: mail-inbound가 적재한 메일 기반 공지를 홈 화면에 노출/읽음 처리
 // 테스트 대상: manabaNotices.test.js
 
 import { supabase } from '../lib/supabase';

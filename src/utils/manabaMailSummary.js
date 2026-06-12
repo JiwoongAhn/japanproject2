@@ -1,5 +1,5 @@
 // manaba 알림 메일을 "과목 + 1줄 요약 + 메타정보"로 파싱
-// Phase 3: ms-graph-webhook이 적재한 manaba_notices.body_html을 홈/모달에서 요약 표시
+// Phase 4: mail-inbound가 적재한 manaba_notices.body_html을 홈/모달에서 요약 표시
 // 메일 본문은 매우 정형화돼 있어 정규식만으로 100% 파싱 가능
 // 테스트 대상: __tests__/manabaMailSummary.test.js
 

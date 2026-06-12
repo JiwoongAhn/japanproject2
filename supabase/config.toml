@@ -384,8 +384,8 @@ port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 
-# ms-graph-webhook: Microsoft가 JWT 없이 webhook 검증 요청을 보내므로 JWT 인증 비활성화
-[functions.ms-graph-webhook]
+# 메일전달 수신: Cloudflare Worker가 JWT 없이 x-mail-secret 헤더로 호출
+[functions.mail-inbound]
 verify_jwt = false
 
 # Experimental features may be deprecated any time
