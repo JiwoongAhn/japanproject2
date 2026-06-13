@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import { DEMO_EMAIL } from '../../constants/demo';
 
 // 학교 이메일 OTP 인증 화면
 // SchoolPortalAuthScreen에서 OTP 발송 후 이 화면으로 이동
@@ -37,6 +38,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
   // OTP 재발송 (Supabase 내장 SMTP)
   const handleResend = async () => {
     if (resendCooldown > 0) return;
+    if (email === DEMO_EMAIL) return; // 데모 계정은 재발송 없음(고정 코드)
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email,
@@ -70,6 +72,34 @@ export default function OtpVerificationScreen({ navigation, route }) {
 
     setLoading(true);
     try {
+      // Apple 심사용 데모 계정: demo-login 함수로 토큰 발급 → 세션 생성 (메일 불필요)
+      if (email === DEMO_EMAIL) {
+        const res = await fetch(
+          `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/demo-login`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({ email, code: trimmedCode }),
+          }
+        );
+        const data = await res.json();
+        if (!data?.valid || !data?.token_hash) {
+          Alert.alert('お知らせ', 'コードをもう一度ご確認ください');
+          return;
+        }
+        const { error: demoErr } = await supabase.auth.verifyOtp({
+          token_hash: data.token_hash,
+          type: 'magiclink',
+        });
+        if (demoErr) {
+          Alert.alert('お知らせ', 'ログインに失敗しました。もう一度お試しください');
+        }
+        return; // 성공 시 AuthProvider가 세션 감지해 자동 진입
+      }
+
       const { error: verifyError } = await supabase.auth.verifyOtp({
         email,
         token: trimmedCode,

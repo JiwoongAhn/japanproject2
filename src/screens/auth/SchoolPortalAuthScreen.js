@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import { DEMO_EMAIL } from '../../constants/demo';
 
 // 학교 포털 인증 화면
 // 학교 이메일로 OTP 발송 → OTP 입력 → 로그인/가입
@@ -36,6 +37,17 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
         'メールアドレスを確認してください',
         `${university?.name ?? '大学'}の学校メールアドレスでお願いします。\n（例: 学籍番号@${domain}）`
       );
+      return;
+    }
+
+    // Apple 심사용 데모 계정: 실제 메일 발송을 건너뛰고 코드 입력 화면으로 바로 이동
+    if (trimmedEmail === DEMO_EMAIL) {
+      navigation.navigate('OtpVerification', {
+        email: trimmedEmail,
+        university,
+        studentId: '',
+        password: '',
+      });
       return;
     }
 
