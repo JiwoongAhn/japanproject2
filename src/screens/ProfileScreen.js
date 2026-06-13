@@ -40,6 +40,9 @@ export default function ProfileScreen({ navigation }) {
   const [savingNickname, setSavingNickname]             = useState(false);
   // manaba 통지 메일전달 상태: 'none'(미설정) | 'pending'(주소발급, 전달대기) | 'verified'(전달확인)
   const [forwardStatus, setForwardStatus] = useState('none');
+  // 푸시 수신 상태(안전망 정보): 최근 받은 통지 시각 + 최근 7일 미달 건수
+  const [lastDelivered, setLastDelivered] = useState(null);
+  const [recentFailed, setRecentFailed]   = useState(0);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -98,11 +101,39 @@ export default function ProfileScreen({ navigation }) {
     fetchForwardStatus();
   }, [fetchForwardStatus]);
 
+  // 푸시 수신 상태 조회 (최신 delivered 시각 + 최근 7일 dead/permanent_fail 건수)
+  const fetchPushStatus = useCallback(async () => {
+    if (!userId) return;
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: delivered } = await supabase
+      .from('push_delivery_logs')
+      .select('created_at')
+      .eq('user_id', userId)
+      .eq('status', 'delivered')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    setLastDelivered(delivered?.created_at ?? null);
+
+    const { count } = await supabase
+      .from('push_delivery_logs')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .in('status', ['dead', 'permanent_fail'])
+      .gt('created_at', sevenDaysAgo);
+    setRecentFailed(count ?? 0);
+  }, [userId]);
+
+  useEffect(() => {
+    fetchPushStatus();
+  }, [fetchPushStatus]);
+
   // MyPosts에서 돌아왔을 때 게시글 목록만 재조회
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', async () => {
       if (!userId) return;
       fetchForwardStatus();
+      fetchPushStatus();
       const { data: posts } = await supabase
         .from('posts')
         .select('id, title, category, created_at, like_count, post_comments(count)')
@@ -451,35 +482,50 @@ export default function ProfileScreen({ navigation }) {
         {/* ── manaba 알림 메일전달 설정 ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>manaba通知設定</Text>
-          <TouchableOpacity
-            style={styles.infoCard}
-            onPress={() => navigation.navigate('MailConnectOnboarding')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>manaba通知メール転送</Text>
-                <Text style={styles.toggleHint}>
-                  {forwardStatus === 'verified'
-                    ? '✅ 転送が確認できました。新着通知をお届けします'
-                    : forwardStatus === 'pending'
-                    ? '⏳ 転送待ち。Outlookの転送ルールを設定してください'
-                    : 'manabaの通知をメール転送で受け取れます'}
-                </Text>
-              </View>
-              {forwardStatus === 'verified' ? (
-                <View style={styles.connectedBadge}>
-                  <Text style={styles.connectedText}>設定済み</Text>
-                </View>
-              ) : (
-                <View style={styles.connectButton}>
-                  <Text style={styles.connectButtonText}>
-                    {forwardStatus === 'pending' ? '設定を見る' : '設定する'}
+          <View style={styles.infoCard}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MailConnectOnboarding')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>manaba通知メール転送</Text>
+                  <Text style={styles.toggleHint}>
+                    {forwardStatus === 'verified'
+                      ? '✅ 転送が確認できました。新着通知をお届けします'
+                      : forwardStatus === 'pending'
+                      ? '⏳ 転送待ち。Outlookの転送ルールを設定してください'
+                      : 'manabaの通知をメール転送で受け取れます'}
                   </Text>
                 </View>
-              )}
+                {forwardStatus === 'verified' ? (
+                  <View style={styles.connectedBadge}>
+                    <Text style={styles.connectedText}>設定済み</Text>
+                  </View>
+                ) : (
+                  <View style={styles.connectButton}>
+                    <Text style={styles.connectButtonText}>
+                      {forwardStatus === 'pending' ? '設定を見る' : '設定する'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            {/* 푸시 수신 상태 (안전망 정보) */}
+            <View style={styles.divider} />
+            <View style={styles.pushStatusRow}>
+              <Text style={styles.pushStatusLabel}>📩 最近の通知</Text>
+              <Text style={styles.pushStatusValue}>
+                {lastDelivered ? `${formatTimeAgo(lastDelivered)}に受信` : 'まだありません'}
+              </Text>
             </View>
-          </TouchableOpacity>
+            {recentFailed > 0 && (
+              <Text style={styles.pushFailNote}>
+                ⚠️ 一部の通知が届かなかった可能性があります（{recentFailed}件）
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* ── 안전·프라이버시: 차단 관리 ── */}
@@ -756,6 +802,29 @@ const styles = StyleSheet.create({
     ...typography.small,
     fontWeight: '500',
     color: colors.danger,
+  },
+
+  // 푸시 수신 상태 (안전망 정보)
+  pushStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md + 2,
+  },
+  pushStatusLabel: {
+    ...typography.body2,
+    color: colors.textSecondary,
+  },
+  pushStatusValue: {
+    ...typography.body2,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  pushFailNote: {
+    ...typography.small,
+    fontWeight: '500',
+    color: colors.warning,
+    paddingBottom: spacing.md + 2,
   },
 
   // 닉네임 변경 모달
