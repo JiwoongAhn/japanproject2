@@ -375,6 +375,7 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     color: colors.textPrimary,
     padding: 0,
+    letterSpacing: -0.2,
     textAlignVertical: 'center',
   },
   clearButton: {
@@ -385,11 +386,13 @@ const styles = StyleSheet.create({
   // ── 카테고리 칩 ───────────────────────────────
   chipBar: {
     flexGrow: 0,
+    height: 52,
     marginBottom: spacing.sm,
   },
   chipScroll: {
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
+    alignItems: 'center',
   },
   chip: {
     paddingHorizontal: spacing.xl,
