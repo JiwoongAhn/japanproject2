@@ -18,7 +18,7 @@
 
 ## Step 2. 스토어 등록 정보 입력 (`app-store-listing.md` 사용)
 - [ ] 서브타이틀 / 프로모션 텍스트 / 설명 / 키워드
-- [ ] Support URL, Privacy Policy URL  ← ⚠️ **Privacy Policy 공개 URL 먼저 준비**(항목 C)
+- [ ] Support URL(`https://unipas.app`), Privacy Policy URL(`https://privacy.unipas.app` ✅완료)
 - [ ] 카테고리: 教育(Education)
 
 ## Step 3. 스크린샷 (항목 E)
@@ -64,6 +64,6 @@ eas submit --platform ios --profile production
 - [ ] 2. 데모 계정 + 리뷰노트 ✅ 완료
 - [ ] 3. 설명문/키워드 ✅ 초안 (확정 필요)
 - [ ] 4. App Privacy 표 ✅ 완료
-- [ ] C. **Privacy Policy 공개 URL** ❌ 미완 (제출 전 필수)
+- [x] C. **Privacy Policy 공개 URL** ✅ 완료 → `https://privacy.unipas.app` (Cloudflare, 2026-06-14)
 - [ ] E. **스크린샷** ❌ 미완
 - [ ] 학교 이용약관 법무 검토(별도 리스크)
