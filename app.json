@@ -1,11 +1,8 @@
 {
   "expo": {
-    "name": "Unipas",
-    "slug": "unipas",
-    "scheme": [
-      "unipas",
-      "msauth.com.jiwoongahn.unipas"
-    ],
+    "name": "UniOne",
+    "slug": "unione",
+    "scheme": "unione",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jiwoongahn.unipas",
+      "bundleIdentifier": "com.jiwoongahn.unione",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "投稿に画像を添付するために、写真ライブラリへのアクセスを許可してください。",
@@ -29,12 +26,11 @@
     "android": {
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.jiwoongahn.unipas",
+      "package": "com.jiwoongahn.unione",
       "permissions": [
         "NOTIFICATIONS",
         "RECEIVE_BOOT_COMPLETED",

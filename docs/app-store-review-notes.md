@@ -1,4 +1,4 @@
-# App Store Connect — App Review Notes (Unipas)
+# App Store Connect — App Review Notes (UniOne)
 
 > App Store Connect → 앱 버전 → **App Review Information → Notes** 에 아래 영문을 붙여넣기.
 > **Demo 로그인**: 국사관대학(国士舘大学) 선택 → 이메일 `appreview@kokushikan.ac.jp` → 코드 `482915`.
@@ -22,7 +22,7 @@ bypasses email delivery:
 5. You will be logged into a demo account with sample timetable and a sample post.
 
 == About this app ==
-Unipas is a campus-life app for Japanese university students (timetable,
+UniOne is a campus-life app for Japanese university students (timetable,
 assignments, an anonymous student board, and course reviews).
 
 == School system access (transparency) ==

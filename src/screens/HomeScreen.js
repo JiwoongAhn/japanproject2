@@ -10,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
@@ -333,14 +334,14 @@ export default function HomeScreen({ navigation }) {
               // manaba는 앱 내부 WebView 화면(쿠키 저장+공지 파싱)으로 진입
               // manaba 없으면 lmsUrl(WebClass 등)을 외부 링크로 대체
               ...(links.manabaUrl
-                ? [{ icon: '📚', label: 'manaba', internal: 'Manaba', tint: colors.primary }]
+                ? [{ icon: 'book', label: 'manaba', internal: 'Manaba', tint: colors.primary }]
                 : links.lmsUrl
-                  ? [{ icon: '📚', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, tint: colors.primary }]
+                  ? [{ icon: 'book', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, tint: colors.primary }]
                   : []
               ),
               // kaede-i는 앱 내부 WebView로 진입 (autoLogin: ID/PW 자동 로그인)
-              { icon: '📅', label: 'kaede-i',      url: links.kaedeUrl,    webview: true, autoLogin: true, tint: colors.success },
-              { icon: '🏫', label: 'ホームページ', url: links.homepageUrl, tint: colors.warning },
+              { icon: 'calendar', label: 'kaede-i',      url: links.kaedeUrl,    webview: true, autoLogin: true, tint: colors.success },
+              { icon: 'school', label: 'ホームページ', url: links.homepageUrl, tint: colors.warning },
             ].filter(item => item.url || item.internal).map((item) => (
               <TouchableOpacity
                 key={item.label}
@@ -353,7 +354,7 @@ export default function HomeScreen({ navigation }) {
                 }}
               >
                 <View style={[styles.schoolIconChip, { backgroundColor: item.tint + '18' }]}>
-                  <Text style={styles.schoolIcon}>{item.icon}</Text>
+                  <Ionicons name={item.icon} size={28} color="#4F7CFF" />
                 </View>
                 <Text style={styles.schoolLabel}>{item.label}</Text>
               </TouchableOpacity>

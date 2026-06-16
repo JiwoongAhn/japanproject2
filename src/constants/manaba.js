@@ -5,7 +5,7 @@
 // 학교 서버에 접속하는 WebView의 UA 끝에 덧붙이는 앱 식별자.
 // applicationNameForUserAgent prop으로 주입 → 기존 브라우저 UA는 유지하고 식별자만 추가.
 // (학교가 트래픽 출처를 식별할 수 있게 하는 투명성/선의 장치 — 약관 컴플라이언스)
-export const UNIPAS_USER_AGENT = 'Unipas/1.0 (+https://unipas.app)';
+export const UNIPAS_USER_AGENT = 'UniOne/1.0 (+https://unipas.app)';
 
 export const MANABA_LOGIN_URL = 'https://kokushikan.manaba.jp/ct/login';
 

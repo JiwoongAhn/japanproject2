@@ -1,4 +1,4 @@
-# App Store Connect — App Privacy 공개표 (Unipas)
+# App Store Connect — App Privacy 공개표 (UniOne)
 
 > 작성 2026-06-14. 코드/DB 스키마 기준. App Store Connect → 앱 → **App Privacy(앱 개인정보 보호)** 에 그대로 입력.
 > 모든 항목 공통: **추적(Tracking)에 사용 = いいえ/No** (서드파티 분석·광고·추적 SDK 미사용 → ATT 동의창 불필요).

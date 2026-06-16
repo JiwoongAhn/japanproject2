@@ -44,7 +44,7 @@ const PushNotificationMock = () => (
         <View style={mock.appIcon}>
           <Ionicons name="notifications" size={12} color={colors.white} />
         </View>
-        <Text style={mock.appName}>ユニパス</Text>
+        <Text style={mock.appName}>ユニワン</Text>
         <Text style={mock.notifTime}>今</Text>
       </View>
       <Text style={mock.notifTitle} numberOfLines={1}>

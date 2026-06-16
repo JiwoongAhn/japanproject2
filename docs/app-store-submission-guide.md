@@ -1,4 +1,4 @@
-# App Store 제출 가이드 (Unipas) — 초보자용 단계별
+# App Store 제출 가이드 (UniOne) — 초보자용 단계별
 
 > 이 문서는 "어디에 무엇을 넣는지" 순서 안내입니다. 실제 입력 내용은
 > `app-store-listing.md`(설명문), `app-store-privacy.md`(개인정보), `app-store-review-notes.md`(리뷰노트) 참조.
@@ -11,7 +11,7 @@
 1. App Store Connect → **My Apps → ＋ → New App**
 2. 입력:
    - Platform: **iOS**
-   - Name: **Unipas** (이미 다른 곳에서 선점됐다면 `Unipas - 大学生活` 등으로)
+   - Name: **UniOne** (이미 다른 곳에서 선점됐다면 `UniOne - 大学生活` 등으로)
    - Primary Language: **Japanese**
    - Bundle ID: **com.jiwoongahn.unipas** (목록에 없으면 Developer 사이트에서 Identifier 먼저 등록)
    - SKU: 아무 고유값 (예: `unipas-ios-001`)

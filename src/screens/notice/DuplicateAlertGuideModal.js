@@ -40,7 +40,7 @@ export default function DuplicateAlertGuideModal({ visible, onClose }) {
         <ScrollView contentContainerStyle={styles.body}>
           <View style={styles.infoBox}>
             <Text style={styles.infoText}>
-              Unipasと連携すると、manabaの新着通知はUnipasからプッシュ通知で届きます。
+              UniOneと連携すると、manabaの新着通知はUniOneからプッシュ通知で届きます。
               {'\n\n'}
               Outlookアプリの通知をオフにすることで、同じ通知が2回届くのを防げます。
             </Text>

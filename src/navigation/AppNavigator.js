@@ -30,9 +30,9 @@ const RootStack = createNativeStackNavigator();
 
 // React Navigation에서 인식할 딥링크 URL 스킴 설정
 // Expo Go: exp://192.168.x.x:8081/--/...
-// 실제 빌드: unipas://...
+// 실제 빌드: unione://...
 const linking = {
-  prefixes: [Linking.createURL('/'), 'unipas://'],
+  prefixes: [Linking.createURL('/'), 'unione://'],
 };
 
 export default function AppNavigator() {
@@ -58,7 +58,7 @@ export default function AppNavigator() {
     const handleDeepLink = async ({ url }) => {
       if (!url) return;
 
-      // URL 형태: unipas://auth/callback#access_token=xxx&refresh_token=yyy&type=signup
+      // URL 형태: unione://auth/callback#access_token=xxx&refresh_token=yyy&type=signup
       // '#' 뒤의 파라미터를 파싱
       const fragment = url.split('#')[1];
       if (!fragment) return;

@@ -9,8 +9,8 @@ import { typography } from '../../constants/typography';
 export default function SplashScreen() {
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.logo}>ユニパス</Text>
-      <Text style={styles.subtitle}>Unipas</Text>
+      <Text style={styles.logo}>ユニワン</Text>
+      <Text style={styles.subtitle}>UniOne</Text>
       <ActivityIndicator
         size="large"
         color={colors.primary}
