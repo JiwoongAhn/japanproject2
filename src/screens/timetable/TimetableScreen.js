@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import * as WebBrowser from 'expo-web-browser';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -192,7 +193,8 @@ export default function TimetableScreen({ navigation }) {
             onPress={handleBulkImport}
             activeOpacity={0.8}
           >
-            <Text style={styles.bulkButtonText}>📋 一括</Text>
+            <Ionicons name="clipboard-outline" size={15} color={colors.primary} />
+            <Text style={styles.bulkButtonText}>一括</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addButton}
@@ -228,7 +230,8 @@ export default function TimetableScreen({ navigation }) {
                 onPress={handleClearAll}
                 activeOpacity={0.8}
               >
-                <Text style={styles.clearAllText}>🗑 全て削除</Text>
+                <Ionicons name="trash-outline" size={14} color="#FF3B30" />
+                <Text style={styles.clearAllText}>全て削除</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -332,7 +335,7 @@ export default function TimetableScreen({ navigation }) {
               activeOpacity={0.75}
               onPress={() => navigation.navigate('CourseReview')}
             >
-              <Text style={styles.menuCardIcon}>📝</Text>
+              <Ionicons name="chatbox-ellipses-outline" size={22} color={colors.textPrimary} style={styles.menuCardIcon} />
               <View style={styles.menuCardText}>
                 <Text style={styles.menuCardTitle}>講義評価</Text>
                 <Text style={styles.menuCardDesc}>授業の評判を確認・投稿</Text>
@@ -345,7 +348,7 @@ export default function TimetableScreen({ navigation }) {
               activeOpacity={0.75}
               onPress={() => navigation.navigate('FreeTime')}
             >
-              <Text style={styles.menuCardIcon}>📅</Text>
+              <Ionicons name="calendar-outline" size={22} color={colors.textPrimary} style={styles.menuCardIcon} />
               <View style={styles.menuCardText}>
                 <Text style={styles.menuCardTitle}>空き時間合わせ</Text>
                 <Text style={styles.menuCardDesc}>友達と共通の空き時間を探す</Text>
@@ -362,7 +365,7 @@ export default function TimetableScreen({ navigation }) {
                   controlsColor: '#FFFFFF',
                 })}
               >
-                <Text style={styles.menuCardIcon}>📖</Text>
+                <Ionicons name="book-outline" size={22} color={colors.textPrimary} style={styles.menuCardIcon} />
                 <View style={styles.menuCardText}>
                   <Text style={styles.menuCardTitle}>シラバス</Text>
                   <Text style={styles.menuCardDesc}>{universityInfo.name} シラバス検索</Text>
@@ -415,6 +418,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   bulkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -448,6 +454,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   clearAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
@@ -564,7 +573,6 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   menuCardIcon: {
-    fontSize: 22,
     marginRight: spacing.md,
   },
   menuCardText: {

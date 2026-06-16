@@ -14,6 +14,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
@@ -419,7 +420,7 @@ export default function ProfileScreen({ navigation }) {
             <ActivityIndicator style={{ paddingVertical: 24 }} color={colors.primary} />
           ) : myPosts.length === 0 ? (
             <View style={styles.emptyPostsCard}>
-              <Text style={styles.emptyPostsEmoji}>📝</Text>
+              <Ionicons name="document-text-outline" size={32} color={colors.textDisabled} style={styles.emptyPostsEmoji} />
               <Text style={styles.emptyPostsText}>まだ投稿した記事がありません</Text>
             </View>
           ) : (
@@ -515,7 +516,10 @@ export default function ProfileScreen({ navigation }) {
             {/* 푸시 수신 상태 (안전망 정보) */}
             <View style={styles.divider} />
             <View style={styles.pushStatusRow}>
-              <Text style={styles.pushStatusLabel}>📩 最近の通知</Text>
+              <View style={styles.pushStatusLabelWrap}>
+                <Ionicons name="mail-outline" size={15} color={colors.textSecondary} />
+                <Text style={styles.pushStatusLabel}>最近の通知</Text>
+              </View>
               <Text style={styles.pushStatusValue}>
                 {lastDelivered ? `${formatTimeAgo(lastDelivered)}に受信` : 'まだありません'}
               </Text>
@@ -720,7 +724,6 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   emptyPostsEmoji: {
-    fontSize: 32,
     marginBottom: spacing.sm,
   },
   emptyPostsText: {
@@ -810,6 +813,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: spacing.md + 2,
+  },
+  pushStatusLabelWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   pushStatusLabel: {
     ...typography.body2,

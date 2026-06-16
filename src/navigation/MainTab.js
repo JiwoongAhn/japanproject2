@@ -36,8 +36,8 @@ export default function MainTab() {
     <Tab.Navigator
       sceneContainerStyle={{ backgroundColor: colors.background }}
       screenOptions={{
-        tabBarActiveTintColor: '#4F7CFF',
-        tabBarInactiveTintColor: '#A7C4FF',
+        tabBarActiveTintColor: '#191F28',
+        tabBarInactiveTintColor: '#B0B8C1',
         // 고정형 탭바 — 흰 배경 + 위쪽으로 향하는 옅은 그림자 (후보 1 톤)
         tabBarStyle: {
           backgroundColor: colors.surface,
@@ -89,6 +89,9 @@ export default function MainTab() {
         component={CommunityStack}
         options={{
           tabBarLabel: '掲示板',
+          // 다른 탭으로 벗어나면 게시판 스택을 항상 첫 화면(글 목록)으로 되돌림
+          // → 홈에서 글 상세로 진입한 뒤 게시판 탭을 눌러도 글 목록이 보이게
+          popToTopOnBlur: true,
           tabBarIcon: ({ focused, color }) => (
             <Ionicons name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={24} color={color} />
           ),

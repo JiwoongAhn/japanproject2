@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, pastel } from '../constants/colors';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { typography } from '../constants/typography';
@@ -45,10 +46,10 @@ const FILTER_TABS = [
 
 // 필터별 빈 상태 — 부드러운 실패 톤
 const EMPTY_STATE = {
-  all:       { emoji: '📝', title: 'まだ課題がないみたい',         subtitle: '右上の「＋ 追加」から\n登録してみよう',           showButton: true },
-  pending:   { emoji: '🎉', title: '未提出の課題はありません',     subtitle: '全部提出済みです！お疲れ様！',                    showButton: false },
-  submitted: { emoji: '📋', title: 'まだ提出した課題がありません', subtitle: 'タップで「提出済」に切り替えられます',            showButton: false },
-  overdue:   { emoji: '✅', title: '期限超過の課題はありません',   subtitle: '全て期限内で提出できています！',                  showButton: false },
+  all:       { icon: 'document-text-outline',  title: 'まだ課題がないみたい',         subtitle: '右上の「＋ 追加」から\n登録してみよう',           showButton: true },
+  pending:   { icon: 'happy-outline',          title: '未提出の課題はありません',     subtitle: '全部提出済みです！お疲れ様！',                    showButton: false },
+  submitted: { icon: 'file-tray-outline',      title: 'まだ提出した課題がありません', subtitle: 'タップで「提出済」に切り替えられます',            showButton: false },
+  overdue:   { icon: 'shield-checkmark-outline', title: '期限超過の課題はありません', subtitle: '全て期限内で提出できています！',                showButton: false },
 };
 
 export default function AssignmentScreen({ navigation }) {
@@ -200,7 +201,7 @@ export default function AssignmentScreen({ navigation }) {
         <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
       ) : isEmpty ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyEmoji}>{emptyInfo.emoji}</Text>
+          <Ionicons name={emptyInfo.icon} size={56} color={colors.textDisabled} style={styles.emptyEmoji} />
           <Text style={styles.emptyTitle}>{emptyInfo.title}</Text>
           <Text style={styles.emptySubtitle}>{emptyInfo.subtitle}</Text>
           {emptyInfo.showButton && (
@@ -267,7 +268,10 @@ export default function AssignmentScreen({ navigation }) {
 
                   {/* 하단: 마감일 + D-day */}
                   <View style={styles.cardFooter}>
-                    <Text style={styles.dueDate}>📅 {assignment.due_date}</Text>
+                    <View style={styles.dueDateWrap}>
+                      <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
+                      <Text style={styles.dueDate}>{assignment.due_date}</Text>
+                    </View>
                     <Text style={[styles.ddayLabel, { color: dday.color }]}>
                       {dday.label}
                     </Text>
@@ -350,7 +354,6 @@ const styles = StyleSheet.create({
     paddingBottom: 60,
   },
   emptyEmoji: {
-    fontSize: 56,
     marginBottom: spacing.lg,
   },
   emptyTitle: {
@@ -440,6 +443,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  dueDateWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   dueDate: {
     ...typography.caption,
