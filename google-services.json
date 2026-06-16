@@ -7,6 +7,25 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:573049130366:android:70bc739ca14656827f372f",
+        "android_client_info": {
+          "package_name": "com.jiwoongahn.unione"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnHlQIwegBacIpEe3UsHnFyEPFpDZDCrw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:573049130366:android:28cd761c842bfa8f7f372f",
         "android_client_info": {
           "package_name": "com.jiwoongahn.unipas"

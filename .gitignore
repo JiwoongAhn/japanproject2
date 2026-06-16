@@ -46,3 +46,6 @@ yarn-error.*
 test-results/
 playwright-report/
 test_home.png
+
+# 로컬 백업 파일
+google-services.json.bak
