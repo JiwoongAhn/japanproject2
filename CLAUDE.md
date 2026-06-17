@@ -3,6 +3,8 @@
 - **목적:** 일본 대학생을 위한 학교 생활 앱 (에브리타임 일본판)
 - **기술 스택:** React Native (Expo SDK 54) / JavaScript / Supabase
 - **저장소:** github.com/JiwoongAhn/japanproject2
+- **패키지/번들 ID:** `com.jiwoongahn.unione` (iOS·Android 공통)
+- **EAS slug:** `unipas` / projectId `1f321891…` (⚠️ slug는 EAS 식별자라 앱 이름 unione와 다름, 바꾸면 빌드 에러)
 - **UI 스타일:** 토스 스타일 (primary #3182F6, background #F2F4F6)
 - **하단 탭:** 홈 / 시간표 / 과제 / 게시판 / マイページ (5개)
 
