@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { UNIPAS_USER_AGENT } from '../../constants/manaba';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 
 // manaba 공지 원문도 PC용 레이아웃이므로 핀치줌 제약 제거
 const ENABLE_PINCH_ZOOM_JS = `
@@ -44,7 +44,7 @@ export default function ManabaNoticeDetailScreen({ route, navigation }) {
 
       {loading && (
         <View style={styles.loadingBar}>
-          <ActivityIndicator size="small" color={colors.primary} />
+          <LoadingDots size={7} />
         </View>
       )}
 

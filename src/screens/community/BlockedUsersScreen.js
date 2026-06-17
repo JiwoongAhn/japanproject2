@@ -7,11 +7,11 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { typography } from '../../constants/typography';
 import { spacing, radius } from '../../constants/spacing';
 import { supabase } from '../../lib/supabase';
@@ -78,7 +78,7 @@ export default function BlockedUsersScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       ) : blocks.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="shield-checkmark-outline" size={40} color={colors.gray300} />

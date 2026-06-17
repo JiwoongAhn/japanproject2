@@ -8,11 +8,11 @@ import {
   FlatList,
   TouchableOpacity,
   SafeAreaView,
-  ActivityIndicator,
   RefreshControl,
   TextInput,
 } from 'react-native';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { BOARD_CATEGORIES, getCategoryInfo } from '../../constants/boardCategories';
@@ -197,7 +197,9 @@ export default function PostListScreen({ navigation }) {
 
       {/* ── 로딩 중 ── */}
       {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <View style={{ flex: 1, justifyContent: 'center' }}>
+          <LoadingDots />
+        </View>
       ) : (
         <FlatList
           data={posts}
@@ -205,7 +207,13 @@ export default function PostListScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.listContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+            // OS 기본 스피너는 숨기고(투명), 새로고침 중엔 리스트 상단에 점 애니메이션 표시
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="transparent"
+              colors={['transparent']}
+            />
           }
           // 화면에 보이는 카드만 렌더(가상화) — 글이 쌓여도 스크롤 끊김 방지
           initialNumToRender={8}
@@ -214,11 +222,16 @@ export default function PostListScreen({ navigation }) {
           removeClippedSubviews
           // 검색 중일 때만 결과 안내 텍스트를 리스트 상단에 표시
           ListHeaderComponent={
-            searchText.trim() !== '' ? (
-              <Text style={styles.searchResultCount}>
-                「{searchText}」の検索結果
-              </Text>
-            ) : null
+            <>
+              {refreshing && (
+                <LoadingDots size={7} style={{ paddingVertical: spacing.md }} />
+              )}
+              {searchText.trim() !== '' ? (
+                <Text style={styles.searchResultCount}>
+                  「{searchText}」の検索結果
+                </Text>
+              ) : null}
+            </>
           }
           // 글이 하나도 없을 때 빈 상태 화면
           ListEmptyComponent={
@@ -243,7 +256,7 @@ export default function PostListScreen({ navigation }) {
                   activeOpacity={0.8}
                 >
                   {loadingMore ? (
-                    <ActivityIndicator size="small" color={colors.primary} />
+                    <LoadingDots size={7} />
                   ) : (
                     <Text style={styles.loadMoreText}>もっと見る</Text>
                   )}

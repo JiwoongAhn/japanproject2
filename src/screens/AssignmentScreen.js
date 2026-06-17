@@ -7,12 +7,12 @@ import {
   FlatList,
   TouchableOpacity,
   SafeAreaView,
-  ActivityIndicator,
   RefreshControl,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, pastel } from '../constants/colors';
+import LoadingDots from '../components/LoadingDots';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import Card from '../components/Card';
@@ -198,7 +198,7 @@ export default function AssignmentScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       ) : isEmpty ? (
         <View style={styles.emptyContainer}>
           <Ionicons name={emptyInfo.icon} size={56} color={colors.textDisabled} style={styles.emptyEmoji} />

@@ -9,11 +9,11 @@ import {
   TextInput,
   SafeAreaView,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { BOARD_CATEGORIES } from '../../constants/boardCategories';
@@ -137,7 +137,7 @@ export default function PostCreateScreen({ navigation }) {
           disabled={!canSubmit || submitting}
         >
           {submitting
-            ? <ActivityIndicator size="small" color="#FFFFFF" />
+            ? <LoadingDots size={6} color="#FFFFFF" />
             : <Text style={styles.submitText}>投稿</Text>
           }
         </TouchableOpacity>
@@ -224,7 +224,7 @@ export default function PostCreateScreen({ navigation }) {
                 activeOpacity={0.75}
               >
                 {picking ? (
-                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                  <LoadingDots size={7} color={colors.textSecondary} />
                 ) : (
                   <>
                     <Text style={styles.addImagePlus}>+</Text>

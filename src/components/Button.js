@@ -1,6 +1,7 @@
 import React from 'react';
-import { Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../constants/colors';
+import LoadingDots from './LoadingDots';
 import { radius } from '../constants/spacing';
 
 // 토스 스타일 공용 버튼
@@ -32,7 +33,7 @@ export default function Button({
       activeOpacity={0.85}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : colors.gray700} />
+        <LoadingDots size={6} color={variant === 'primary' ? '#FFFFFF' : colors.gray700} />
       ) : (
         <Text style={textStyle}>{title}</Text>
       )}

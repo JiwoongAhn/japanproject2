@@ -9,7 +9,6 @@ import {
   TouchableOpacity,
   TextInput,
   SafeAreaView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Alert,
@@ -19,6 +18,7 @@ import {
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { getCategoryInfo } from '../../constants/boardCategories';
@@ -327,7 +327,7 @@ export default function PostDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }
@@ -517,7 +517,7 @@ export default function PostDetailScreen({ navigation, route }) {
             disabled={!commentText.trim() || submitting}
           >
             {submitting
-              ? <ActivityIndicator size="small" color="#FFFFFF" />
+              ? <LoadingDots size={6} color="#FFFFFF" />
               : <Text style={styles.sendButtonText}>送信</Text>
             }
           </TouchableOpacity>

@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, Alert, ActivityIndicator,
+  SafeAreaView, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { colors, pastel } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { getCategoryInfo } from '../../constants/boardCategories';
@@ -332,7 +333,7 @@ export default function MyPostsScreen({ navigation }) {
 
       {/* ── 콘텐츠 ── */}
       {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       ) : activeData.length === 0 ? (
         renderEmpty()
       ) : (

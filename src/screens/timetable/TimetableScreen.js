@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   SafeAreaView,
 } from 'react-native';
 
@@ -14,6 +13,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { getCourseColorFor } from '../../constants/courseColors';
@@ -208,7 +208,7 @@ export default function TimetableScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
           {/* ── 오늘 수업 요약 + 전체 삭제 (좌: 요약 / 우: 全て削除) ── */}

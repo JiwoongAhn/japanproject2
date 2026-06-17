@@ -6,12 +6,12 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import LoadingDots from '../components/LoadingDots';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { getCategoryInfo } from '../constants/boardCategories';
@@ -187,7 +187,7 @@ export default function HomeScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }

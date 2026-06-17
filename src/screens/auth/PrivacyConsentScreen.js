@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, ActivityIndicator,
+  StyleSheet, SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import PrivacyPolicyBody from '../../components/PrivacyPolicyBody';
@@ -89,7 +90,7 @@ export default function PrivacyConsentScreen({ onConsent }) {
           activeOpacity={0.85}
         >
           {saving
-            ? <ActivityIndicator color="#fff" />
+            ? <LoadingDots size={6} color="#FFFFFF" />
             : <Text style={styles.agreeText}>同意して始める</Text>
           }
         </TouchableOpacity>

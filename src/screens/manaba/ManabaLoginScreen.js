@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   SafeAreaView,
   Alert,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import UnofficialNotice from '../../components/UnofficialNotice';
 import {
   DISABLE_AUTOCAPS_JS,
@@ -265,7 +265,7 @@ export default function ManabaLoginScreen({ navigation }) {
       {/* 파싱 중 오버레이 */}
       {parsing && (
         <View style={styles.parsingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <LoadingDots />
           <Text style={styles.parsingText}>お知らせを読み込み中…</Text>
         </View>
       )}
@@ -273,7 +273,7 @@ export default function ManabaLoginScreen({ navigation }) {
       {/* 쿠키 만료 시 자동 재로그인 오버레이 */}
       {autoRelogging && (
         <View style={styles.parsingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <LoadingDots />
           <Text style={styles.parsingText}>自動ログイン中…</Text>
         </View>
       )}
@@ -281,7 +281,7 @@ export default function ManabaLoginScreen({ navigation }) {
       {/* 로딩 인디케이터 (쿠키 준비 중 + 페이지 로딩 중) */}
       {(loading || !ready) && !parsing && (
         <View style={styles.loadingBar}>
-          <ActivityIndicator size="small" color={colors.primary} />
+          <LoadingDots size={7} />
         </View>
       )}
 

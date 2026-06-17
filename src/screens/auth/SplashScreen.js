@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, SafeAreaView } from 'react-native';
+import { Text, StyleSheet, SafeAreaView } from 'react-native';
 import { colors } from '../../constants/colors';
 import { spacing } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import LoadingDots from '../../components/LoadingDots';
 
 // 앱 시작 시 세션 확인 중에 표시되는 로딩 화면 (순수 UI)
 // 세션 라우팅은 AppNavigator가 전담 — 여기서 navigation 로직 없음
@@ -11,11 +12,7 @@ export default function SplashScreen() {
     <SafeAreaView style={styles.container}>
       <Text style={styles.logo}>ユニワン</Text>
       <Text style={styles.subtitle}>UniOne</Text>
-      <ActivityIndicator
-        size="large"
-        color={colors.primary}
-        style={styles.loader}
-      />
+      <LoadingDots size={14} style={styles.loader} />
     </SafeAreaView>
   );
 }

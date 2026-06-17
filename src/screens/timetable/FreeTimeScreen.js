@@ -8,13 +8,13 @@ import {
   TextInput,
   SafeAreaView,
   Alert,
-  ActivityIndicator,
   Dimensions,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors, pastel } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { useAuth } from '../../lib/AuthProvider';
@@ -195,7 +195,7 @@ export default function FreeTimeScreen({ navigation }) {
           <Text style={styles.headerTitle}>空き時間合わせ</Text>
           <View style={styles.backButton} />
         </View>
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }
@@ -351,7 +351,7 @@ export default function FreeTimeScreen({ navigation }) {
                 activeOpacity={0.85}
               >
                 {comparing
-                  ? <ActivityIndicator size="small" color={colors.white} />
+                  ? <LoadingDots size={6} color={colors.white} />
                   : <Text style={styles.compareBtnText}>比較</Text>
                 }
               </TouchableOpacity>

@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
   SafeAreaView,
   Alert,
 } from 'react-native';
@@ -12,6 +11,7 @@ import { WebView } from 'react-native-webview';
 import { UNIPAS_USER_AGENT } from '../constants/manaba';
 import UnofficialNotice from '../components/UnofficialNotice';
 import { colors } from '../constants/colors';
+import LoadingDots from '../components/LoadingDots';
 import {
   DISABLE_AUTOCAPS_JS,
   saveCookies,
@@ -246,7 +246,7 @@ export default function SchoolWebViewScreen({ navigation, route }) {
       {/* 로딩 인디케이터 */}
       {(loading || !ready) && (
         <View style={styles.loadingBar}>
-          <ActivityIndicator size="small" color={colors.primary} />
+          <LoadingDots size={7} />
         </View>
       )}
 

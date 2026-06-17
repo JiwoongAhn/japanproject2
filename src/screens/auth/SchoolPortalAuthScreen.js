@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert, ActivityIndicator,
+  StyleSheet, SafeAreaView, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { DEMO_EMAIL } from '../../constants/demo';
@@ -140,7 +141,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
             activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color={colors.white} />
+              ? <LoadingDots size={6} color={colors.white} />
               : <Text style={styles.buttonText}>認証コードを送信</Text>
             }
           </TouchableOpacity>

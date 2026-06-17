@@ -7,10 +7,10 @@ import {
   TouchableOpacity,
   TextInput,
   SafeAreaView,
-  ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { colors, pastel } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
@@ -132,7 +132,7 @@ export default function CourseReviewScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}

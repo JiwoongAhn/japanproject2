@@ -11,9 +11,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
@@ -387,7 +387,7 @@ export default function AssignmentAddScreen({ navigation }) {
             activeOpacity={0.85}
           >
             {saving
-              ? <ActivityIndicator color={colors.white} />
+              ? <LoadingDots size={6} color={colors.white} />
               : <Text style={styles.saveButtonText}>保存する</Text>
             }
           </TouchableOpacity>

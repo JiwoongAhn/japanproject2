@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, Image, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert, ActivityIndicator,
+  StyleSheet, SafeAreaView, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { findProfanityInAny } from '../../utils/profanity';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import {
@@ -136,7 +137,7 @@ export default function PostEditScreen({ navigation, route }) {
           disabled={!canSave || saving}
         >
           {saving
-            ? <ActivityIndicator size="small" color="#FFFFFF" />
+            ? <LoadingDots size={6} color="#FFFFFF" />
             : <Text style={styles.saveText}>保存</Text>
           }
         </TouchableOpacity>
@@ -192,7 +193,7 @@ export default function PostEditScreen({ navigation, route }) {
                   activeOpacity={0.75}
                 >
                   {picking ? (
-                    <ActivityIndicator size="small" color={colors.textSecondary} />
+                    <LoadingDots size={7} color={colors.textSecondary} />
                   ) : (
                     <>
                       <Text style={styles.addImagePlus}>+</Text>

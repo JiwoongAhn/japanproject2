@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
-  ActivityIndicator,
   Switch,
   TextInput,
   Modal,
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import LoadingDots from '../components/LoadingDots';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { supabase } from '../lib/supabase';
@@ -298,7 +298,7 @@ export default function ProfileScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator style={{ flex: 1 }} size="large" color={colors.primary} />
+        <LoadingDots style={{ flex: 1 }} />
       </SafeAreaView>
     );
   }
@@ -370,7 +370,7 @@ export default function ProfileScreen({ navigation }) {
                   disabled={savingNickname}
                 >
                   {savingNickname
-                    ? <ActivityIndicator color="#fff" size="small" />
+                    ? <LoadingDots size={6} color="#FFFFFF" />
                     : <Text style={styles.modalBtnSaveText}>保存</Text>
                   }
                 </TouchableOpacity>
@@ -417,7 +417,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
 
           {postsLoading ? (
-            <ActivityIndicator style={{ paddingVertical: 24 }} color={colors.primary} />
+            <LoadingDots size={7} style={{ paddingVertical: 24 }} />
           ) : myPosts.length === 0 ? (
             <View style={styles.emptyPostsCard}>
               <Ionicons name="document-text-outline" size={32} color={colors.textDisabled} style={styles.emptyPostsEmoji} />
@@ -559,7 +559,7 @@ export default function ProfileScreen({ navigation }) {
             activeOpacity={0.8}
           >
             {loggingOut
-              ? <ActivityIndicator color={colors.danger} />
+              ? <LoadingDots size={7} color={colors.danger} />
               : <Text style={styles.logoutText}>ログアウト</Text>
             }
           </TouchableOpacity>

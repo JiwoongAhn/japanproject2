@@ -8,11 +8,11 @@ import {
   TextInput,
   SafeAreaView,
   Alert,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { colors, pastel } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
@@ -156,7 +156,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
             activeOpacity={0.85}
           >
             {submitting
-              ? <ActivityIndicator size="small" color={colors.white} />
+              ? <LoadingDots size={6} color={colors.white} />
               : <Text style={styles.submitText}>投稿</Text>
             }
           </TouchableOpacity>

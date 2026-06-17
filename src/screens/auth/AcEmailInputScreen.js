@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert, ActivityIndicator,
+  StyleSheet, SafeAreaView, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { getUniversityInfo } from '../../utils/university';
@@ -118,7 +119,7 @@ export default function AcEmailInputScreen({ route }) {
             activeOpacity={0.85}
           >
             {loading
-              ? <ActivityIndicator color={colors.white} />
+              ? <LoadingDots size={6} color={colors.white} />
               : <Text style={styles.buttonText}>はじめる</Text>
             }
           </TouchableOpacity>

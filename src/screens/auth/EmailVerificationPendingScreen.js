@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert, ActivityIndicator,
+  StyleSheet, SafeAreaView, Alert,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 
@@ -98,7 +99,7 @@ export default function EmailVerificationPendingScreen({ navigation, route }) {
             activeOpacity={0.85}
           >
             {resending ? (
-              <ActivityIndicator color={colors.primary} size="small" />
+              <LoadingDots size={7} />
             ) : (
               <Text style={styles.secondaryButtonText}>
                 {resendCooldown ? 'しばらく後に再送できます' : 'メールを再送する'}
