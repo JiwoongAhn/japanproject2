@@ -25,6 +25,64 @@ import { useAuth } from '../lib/AuthProvider';
 
 const PREVIEW_COUNT = 3; // 카드에 보여줄 공지 개수
 
+// 공지 1건 = 스와이프 카드.
+// 스와이프로 열린 상태(openRef=true)에서는 카드 탭을 무시하고 닫기만 한다.
+// → 스와이프했을 때 마나바 상세로 잘못 들어가는 문제 방지.
+function NoticeRow({ item, onDismiss, onPressItem }) {
+  const swipeRef = useRef(null);
+  const openRef = useRef(false);
+  return (
+    <Swipeable
+      ref={swipeRef}
+      overshootRight={false}
+      onSwipeableWillOpen={() => { openRef.current = true; }}
+      onSwipeableWillClose={() => { openRef.current = false; }}
+      renderRightActions={() => (
+        <TouchableOpacity
+          style={styles.swipeAction}
+          activeOpacity={0.8}
+          onPress={() => { swipeRef.current?.close(); onDismiss(item); }}
+        >
+          <Text style={styles.swipeActionText}>既読</Text>
+        </TouchableOpacity>
+      )}
+    >
+      <TouchableOpacity
+        style={styles.noticeCard}
+        activeOpacity={0.7}
+        onPress={() => {
+          // 스와이프로 열려 있으면 화면 전환 대신 닫기만
+          if (openRef.current) { swipeRef.current?.close(); return; }
+          onPressItem(item);
+        }}
+      >
+        <View style={styles.noticeRow}>
+          {/* 푸시 출처는 🔴 점, WebView는 마커 없음 */}
+          {item._source === 'push' && <View style={styles.unreadDot} />}
+          <View style={styles.noticeBody}>
+            {/* 과목명 라인: 종류 아이콘 + 과목명 */}
+            {!!item.board && (
+              <Text style={styles.boardTag} numberOfLines={1}>
+                {item._type?.icon ? `${item._type.icon} ` : ''}{item.board}
+              </Text>
+            )}
+            {/* 요약(또는 제목) */}
+            <Text style={styles.noticeTitle} numberOfLines={2}>{item.title}</Text>
+            {/* 메타 라인: 마감 / 첨부 / 날짜 */}
+            <View style={styles.metaRow}>
+              {!!item._deadline && (
+                <Text style={styles.metaDeadline}>⏰ ~{item._deadline}</Text>
+              )}
+              {item._hasAttach && <Text style={styles.metaAttach}>📎 첨부</Text>}
+              {!!item.date && <Text style={styles.noticeDate}>{item.date}</Text>}
+            </View>
+          </View>
+        </View>
+      </TouchableOpacity>
+    </Swipeable>
+  );
+}
+
 export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   const { user } = useAuth();
   const [notices, setNotices] = useState([]);          // WebView 파싱 결과 (Phase 1)
@@ -259,48 +317,12 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
         )}
 
         {top.map((item, i) => (
-          <Swipeable
+          <NoticeRow
             key={item._id || item.href || i}
-            overshootRight={false}
-            renderRightActions={() => (
-              <TouchableOpacity
-                style={styles.swipeAction}
-                activeOpacity={0.8}
-                onPress={() => dismissNotice(item)}
-              >
-                <Text style={styles.swipeActionText}>既読</Text>
-              </TouchableOpacity>
-            )}
-          >
-            <TouchableOpacity
-              style={styles.noticeCard}
-              activeOpacity={0.7}
-              onPress={() => goToDetail(item)}
-            >
-              <View style={styles.noticeRow}>
-                {/* 푸시 출처는 🔴 점, WebView는 마커 없음 */}
-                {item._source === 'push' && <View style={styles.unreadDot} />}
-                <View style={styles.noticeBody}>
-                  {/* 과목명 라인: 종류 아이콘 + 과목명 */}
-                  {!!item.board && (
-                    <Text style={styles.boardTag} numberOfLines={1}>
-                      {item._type?.icon ? `${item._type.icon} ` : ''}{item.board}
-                    </Text>
-                  )}
-                  {/* 요약(또는 제목) */}
-                  <Text style={styles.noticeTitle} numberOfLines={2}>{item.title}</Text>
-                  {/* 메타 라인: 마감 / 첨부 / 날짜 */}
-                  <View style={styles.metaRow}>
-                    {!!item._deadline && (
-                      <Text style={styles.metaDeadline}>⏰ ~{item._deadline}</Text>
-                    )}
-                    {item._hasAttach && <Text style={styles.metaAttach}>📎 첨부</Text>}
-                    {!!item.date && <Text style={styles.noticeDate}>{item.date}</Text>}
-                  </View>
-                </View>
-              </View>
-            </TouchableOpacity>
-          </Swipeable>
+            item={item}
+            onDismiss={dismissNotice}
+            onPressItem={goToDetail}
+          />
         ))}
 
         {hiddenWebView}

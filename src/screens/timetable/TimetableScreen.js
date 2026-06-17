@@ -117,6 +117,7 @@ export default function TimetableScreen({ navigation }) {
                 url: links.timetableUrl,
                 title: '時間割の取り込み',
                 autoLogin: true,
+                forTimetableImport: true, // 이 경로(일괄추가)에서만 '時間割を取り込む' 버튼 노출
               }),
           },
         ]

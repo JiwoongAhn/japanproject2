@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,54 @@ import {
 import { Swipeable } from 'react-native-gesture-handler';
 import { colors } from '../../constants/colors';
 import { getDismissedKeys, addDismissedKey, noticeKey } from '../../utils/manabaCache';
+
+// 공지 1건 = 스와이프 카드.
+// 스와이프로 열린 상태(openRef=true)에서는 카드 탭을 무시하고 닫기만 한다.
+// → 스와이프했을 때 마나바 상세로 잘못 들어가는 문제 방지.
+function NoticeRow({ item, onDismiss, onPressItem }) {
+  const swipeRef = useRef(null);
+  const openRef = useRef(false);
+  return (
+    <Swipeable
+      ref={swipeRef}
+      overshootRight={false}
+      onSwipeableWillOpen={() => { openRef.current = true; }}
+      onSwipeableWillClose={() => { openRef.current = false; }}
+      renderRightActions={() => (
+        <TouchableOpacity
+          style={styles.swipeAction}
+          activeOpacity={0.8}
+          onPress={() => { swipeRef.current?.close(); onDismiss(item); }}
+        >
+          <Text style={styles.swipeActionText}>既読</Text>
+        </TouchableOpacity>
+      )}
+    >
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.7}
+        onPress={() => {
+          // 스와이프로 열려 있으면 화면 전환 대신 닫기만
+          if (openRef.current) { swipeRef.current?.close(); return; }
+          onPressItem(item);
+        }}
+      >
+        <View style={styles.cardContent}>
+          {!!item.board && (
+            <Text style={styles.boardTag}>{item.board}</Text>
+          )}
+          <Text style={styles.noticeTitle} numberOfLines={2}>
+            {item.title}
+          </Text>
+          {!!item.date && (
+            <Text style={styles.noticeDate}>{item.date}</Text>
+          )}
+        </View>
+        <Text style={styles.chevron}>›</Text>
+      </TouchableOpacity>
+    </Swipeable>
+  );
+}
 
 export default function ManabaNoticeListScreen({ route, navigation }) {
   // 넘겨받은 공지를 로컬 state로 보관 → 既読 시 즉시 목록에서 제거
@@ -37,44 +85,17 @@ export default function ManabaNoticeListScreen({ route, navigation }) {
   const visibleNotices = list.filter((n) => !dismissed.includes(noticeKey(n)));
 
   const renderItem = ({ item }) => (
-    <Swipeable
-      overshootRight={false}
-      renderRightActions={() => (
-        <TouchableOpacity
-          style={styles.swipeAction}
-          activeOpacity={0.8}
-          onPress={() => handleDismiss(item)}
-        >
-          <Text style={styles.swipeActionText}>既読</Text>
-        </TouchableOpacity>
-      )}
-    >
-      <TouchableOpacity
-        style={styles.card}
-        activeOpacity={0.7}
-        onPress={() => {
-          handleDismiss(item); // 탭 = 확인 → 목록에서 제거
-          navigation.navigate('ManabaNoticeDetail', {
-            url: item.href,
-            title: item.title,
-          });
-        }}
-      >
-        <View style={styles.cardContent}>
-          {/* 코스명/게시판 태그 (있을 때만) */}
-          {!!item.board && (
-            <Text style={styles.boardTag}>{item.board}</Text>
-          )}
-          <Text style={styles.noticeTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          {!!item.date && (
-            <Text style={styles.noticeDate}>{item.date}</Text>
-          )}
-        </View>
-        <Text style={styles.chevron}>›</Text>
-      </TouchableOpacity>
-    </Swipeable>
+    <NoticeRow
+      item={item}
+      onDismiss={handleDismiss}
+      onPressItem={(it) => {
+        handleDismiss(it); // 탭 = 확인 → 목록에서 제거
+        navigation.navigate('ManabaNoticeDetail', {
+          url: it.href,
+          title: it.title,
+        });
+      }}
+    />
   );
 
   return (

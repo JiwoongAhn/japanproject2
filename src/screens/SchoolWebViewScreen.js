@@ -68,7 +68,7 @@ const KAEDE_EXTRACT_JS = `(function(){
 //   - 저장된 게 없으면 사용자가 직접 로그인 → 입력값을 캡처해 암호화 저장(다음부터 자동)
 //   ※ ID/PW는 기기 내 AES-256 저장, 서버 전송 없음
 export default function SchoolWebViewScreen({ navigation, route }) {
-  const { url, title, autoLogin = false } = route.params ?? {};
+  const { url, title, autoLogin = false, forTimetableImport = false } = route.params ?? {};
   const { session } = useAuth();
   // 시간표 파싱에 쓸 학교 id (카에데=국사관 → 전용 파서로 라우팅)
   const universityId = getUniversityInfo(session?.user?.email)?.id;
@@ -113,8 +113,9 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     }
   };
 
-  // MY時間割 페이지일 때만 추출 버튼 노출 (카에데 진입 직후/다른 페이지에서는 숨김)
-  const isTimetablePage = currentUrl.toLowerCase().includes('mytimetable');
+  // 시간표 일괄추가로 진입(forTimetableImport) + MY時間割 페이지일 때만 추출 버튼 노출.
+  // 홈 등 다른 경로로 kaede-i를 연 경우엔 MyTimeTable에 가도 버튼을 띄우지 않는다.
+  const isTimetablePage = forTimetableImport && currentUrl.toLowerCase().includes('mytimetable');
 
   // WebView 내부 페이지 뒤로가기 (잘못 들어갔을 때 한 페이지 복귀)
   const handleWebBack = () => {
