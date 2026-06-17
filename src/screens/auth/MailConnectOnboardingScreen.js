@@ -21,16 +21,6 @@ import { supabase } from '../../lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Outlook 전달규칙 설정 단계 (출시 전 실제 캡처 가이드로 교체 예정)
-const OUTLOOK_STEPS = [
-  'PCのブラウザで outlook.office.com にログイン',
-  '設定 ⚙ → メール → ルール を開く',
-  '「新しいルールを追加」を選ぶ',
-  '条件: 差出人に「manaba」を含む',
-  '操作: 「転送」→ 上のアドレスを指定',
-  '保存して完了',
-];
-
 // ─────────────────────────────────────────────────────────────
 // 슬라이드 1 비주얼: 잠금화면에 푸시 알림이 뜬 모습 (왜 연결하는가)
 // ─────────────────────────────────────────────────────────────
@@ -64,17 +54,17 @@ const PRIVACY_POINTS = [
   {
     icon: 'key',
     title: 'パスワードは不要',
-    body: 'Outlookで転送ルールを設定するだけ。アプリがパスワードを預かることはありません。',
+    body: 'manabaのリマインダ設定にアドレスを追加するだけ。アプリがパスワードを預かることはありません。',
   },
   {
     icon: 'mail-unread',
-    title: 'manabaのメールだけ',
-    body: 'manabaからのお知らせメールだけが転送されます。その他のメールは届きません。',
+    title: 'manabaのお知らせだけ',
+    body: 'manabaのリマインダ通知だけが届きます。その他のメールは受け取りません。',
   },
   {
     icon: 'power',
     title: 'いつでも停止できます',
-    body: 'Outlookの転送ルールを削除すれば、すぐに通知を止められます。',
+    body: 'manabaのリマインダ設定からアドレスを削除すれば、すぐに通知を止められます。',
   },
 ];
 
@@ -132,8 +122,8 @@ const SLIDES = [
     Visual: PrivacyVisual,
   },
   {
-    title: 'メール転送で、\n通知を受け取る',
-    subtitle: 'manabaからのメールを、あなた専用アドレスに自動転送します。',
+    title: 'manabaの設定で、\n通知を受け取る',
+    subtitle: 'manabaのリマインダ設定に、あなた専用アドレスを追加します。',
     Visual: ConnectVisual,
   },
 ];
@@ -200,19 +190,24 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  // ── 전달주소 발급 후: Outlook 전달규칙 설정 가이드 화면 ──
+  // manaba 리마인더 설정 WebView 화면으로 이동 (발급된 주소 전달)
+  const handleOpenReminderSetup = () => {
+    navigation.navigate('ManabaReminderSetup', { address });
+  };
+
+  // ── 주소 발급 후: manaba 리마인더 설정 안내 화면 ──
   if (address) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
         <ScrollView contentContainerStyle={guide.scroll}>
-          <Text style={guide.heading}>転送設定をしましょう</Text>
+          <Text style={guide.heading}>通知を受け取る設定</Text>
           <Text style={guide.lead}>
-            下のアドレスを、Outlookの転送ルールに設定してください。
+            manabaの「リマインダ設定」に、下のアドレスを追加します。
           </Text>
 
-          {/* ① 전달주소 + 복사 */}
-          <Text style={guide.stepLabel}>① あなた専用の転送先アドレス</Text>
+          {/* ① 토큰주소 + 복사 */}
+          <Text style={guide.stepLabel}>① あなた専用アドレス</Text>
           <View style={guide.addressBox}>
             <Text style={guide.addressText} numberOfLines={1} selectable>
               {address}
@@ -231,29 +226,23 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
 
-          {/* ② Outlook 규칙 단계 */}
-          <Text style={guide.stepLabel}>② Outlookで転送ルールを作成</Text>
-          <View style={guide.stepsBox}>
-            {OUTLOOK_STEPS.map((s, i) => (
-              <View key={i} style={guide.stepRow}>
-                <View style={guide.stepNum}>
-                  <Text style={guide.stepNumText}>{i + 1}</Text>
-                </View>
-                <Text style={guide.stepText}>{s}</Text>
-              </View>
-            ))}
-          </View>
+          {/* ② 설정 페이지 안내 */}
+          <Text style={guide.stepLabel}>② 設定ページを開く</Text>
+          <Text style={guide.stepDesc}>
+            ログイン済みのまま、manabaのリマインダ設定ページが開きます。{'\n'}
+            「携帯メールアドレス」欄に上のアドレスを入力して、manabaの「保存」を押してください。
+          </Text>
 
           <View style={guide.hintRow}>
             <Ionicons name="time-outline" size={16} color={colors.gray500} />
             <Text style={guide.hintText}>
-              転送が確認されると、マイページに ✅ が表示されます。
+              設定が確認されると、マイページに ✅ が表示されます。
             </Text>
           </View>
         </ScrollView>
 
         <View style={styles.bottomArea}>
-          <Button title="manabaを開く" onPress={goNext} />
+          <Button title="manaba設定を開く" onPress={handleOpenReminderSetup} />
         </View>
       </SafeAreaView>
     );
@@ -498,6 +487,12 @@ const guide = StyleSheet.create({
   heading: { ...typography.title2, color: colors.gray900, marginBottom: spacing.xs },
   lead: { ...typography.body2, color: colors.gray600, marginBottom: spacing.xl },
   stepLabel: { ...typography.bodyStrong, color: colors.gray900, marginBottom: spacing.sm },
+  stepDesc: {
+    ...typography.body2,
+    color: colors.gray700,
+    lineHeight: 20,
+    marginBottom: spacing.xl,
+  },
   addressBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -519,25 +514,6 @@ const guide = StyleSheet.create({
     borderRadius: radius.md,
   },
   copyText: { ...typography.caption, color: colors.white, fontWeight: '700' },
-  stepsBox: {
-    backgroundColor: colors.gray50,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  stepNum: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  stepNumText: { fontSize: 12, fontWeight: '700', color: colors.primary },
-  stepText: { ...typography.body2, color: colors.gray700, flex: 1, lineHeight: 20 },
   hintRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   hintText: { ...typography.caption, color: colors.gray500, flex: 1 },
 });

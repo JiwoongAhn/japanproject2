@@ -13,6 +13,7 @@ import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import MailConnectOnboardingScreen from '../screens/auth/MailConnectOnboardingScreen';
+import ManabaReminderSetupScreen from '../screens/manaba/ManabaReminderSetupScreen';
 import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
 import PrivacyConsentScreen, { PRIVACY_CONSENT_KEY } from '../screens/auth/PrivacyConsentScreen';
 import { colors } from '../constants/colors';
@@ -144,6 +145,11 @@ export default function AppNavigator() {
         <RootStack.Screen
           name="MailConnectOnboarding"
           component={MailConnectOnboardingScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <RootStack.Screen
+          name="ManabaReminderSetup"
+          component={ManabaReminderSetupScreen}
           options={{ presentation: 'modal' }}
         />
       </RootStack.Navigator>

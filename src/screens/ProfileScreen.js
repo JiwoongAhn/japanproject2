@@ -490,13 +490,13 @@ export default function ProfileScreen({ navigation }) {
             >
               <View style={styles.toggleRow}>
                 <View style={styles.toggleInfo}>
-                  <Text style={styles.toggleLabel}>manaba通知メール転送</Text>
+                  <Text style={styles.toggleLabel}>manaba通知メール</Text>
                   <Text style={styles.toggleHint}>
                     {forwardStatus === 'verified'
-                      ? '✅ 転送が確認できました。新着通知をお届けします'
+                      ? '✅ 設定が確認できました。新着通知をお届けします'
                       : forwardStatus === 'pending'
-                      ? '⏳ 転送待ち。Outlookの転送ルールを設定してください'
-                      : 'manabaの通知をメール転送で受け取れます'}
+                      ? '⏳ 確認待ち。manabaのリマインダ設定でアドレスを追加してください'
+                      : 'manabaのお知らせを通知で受け取れます'}
                   </Text>
                 </View>
                 {forwardStatus === 'verified' ? (

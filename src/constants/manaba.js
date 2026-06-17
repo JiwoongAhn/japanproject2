@@ -15,6 +15,9 @@ export const MANABA_HOME_URL = 'https://kokushikan.manaba.jp/ct/home';
 // 로그아웃: 서버 세션을 끊는 manaba 로그아웃 엔드포인트
 export const MANABA_LOGOUT_URL = 'https://kokushikan.manaba.jp/ct/logout';
 
+// 리마인더 설정 페이지 — 알림 메일 주소를 등록하는 곳 (携帯メールアドレス 칸에 토큰주소 추가)
+export const MANABA_REMINDER_URL = 'https://kokushikan.manaba.jp/ct/home_preferences_reminder';
+
 // WebView에 주입하는 JS: 공지사항 리스트를 파싱해서 네이티브로 전달
 // 결과 메시지: { type:'notices', data:[{title,href,date,board}], pageTitle, currentUrl }
 export const PARSE_NOTICES_JS = `

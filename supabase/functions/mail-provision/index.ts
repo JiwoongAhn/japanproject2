@@ -1,8 +1,8 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-// 메일전달 방식 푸시용 "학생 전용 전달주소" 발급 함수.
+// 메일전달 방식 푸시용 "학생 전용 알림 수신주소" 발급 함수.
 // 앱에서 로그인 사용자가 호출 → forward_token을 1개 발급(이미 있으면 그대로 반환, 멱등).
-// 반환된 {token}@unipas.app 으로 학생이 학교 Outlook 전달 규칙을 건다.
+// 반환된 {token}@unipas.app 을 학생이 manaba 리마인더 설정(携帯メールアドレス)에 추가한다.
 // verify_jwt: true (앱 사용자 JWT로 호출) — config.toml에서 명시.
 
 const FORWARD_DOMAIN = Deno.env.get('FORWARD_DOMAIN') ?? 'unipas.app';
