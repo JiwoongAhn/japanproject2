@@ -304,7 +304,12 @@ export default function ProfileScreen({ navigation }) {
   }
 
   // 이메일에서 학적번호 추출 (@ 앞부분)
-  const studentId = userEmail.split('@')[0]?.toUpperCase() ?? '';
+  // Apple 심사용 데모 계정은 로그인 이메일이 appreview@... 라 학적번호가 APPREVIEW로 보인다.
+  // 스토어 스크린샷에서 자연스럽게 보이도록 데모 계정에 한해 표시용 값으로 대체한다.
+  // (demo-login 함수/auth 자격증명에는 전혀 영향 없음 — 화면 표시만 바꿈)
+  const DEMO_EMAIL = 'appreview@kokushikan.ac.jp';
+  const displayEmail = userEmail === DEMO_EMAIL ? 's2433015@kokushikan.ac.jp' : userEmail;
+  const studentId = displayEmail.split('@')[0]?.toUpperCase() ?? '';
   const avatarLetter = studentId[0] ?? 'U';
 
   return (
@@ -396,7 +401,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.divider} />
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>メールアドレス</Text>
-              <Text style={styles.infoValue} numberOfLines={1}>{userEmail}</Text>
+              <Text style={styles.infoValue} numberOfLines={1}>{displayEmail}</Text>
             </View>
           </View>
         </View>
