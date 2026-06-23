@@ -180,8 +180,9 @@ export default function HomeScreen({ navigation }) {
   let nearestDday = null;
   if (nearestAssignment) {
     const due = new Date(nearestAssignment.due_date);
+    due.setHours(0, 0, 0, 0); // 시간대(JST +9h) 오차 제거: 課題 화면 calcDday와 동일 기준
     const today0 = new Date(); today0.setHours(0, 0, 0, 0);
-    nearestDday = Math.ceil((due - today0) / (1000 * 60 * 60 * 24));
+    nearestDday = Math.round((due - today0) / (1000 * 60 * 60 * 24));
   }
 
   if (loading) {
