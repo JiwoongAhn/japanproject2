@@ -281,7 +281,7 @@ export default function PostListScreen({ navigation }) {
                       <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
                         <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
                       </View>
-                      <Text style={styles.postAnon}>
+                      <Text style={styles.postAnon} numberOfLines={1}>
                         {post.is_anonymous ? '匿名' : (authorMap[post.user_id] ?? '実名')}
                       </Text>
                       <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
@@ -476,6 +476,7 @@ const styles = StyleSheet.create({
   postAnon: {
     ...typography.caption,
     color: colors.textSecondary,
+    flexShrink: 1, // 닉네임이 길어도 시간 텍스트를 밀어내지 않고 말줄임 처리
   },
   postTime: {
     ...typography.caption,

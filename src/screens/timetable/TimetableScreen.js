@@ -237,6 +237,24 @@ export default function TimetableScreen({ navigation }) {
             )}
           </View>
 
+          {/* ── 빈 상태: 수업이 하나도 없을 때 안내 (그리드는 아래에 그대로 유지) ── */}
+          {courses.length === 0 && (
+            <View style={styles.emptyCard}>
+              <Text style={styles.emptyEmoji}>📅</Text>
+              <Text style={styles.emptyText}>時間割がまだありません</Text>
+              <Text style={styles.emptySubText}>
+                授業を追加するか、一括取り込みで{'\n'}かんたんに始めましょう
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={handleBulkImport}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.emptyButtonText}>📋 時間割を一括取り込み</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           {/* ── 시간표 카드 (에브리타임 그리드 + 토스 카드) ── */}
           <View style={styles.gridCard}>
             {/* 요일 헤더 행 */}
@@ -595,6 +613,17 @@ const styles = StyleSheet.create({
   },
 
   // ── 빈 상태 (부드러운 톤) ─────────────────
+  // 수업 0건일 때 그리드 위에 표시하는 안내 카드 (인라인, 스크롤 흐름 내)
+  emptyCard: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xl,
+    alignItems: 'center',
+    ...shadow.card,
+  },
   emptyOverlay: {
     position: 'absolute',
     top: 0,
@@ -619,6 +648,7 @@ const styles = StyleSheet.create({
     ...typography.body2,
     color: colors.textSecondary,
     marginBottom: spacing.xxl,
+    textAlign: 'center',
   },
   emptyButton: {
     backgroundColor: colors.primary,

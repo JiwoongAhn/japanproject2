@@ -81,9 +81,9 @@ export default function CourseDetailModal({ course, onClose, onDelete, onEdit })
         <View style={styles.titleRow}>
           <View style={[styles.colorDot, { backgroundColor: color.accent }]} />
           <View style={styles.titleTexts}>
-            <Text style={styles.courseName}>{course.name}</Text>
+            <Text style={styles.courseName} numberOfLines={2}>{course.name}</Text>
             {course.professor_name ? (
-              <Text style={styles.professorName}>{course.professor_name} 教授</Text>
+              <Text style={styles.professorName} numberOfLines={1}>{course.professor_name} 教授</Text>
             ) : null}
           </View>
         </View>

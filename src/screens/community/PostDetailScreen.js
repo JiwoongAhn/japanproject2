@@ -447,7 +447,7 @@ export default function PostDetailScreen({ navigation, route }) {
                     style={[styles.commentItem, index === 0 && styles.commentItemFirst]}
                   >
                     <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthor}>
+                      <Text style={styles.commentAuthor} numberOfLines={1}>
                         {comment.is_anonymous
                           ? `匿名${index + 1}`
                           : (commentAuthors[comment.user_id] ?? '実名')}
@@ -790,6 +790,7 @@ const styles = StyleSheet.create({
   commentAuthor: {
     ...typography.captionStrong,
     color: colors.textSecondary,
+    flexShrink: 1, // 닉네임이 길어도 시간/메뉴를 밀어내지 않고 말줄임 처리
   },
   commentTime: {
     ...typography.small,
