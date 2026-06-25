@@ -100,7 +100,7 @@ describe('buildCourseRows', () => {
     const { rows, skipped } = buildCourseRows(items, UID);
     expect(skipped).toHaveLength(0);
     expect(rows).toEqual([
-      { user_id: UID, name: '経営学概論', day_of_week: 0, period: 1, professor_name: '田中 一郎' },
+      { user_id: UID, name: '経営学概論', day_of_week: 0, period: 1, professor_name: '田中 一郎', color_index: null },
     ]);
   });
 
