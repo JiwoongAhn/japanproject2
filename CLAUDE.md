@@ -37,7 +37,8 @@ japanproject/
 │   ├── lib/              supabase, AuthProvider, LargeSecureStore (AES-256 암호화)
 │   └── navigation/       AppNavigator, MainTab, AuthStack, TimetableStack, AssignmentStack, CommunityStack
 ├── __tests__/            Jest 유닛 테스트
-├── e2e/                  Playwright E2E 테스트
+├── e2e/                  Playwright E2E 테스트 (웹 화면 검증)
+├── .maestro/             Maestro 네이티브 E2E (앱 실행 크래시 감지, preview APK로 실행)
 ├── schema.sql            Supabase DB 스키마 + RLS 정책 전체
 └── App.js
 ```
