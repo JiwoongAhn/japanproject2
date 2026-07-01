@@ -8,6 +8,7 @@ import AssignmentStack from './AssignmentStack';
 import CommunityStack from './CommunityStack';
 import ProfileScreen from '../screens/ProfileScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
+import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import MyPostsScreen from '../screens/community/MyPostsScreen';
 import PostEditScreen from '../screens/community/PostEditScreen';
 import BlockedUsersScreen from '../screens/community/BlockedUsersScreen';
@@ -25,6 +26,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="MyPosts" component={MyPostsScreen} />
       <ProfileStack.Screen name="PostEdit" component={PostEditScreen} />
       <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+      <ProfileStack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <ProfileStack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
     </ProfileStack.Navigator>
   );

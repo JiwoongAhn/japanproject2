@@ -579,6 +579,13 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.footerLinkText}>プライバシーポリシー</Text>
           </TouchableOpacity>
           <Text style={styles.footerDivider}>|</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('TermsOfService')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.footerLinkText}>利用規約</Text>
+          </TouchableOpacity>
+          <Text style={styles.footerDivider}>|</Text>
           <TouchableOpacity onPress={handleDeleteAccount} activeOpacity={0.7}>
             <Text style={styles.deleteAccountText}>退会する</Text>
           </TouchableOpacity>
@@ -922,6 +929,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: spacing.md,
     marginHorizontal: spacing.lg,
     marginTop: spacing.xs,

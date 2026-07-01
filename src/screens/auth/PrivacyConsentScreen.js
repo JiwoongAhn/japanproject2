@@ -9,11 +9,13 @@ import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import PrivacyPolicyBody from '../../components/PrivacyPolicyBody';
+import TermsOfServiceBody from '../../components/TermsOfServiceBody';
 
-// 동의 상태 저장 키. 버전을 붙여 정책이 크게 바뀌면 v2로 올려 재동의를 받을 수 있게 한다.
-export const PRIVACY_CONSENT_KEY = 'unipas_privacy_consented_v1';
+// 동의 상태 저장 키. 버전을 붙여 정책이 크게 바뀌면 올려 재동의를 받을 수 있게 한다.
+// v2: 이용規約(利用規約, App Store UGC 대응) 추가에 따라 전원 재동의.
+export const PRIVACY_CONSENT_KEY = 'unipas_privacy_consented_v2';
 
-// 첫 실행 시 1회 표시하는 개인정보처리방침 동의 화면.
+// 첫 실행 시 1회 표시하는 개인정보처리방침 + 이용규약 동의 화면.
 // 맨 아래까지 스크롤하고 체크박스를 켜야만 「同意して始める」 버튼이 활성화된다.
 export default function PrivacyConsentScreen({ onConsent }) {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
@@ -46,7 +48,7 @@ export default function PrivacyConsentScreen({ onConsent }) {
     <SafeAreaView style={styles.container}>
       {/* 헤더 (뒤로가기 없음 — 첫 실행 게이트) */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>プライバシーポリシー</Text>
+        <Text style={styles.headerTitle}>プライバシーポリシー・利用規約</Text>
         <Text style={styles.headerSub}>ご利用の前に内容をご確認ください</Text>
       </View>
 
@@ -57,6 +59,7 @@ export default function PrivacyConsentScreen({ onConsent }) {
         scrollEventThrottle={16}
       >
         <PrivacyPolicyBody />
+        <TermsOfServiceBody />
       </ScrollView>
 
       {/* 하단 고정: 동의 체크 + 시작 버튼 */}
@@ -79,7 +82,7 @@ export default function PrivacyConsentScreen({ onConsent }) {
             {checked && <Text style={styles.checkMark}>✓</Text>}
           </View>
           <Text style={[styles.checkLabel, !scrolledToBottom && styles.checkLabelDisabled]}>
-            上記のプライバシーポリシーに同意します
+            上記のプライバシーポリシーおよび利用規約に同意します
           </Text>
         </TouchableOpacity>
 
