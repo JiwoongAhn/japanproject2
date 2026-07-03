@@ -113,7 +113,7 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 | Phase 1 | WebView + manaba 파싱 (국사관) | ✅ manaba 공지/원본 분리 + kaede 자동로그인 완료 (2026-05-21) |
 | Phase 2 | 세션 유지 | ✅ manaba=쿠키 영속 / kaede=ID·PW 자동로그인 (2026-05-21) |
 | Phase 3 | 푸시 알림 인프라 (배치잡·재시도) | ✅ 완료 |
-| Phase 4 | 새 공지 자동 감지 → 자동 푸시 | 🔄 메일전달 방식 코드 완료, 배포·실기기 검증 대기 (2026-06-12) |
+| Phase 4 | 새 공지 자동 감지 → 자동 푸시 | 🔄 인프라 전부 배포·파이프라인 완주 성공 (2026-07-04). 국사관 manaba 인증=**6자리 코드방식** 실측. 남은=★학생용 코드표시 기능(E-분기)+시스템메일 필터. 상세=memory `project_unipas_manaba_reminder_push` |
 
 **Phase 1 보류 사유 (2026-05-12):**
 - Expo Go는 `react-native-webview` 13.15.0의 New Architecture 호환 native module 미내장
