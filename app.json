@@ -4,6 +4,12 @@
     "slug": "unipas",
     "scheme": "unione",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/1f321891-59b2-4b9d-8d7d-79e341aa29cb"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
