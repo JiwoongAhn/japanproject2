@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
     // ③ 이미 발급된 토큰이 있으면 그대로 반환 (멱등)
     const { data: existing } = await admin
       .from('mail_subscriptions')
-      .select('forward_token, verified_at')
+      .select('forward_token, verified_at, pending_code, code_received_at')
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -61,6 +61,9 @@ Deno.serve(async (req: Request) => {
         address: `${existing.forward_token}@${FORWARD_DOMAIN}`,
         token: existing.forward_token,
         verified: !!existing.verified_at,
+        // 앱이 폴링해 인증코드 화면에 표시 (없으면 null)
+        pendingCode: existing.pending_code ?? null,
+        codeReceivedAt: existing.code_received_at ?? null,
       });
     }
 
@@ -84,6 +87,8 @@ Deno.serve(async (req: Request) => {
       address: `${inserted.forward_token}@${FORWARD_DOMAIN}`,
       token: inserted.forward_token,
       verified: false,
+      pendingCode: null,
+      codeReceivedAt: null,
     });
   } catch (e) {
     console.error('[mail-provision] 예외:', e);

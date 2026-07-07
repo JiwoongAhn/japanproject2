@@ -388,6 +388,8 @@ CREATE TABLE mail_subscriptions (
   forward_token     TEXT NOT NULL UNIQUE,  -- {token}@unipas.app 의 토큰 (추측 불가 랜덤)
   ms_account_email  TEXT,                  -- (선택) 학생이 입력한 학교 메일 주소, 안내용
   verified_at       TIMESTAMPTZ,           -- 첫 정상 메일 수신 시각 (전달설정 성공 신호)
+  pending_code      TEXT,                  -- manaba가 보낸 6자리 인증코드 (인증완료 시 NULL) — 앱이 폴링해 화면 표시
+  code_received_at  TIMESTAMPTZ,           -- 인증코드 수신 시각 (오래된 코드 구분용)
   created_at        TIMESTAMPTZ DEFAULT NOW(),
   updated_at        TIMESTAMPTZ DEFAULT NOW()
 );

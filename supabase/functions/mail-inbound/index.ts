@@ -12,17 +12,14 @@ const ALLOWED_SENDERS = [
   'manaba.jp',
 ];
 
-// ── manaba 메일주소 등록 확인메일(認証メール) 판별 규칙 ──
-// manaba가 새 알림주소(携帯メールアドレス) 등록 시 보내는 확인메일을 일반 공지와 구분한다.
-// 실제 제목/링크 형식은 실기기 테스트로 1회 확인한 뒤 아래 값만 조정하면 된다.
-// 제목에 (CORE 단어 중 하나) + (ACTION 단어 중 하나)가 함께 있으면 확인메일로 간주.
-const VERIFICATION_SUBJECT_CORE = ['メールアドレス', 'アドレス', 'メール設定'];
-const VERIFICATION_SUBJECT_ACTION = ['確認', '認証', '登録', '仮登録'];
-// 본문 링크 중 아래 단어를 path/쿼리에 가진 manaba URL은 인증 링크로 간주(자동 클릭 대상).
-const VERIFICATION_URL_HINTS = [
-  'confirm', 'verify', 'verification', 'activate', 'activation',
-  'mobile_address', 'email_confirm', 'address_confirm', 'regist',
-];
+// ── manaba 시스템 메일(인증코드 / 인증완료) 판별 규칙 ──
+// 국사관 manaba는 새 알림주소(携帯メールアドレス) 등록 시 "인증 링크"가 아니라
+// "6자리 숫자 코드"를 메일로 보낸다(2026-07-04 실측). 이 두 시스템 메일은
+// 일반 공지가 아니므로 공지 저장·푸시 대상에서 제외한다.
+//   ① 인증코드 메일: 제목 「メールアドレス認証コードのお知らせ」 → 본문 6자리 추출 → pending_code 저장
+//   ② 인증완료 메일: 제목 「…認証完了のお知らせ」 → verified_at 세팅 + pending_code 비움
+const AUTH_CODE_SUBJECT = '認証コード';   // 인증코드 메일 제목 핵심어
+const AUTH_DONE_SUBJECT = '認証完了';     // 인증완료 메일 제목 핵심어
 
 const MAIL_INBOUND_SECRET = Deno.env.get('MAIL_INBOUND_SECRET') ?? '';
 
@@ -70,29 +67,36 @@ Deno.serve(async (req: Request) => {
       return new Response('sender not allowed', { status: 204 });
     }
 
-    // ③.5 확인메일(메일주소 등록 認証メール)이면: 인증 링크 자동 클릭 + verified 세팅 후 종료.
-    //      → 공지로 저장/푸시하지 않아 사용자에게 "가짜 새 공지"가 노출되지 않는다.
-    if (isVerificationMail(subject ?? '', bodyHtml ?? '')) {
-      const verifyUrl = findVerificationUrl(bodyHtml ?? '');
-      if (verifyUrl) {
-        try {
-          // manaba가 보낸 확인 링크를 서버가 대신 열어 새 주소를 활성화 (자동인증)
-          await fetch(verifyUrl, { method: 'GET', redirect: 'follow' });
-          console.log('[mail-inbound] 확인메일 인증링크 자동 클릭 완료');
-        } catch (e) {
-          console.error('[mail-inbound] 인증링크 클릭 실패:', e);
-        }
-      } else {
-        console.warn('[mail-inbound] 확인메일로 보이나 인증링크를 못 찾음 — URL_HINTS 점검 필요');
-      }
-      // 확인메일 수신 자체가 "전달 경로 작동" 신호 → verified_at 세팅 (프로필 ✅)
-      if (!sub.verified_at) {
+    const subjectText = subject ?? '';
+
+    // ③.5 인증코드 메일이면: 본문 6자리 코드를 뽑아 pending_code에 저장 후 종료.
+    //      → 학생이 볼 수 없는 서버 코드를 앱이 폴링해 화면에 표시한다. (공지 저장/푸시 안 함)
+    if (subjectText.includes(AUTH_CODE_SUBJECT)) {
+      const code = extractAuthCode(bodyHtml ?? '');
+      if (code) {
         await supabase
           .from('mail_subscriptions')
-          .update({ verified_at: new Date().toISOString() })
+          .update({ pending_code: code, code_received_at: new Date().toISOString() })
           .eq('user_id', sub.user_id);
+        console.log('[mail-inbound] 인증코드 저장 완료');
+      } else {
+        console.warn('[mail-inbound] 인증코드 메일이나 6자리 코드를 못 찾음 — 본문 형식 점검 필요');
       }
-      return new Response('verification handled', { status: 200 });
+      return new Response('auth code handled', { status: 200 });
+    }
+
+    // ③.6 인증완료 메일이면: 전달 경로가 완성됨 → verified_at 세팅 + pending_code 비움. (푸시 안 함)
+    if (subjectText.includes(AUTH_DONE_SUBJECT)) {
+      await supabase
+        .from('mail_subscriptions')
+        .update({
+          verified_at: sub.verified_at ?? new Date().toISOString(),
+          pending_code: null,
+          code_received_at: null,
+        })
+        .eq('user_id', sub.user_id);
+      console.log('[mail-inbound] 메일주소 인증완료 — verified 세팅');
+      return new Response('auth complete handled', { status: 200 });
     }
 
     // ④ 전달이 실제로 작동함을 확인 → verified_at 1회 세팅 (온보딩·프로필 ✅ 표시용)
@@ -163,28 +167,15 @@ function extractManabaUrl(html: string): string | null {
   return match ? match[0] : null;
 }
 
-/** 본문에서 인증 링크(확인 path/쿼리를 가진 manaba URL)를 찾아 반환 */
-function findVerificationUrl(html: string): string | null {
-  const urls = html.match(/https?:\/\/[a-zA-Z0-9.-]*manaba\.jp[^\s"'<>]*/g) ?? [];
-  for (const u of urls) {
-    const lower = u.toLowerCase();
-    if (VERIFICATION_URL_HINTS.some((h) => lower.includes(h))) return u;
-  }
-  return null;
-}
-
 /**
- * 메일주소 등록 확인메일인지 판별.
- * - 제목이 (CORE 단어) + (ACTION 단어) 조합 → 확인메일
- * - 또는 본문에 인증 링크 힌트 URL이 있으면 → 확인메일
- * 일반 공지 오판을 줄이기 위해 보수적으로 판단한다.
+ * 인증코드 메일 본문에서 6자리 숫자 코드를 추출한다.
+ * HTML 태그를 제거한 뒤, 앞뒤가 숫자가 아닌 "정확히 6자리" 숫자를 찾는다.
+ * (전화번호·연도 등 다른 긴 숫자열에 걸리지 않도록 경계 \D 로 감싼다.)
  */
-function isVerificationMail(subject: string, html: string): boolean {
-  const s = subject ?? '';
-  const subjectHit =
-    VERIFICATION_SUBJECT_CORE.some((c) => s.includes(c)) &&
-    VERIFICATION_SUBJECT_ACTION.some((a) => s.includes(a));
-  return subjectHit || findVerificationUrl(html) !== null;
+function extractAuthCode(html: string): string | null {
+  const text = html.replace(/<[^>]+>/g, ' ');       // 태그 제거
+  const match = text.match(/(?<!\d)\d{6}(?!\d)/);    // 앞뒤로 숫자가 붙지 않은 6자리
+  return match ? match[0] : null;
 }
 
 /**

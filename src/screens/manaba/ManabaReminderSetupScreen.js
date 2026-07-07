@@ -78,8 +78,13 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
   const [cookieHeader, setCookieHeader] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  // 화면 상태: setup(설정 중) | checking(확인 폴링) | done(완료) | timeout(시간초과)
+  // manaba가 보낸 6자리 인증코드 (서버 폴링으로 수신)
+  const [pendingCode, setPendingCode] = useState(null);
+  // 화면 상태:
+  //   setup(주소 입력·저장) | waitingCode(코드 대기 폴링) | code(코드 표시·입력 유도)
+  //   | checking(인증완료 폴링) | done(완료) | timeout(시간초과)
   const [status, setStatus] = useState('setup');
+  const isCodeStep = status === 'code';
 
   const cookieKey = useMemo(() => cookieKeyForUrl(MANABA_LOGIN_URL), []);
 
@@ -105,8 +110,10 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
   }, []);
 
   const handleCopy = async () => {
-    if (!address) return;
-    await Clipboard.setStringAsync(address);
+    // 코드 단계에서는 인증코드를, 그 전에는 전달주소를 복사
+    const value = isCodeStep ? pendingCode : address;
+    if (!value) return;
+    await Clipboard.setStringAsync(value);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   };
@@ -122,20 +129,16 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     }
   };
 
-  // "保存しました → 確認する" → verified_at 폴링 시작
-  const startPolling = () => {
-    setStatus('checking');
+  // 공통 폴링 헬퍼: mail-provision을 반복 호출하며 onData로 종료 여부를 판단한다.
+  // onData가 true를 반환하면 폴링 종료. 최대 횟수 초과 시 timeout 처리.
+  const runPolling = (onData) => {
     let attempts = 0;
-
     const poll = async () => {
       attempts += 1;
       try {
-        // mail-provision은 멱등 — 기존 토큰과 함께 현재 verified 상태를 돌려준다
+        // mail-provision은 멱등 — 토큰·verified·pendingCode를 함께 돌려준다
         const { data } = await supabase.functions.invoke('mail-provision');
-        if (data?.verified) {
-          setStatus('done');
-          return;
-        }
+        if (data && onData(data)) return;
       } catch (_) {
         // 네트워크 오류는 무시하고 다음 폴링에서 재시도
       }
@@ -145,8 +148,34 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       }
       pollTimerRef.current = setTimeout(poll, POLL_INTERVAL_MS);
     };
-
     poll();
+  };
+
+  // ① "コードを受け取る（確認）" → manaba가 서버로 보낸 인증코드가 도착할 때까지 폴링
+  const startCodePolling = () => {
+    setStatus('waitingCode');
+    runPolling((data) => {
+      if (data.verified) { setStatus('done'); return true; }   // 이미 인증완료된 경우
+      if (data.pendingCode) {
+        setPendingCode(data.pendingCode);
+        setStatus('code');
+        return true;
+      }
+      return false;
+    });
+  };
+
+  // ② "入力しました（確認）" → 학생이 코드 입력 후 manaba 認証完了 메일로 verified 세팅될 때까지 폴링
+  const startVerifyPolling = () => {
+    setStatus('checking');
+    runPolling((data) => {
+      if (data.verified) { setStatus('done'); return true; }
+      // 코드가 재발송돼 갱신됐으면 최신 코드로 표시 갱신 (폴링은 계속)
+      if (data.pendingCode && data.pendingCode !== pendingCode) {
+        setPendingCode(data.pendingCode);
+      }
+      return false;
+    });
   };
 
   const handleClose = () => navigation.goBack();
@@ -184,7 +213,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
         </Text>
         <View style={result.bottom}>
           <Button title="閉じる" onPress={handleDone} />
-          <TouchableOpacity onPress={startPolling} style={styles.retryBtn}>
+          <TouchableOpacity onPress={startCodePolling} style={styles.retryBtn}>
             <Text style={styles.retryText}>もう一度確認する</Text>
           </TouchableOpacity>
         </View>
@@ -204,30 +233,57 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
         <View style={styles.headerRight} />
       </View>
 
-      {/* 안내 배너: 携帯칸에 주소 입력 + 복사 */}
-      <View style={banner.wrap}>
-        <Text style={banner.guide}>
-          <Text style={banner.bold}>「携帯メールアドレス」</Text>欄に下のアドレスを入力し、
-          <Text style={banner.bold}>「保存」</Text>を押してください。
-        </Text>
-        <View style={banner.addressRow}>
-          <Text style={banner.address} numberOfLines={1} selectable>
-            {address}
+      {/* 코드 단계: manaba에서 받은 6자리 인증코드를 크게 표시 + 복사 */}
+      {isCodeStep ? (
+        <View style={codeBox.wrap}>
+          <Text style={codeBox.guide}>
+            manabaから<Text style={codeBox.bold}>認証コード</Text>が届きました 📬{'\n'}
+            下のmanaba画面にこのコードを入力してください。
           </Text>
-          <TouchableOpacity
-            style={banner.copyBtn}
-            onPress={handleCopy}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons
-              name={copied ? 'checkmark' : 'copy-outline'}
-              size={15}
-              color={colors.white}
-            />
-            <Text style={banner.copyText}>{copied ? 'コピー済み' : 'コピー'}</Text>
-          </TouchableOpacity>
+          <View style={codeBox.codeRow}>
+            <Text style={codeBox.code} selectable>
+              {(pendingCode ?? '').split('').join(' ')}
+            </Text>
+            <TouchableOpacity
+              style={codeBox.copyBtn}
+              onPress={handleCopy}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={copied ? 'checkmark' : 'copy-outline'}
+                size={15}
+                color={colors.white}
+              />
+              <Text style={banner.copyText}>{copied ? 'コピー済み' : 'コピー'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      ) : (
+        /* 설정 단계: 携帯칸에 주소 입력 + 복사 안내 */
+        <View style={banner.wrap}>
+          <Text style={banner.guide}>
+            <Text style={banner.bold}>「携帯メールアドレス」</Text>欄に下のアドレスを入力し、
+            <Text style={banner.bold}>「保存」</Text>を押してください。
+          </Text>
+          <View style={banner.addressRow}>
+            <Text style={banner.address} numberOfLines={1} selectable>
+              {address}
+            </Text>
+            <TouchableOpacity
+              style={banner.copyBtn}
+              onPress={handleCopy}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={copied ? 'checkmark' : 'copy-outline'}
+                size={15}
+                color={colors.white}
+              />
+              <Text style={banner.copyText}>{copied ? 'コピー済み' : 'コピー'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* 로딩 인디케이터 */}
       {(loading || !ready) && (
@@ -261,19 +317,34 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
         />
       )}
 
-      {/* 하단 고정: manaba에서 저장 후 누르는 확인 버튼 */}
+      {/* 하단 고정: 단계별 확인 버튼 */}
       <View style={styles.bottomArea}>
-        <Button title="保存しました（確認する）" onPress={startPolling} />
-        <Text style={styles.bottomHint}>
-          ※ manabaの「保存」ボタンを押してから、こちらをタップしてください。
-        </Text>
+        {isCodeStep ? (
+          <>
+            <Button title="入力しました（確認）" onPress={startVerifyPolling} />
+            <Text style={styles.bottomHint}>
+              ※ manaba画面でコードを入力し「認証」を押してから、こちらをタップしてください。
+            </Text>
+          </>
+        ) : (
+          <>
+            <Button title="保存しました（確認する）" onPress={startCodePolling} />
+            <Text style={styles.bottomHint}>
+              ※ manabaの「保存」ボタンを押してから、こちらをタップしてください。
+            </Text>
+          </>
+        )}
       </View>
 
-      {/* 확인 폴링 오버레이 */}
-      {status === 'checking' && (
+      {/* 폴링 오버레이 (코드 대기 / 인증완료 확인) */}
+      {(status === 'waitingCode' || status === 'checking') && (
         <View style={styles.overlay}>
           <LoadingDots />
-          <Text style={styles.overlayText}>設定を確認しています…</Text>
+          <Text style={styles.overlayText}>
+            {status === 'waitingCode'
+              ? '認証コードを待っています…'
+              : '設定を確認しています…'}
+          </Text>
           <Text style={styles.overlaySub}>少しお待ちください</Text>
         </View>
       )}
@@ -377,6 +448,44 @@ const banner = StyleSheet.create({
     borderRadius: radius.sm,
   },
   copyText: { ...typography.caption, color: colors.white, fontWeight: '700' },
+});
+
+// 인증코드 표시 배너 스타일
+const codeBox = StyleSheet.create({
+  wrap: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  guide: { ...typography.body2, color: colors.gray800, lineHeight: 20 },
+  bold: { fontWeight: '700', color: colors.primary },
+  codeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+    paddingVertical: spacing.sm,
+  },
+  code: {
+    flex: 1,
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.gray900,
+    letterSpacing: 2,      // split(' ')로 벌린 자간 + 추가 간격으로 읽기 쉽게
+    textAlign: 'center',
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.sm,
+  },
 });
 
 // 완료/대기 결과 화면 스타일
