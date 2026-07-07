@@ -26,7 +26,19 @@ import {
   saveCookies,
   getSavedCookieHeader,
   cookieKeyForUrl,
+  credKeyForUrl,
+  getCredentials,
+  buildAutoFillJS,
 } from '../../utils/schoolCookies';
+import {
+  AUTO_RELOGIN_TIMEOUT_MS,
+  canAttemptAutoRelogin,
+  recordAutoReloginSuccess,
+  recordAutoReloginFailure,
+} from '../../utils/manabaSession';
+
+// 세션 만료 시 manaba가 리디렉션하는 학교 SSO(kaede) 주소 — ManabaLoginScreen과 동일
+const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
 
 // 폴링 설정: 5초 간격으로 최대 3분(36회)까지 인증 여부 확인
 const POLL_INTERVAL_MS = 5000;
@@ -73,11 +85,17 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
 
   const webViewRef = useRef(null);
   const pollTimerRef = useRef(null);
+  // 자동 재로그인용: 사이클 내 1회 트리거 가드 / 타임아웃 타이머 / 리마인더 유도 1회 가드
+  const autoReloggedRef = useRef(false);
+  const autoReloginTimerRef = useRef(null);
+  const redirectedToReminderRef = useRef(false);
 
   const [ready, setReady] = useState(false);
   const [cookieHeader, setCookieHeader] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  // 세션 만료로 kaede 자동 재로그인 진행 중 (오버레이 표시용)
+  const [autoRelogging, setAutoRelogging] = useState(false);
   // manaba가 보낸 6자리 인증코드 (서버 폴링으로 수신)
   const [pendingCode, setPendingCode] = useState(null);
   // 화면 상태:
@@ -87,6 +105,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
   const isCodeStep = status === 'code';
 
   const cookieKey = useMemo(() => cookieKeyForUrl(MANABA_LOGIN_URL), []);
+  const kaedeCredKey = useMemo(() => credKeyForUrl(KAEDE_URL), []);
 
   // 저장된 manaba 쿠키 헤더를 불러온 뒤 WebView 렌더 (이미 로그인된 세션 재사용)
   useEffect(() => {
@@ -102,12 +121,23 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     };
   }, [cookieKey]);
 
-  // 언마운트 시 폴링 타이머 정리
+  // 언마운트 시 폴링·재로그인 타이머 정리
   useEffect(() => {
     return () => {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
+      if (autoReloginTimerRef.current) clearTimeout(autoReloginTimerRef.current);
     };
   }, []);
+
+  // 자동 재로그인 로컬 상태 리셋 (오버레이·사이클 ref·타이머). 글로벌 카운터는 헬퍼로 별도 갱신.
+  const resetAutoReloginLocal = () => {
+    setAutoRelogging(false);
+    autoReloggedRef.current = false;
+    if (autoReloginTimerRef.current) {
+      clearTimeout(autoReloginTimerRef.current);
+      autoReloginTimerRef.current = null;
+    }
+  };
 
   const handleCopy = async () => {
     // 코드 단계에서는 인증코드를, 그 전에는 전달주소를 복사
@@ -118,14 +148,69 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  // 페이지 로드 완료 → 쿠키 갱신 + 携帯칸 강조
+  // 페이지 로드 완료 → 쿠키 갱신 + (세션 만료 시)자동 재로그인 + 리마인더 페이지 유도·강조
   const handleLoadEnd = ({ nativeEvent }) => {
     setLoading(false);
     saveCookies(MANABA_LOGIN_URL, cookieKey);
-    // 리마인더 페이지에 도착했을 때만 강조 (로그인/리디렉션 페이지에선 실행 안 함)
     const url = nativeEvent?.url || '';
-    if (url.includes('home_preferences_reminder')) {
-      webViewRef.current?.injectJavaScript(HIGHLIGHT_KEITAI_JS);
+
+    // ① 세션 만료 → kaede SSO 로그인 페이지로 튕김 → 저장된 자격증명으로 자동 재로그인
+    if (url.includes('kaedei.kokushikan.ac.jp') && !autoReloggedRef.current) {
+      // 글로벌 정책(누적 실패 2회 + 5분 쿨다운) 위반이면 자동 시도 중단 → 수동 로그인 폼 노출
+      if (!canAttemptAutoRelogin()) {
+        setAutoRelogging(false);
+        Alert.alert(
+          '自動ログインに失敗しました',
+          'IDまたはパスワードが変わった可能性があります。\n画面のフォームから手動でログインしてください。'
+        );
+        return;
+      }
+      autoReloggedRef.current = true;
+      setAutoRelogging(true);
+
+      // 타임아웃 가드 — 자동 제출 후 manaba로 돌아오지 않으면 실패로 기록 (무한 대기 방지)
+      if (autoReloginTimerRef.current) clearTimeout(autoReloginTimerRef.current);
+      autoReloginTimerRef.current = setTimeout(() => {
+        autoReloginTimerRef.current = null;
+        recordAutoReloginFailure();
+        setAutoRelogging(false);
+        Alert.alert(
+          '自動ログインがタイムアウトしました',
+          'ネットワーク状態を確認して、もう一度お試しください。'
+        );
+      }, AUTO_RELOGIN_TIMEOUT_MS);
+
+      getCredentials(kaedeCredKey).then((creds) => {
+        if (creds?.id && creds?.pw && webViewRef.current) {
+          webViewRef.current.injectJavaScript(buildAutoFillJS(creds.id, creds.pw));
+        } else {
+          // 저장된 자격증명 없음 → 오버레이·타이머 해제하고 수동 로그인에 맡김
+          if (autoReloginTimerRef.current) {
+            clearTimeout(autoReloginTimerRef.current);
+            autoReloginTimerRef.current = null;
+          }
+          setAutoRelogging(false);
+        }
+      });
+      return;
+    }
+
+    // ② manaba 페이지 도달 (로그인 폼 제외)
+    if (url.includes('kokushikan.manaba.jp') && !url.includes('/ct/login')) {
+      // 자동 재로그인이 진행 중이었다면 성공 처리 (로컬+글로벌 리셋)
+      if (autoRelogging) recordAutoReloginSuccess();
+      resetAutoReloginLocal();
+
+      if (url.includes('home_preferences_reminder')) {
+        // 리마인더 페이지 도착 → 携帯칸 강조
+        webViewRef.current?.injectJavaScript(HIGHLIGHT_KEITAI_JS);
+      } else if (!redirectedToReminderRef.current) {
+        // 로그인 후 manaba 홈 등 다른 페이지에 떨어졌으면 리마인더 페이지로 1회 유도
+        redirectedToReminderRef.current = true;
+        webViewRef.current?.injectJavaScript(
+          `window.location.href = '${MANABA_REMINDER_URL}';`
+        );
+      }
     }
   };
 
@@ -345,6 +430,15 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
               ? '認証コードを待っています…'
               : '設定を確認しています…'}
           </Text>
+          <Text style={styles.overlaySub}>少しお待ちください</Text>
+        </View>
+      )}
+
+      {/* 세션 만료 자동 재로그인 오버레이 */}
+      {autoRelogging && (
+        <View style={styles.overlay}>
+          <LoadingDots />
+          <Text style={styles.overlayText}>自動ログイン中…</Text>
           <Text style={styles.overlaySub}>少しお待ちください</Text>
         </View>
       )}
