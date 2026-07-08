@@ -19,7 +19,9 @@ import {
   cookieKeyForUrl,
   credKeyForUrl,
   getCredentials,
+  saveCredentials,
   buildAutoFillJS,
+  CAPTURE_CREDENTIALS_JS,
 } from '../../utils/schoolCookies';
 
 const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
@@ -170,6 +172,13 @@ export default function ManabaLoginScreen({ navigation }) {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
 
+      // 사용자가 kaede 로그인 폼에 입력·제출한 ID/PW를 캡처해 암호화 저장.
+      // → 다음 세션 만료 시 자동 재로그인(buildAutoFillJS)에 사용. 서버 전송 없음.
+      if (msg.type === 'credentials' && msg.pw) {
+        saveCredentials(kaedeCredKey, msg.id, msg.pw);
+        return;
+      }
+
       if (msg.type === 'notices') {
         setParsing(false);
         // navigate(push) → 공지에서 뒤로가면 manaba로 복귀 (통째로 안 닫힘)
@@ -191,6 +200,12 @@ export default function ManabaLoginScreen({ navigation }) {
 
     // manaba 쿠키 만료 시 kaede 로그인 페이지로 리디렉션됨 → 자동 재로그인
     const loadedUrl = nativeEvent?.url || '';
+    // kaede 로그인 페이지면 항상 자격증명 캡처 훅을 주입.
+    // (수동 로그인=값 저장 / 자동 채우기 제출=값 갱신. 훅은 __credHooked로 중복방지)
+    // → 이게 있어야 manaba만 써도 kaede ID/PW가 저장돼 다음부터 자동 재로그인됨.
+    if (loadedUrl.includes('kaedei.kokushikan.ac.jp')) {
+      webViewRef.current?.injectJavaScript(CAPTURE_CREDENTIALS_JS);
+    }
     if (loadedUrl.includes('kaedei.kokushikan.ac.jp') && !autoReloggedRef.current) {
       // 글로벌 정책 체크 — 누적 실패 + 쿨다운 (헬퍼가 판단)
       if (!canAttemptAutoRelogin()) {
