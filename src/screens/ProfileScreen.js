@@ -490,7 +490,13 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.sectionTitle}>manaba通知設定</Text>
           <View style={styles.infoCard}>
             <TouchableOpacity
-              onPress={() => navigation.navigate('MailConnectOnboarding')}
+              onPress={() =>
+                navigation.navigate(
+                  'MailConnectOnboarding',
+                  // 첫 설정(none)만 인트로부터, 이미 시작한 경우(pending/verified)는 설정 안내로 바로
+                  forwardStatus === 'none' ? undefined : { mode: 'settings' },
+                )
+              }
               activeOpacity={0.8}
             >
               <View style={styles.toggleRow}>

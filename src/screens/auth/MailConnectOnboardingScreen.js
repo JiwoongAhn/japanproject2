@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { typography } from '../../constants/typography';
 import { spacing, radius } from '../../constants/spacing';
 import Button from '../../components/Button';
 import PhoneMockup from '../../components/PhoneMockup';
+import LoadingDots from '../../components/LoadingDots';
 import { supabase } from '../../lib/supabase';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -131,11 +132,18 @@ const SLIDES = [
 export default function MailConnectOnboardingScreen({ navigation, route }) {
   // 연결/스킵 완료 후 이동할 화면 (기본: manaba 모달)
   const nextRoute = route?.params?.next ?? 'Manaba';
+  // 설정 모드: 이미 한 번 설정을 시작한 사용자가 마이페이지에서 다시 들어온 경우.
+  // 인트로 슬라이드를 건너뛰고 곧바로 주소/설정 안내로 진입한다(최초 1회 외 인트로 반복 방지).
+  const settingsMode = route?.params?.mode === 'settings';
 
   const [index, setIndex] = useState(0);
   const [provisioning, setProvisioning] = useState(false);
   const [address, setAddress] = useState(null); // 발급된 전달주소 → 가이드 화면 표시
   const [copied, setCopied] = useState(false);
+  // 설정 모드에서 주소 발급 대기 중 인트로 깜빡임을 막기 위한 로딩 플래그
+  const [autoLoading, setAutoLoading] = useState(settingsMode);
+  // 사용자가 "使い方をもう一度見る"를 눌러 인트로를 다시 볼 때만 true (가이드 위에 인트로 표시)
+  const [showIntro, setShowIntro] = useState(false);
   const scrollRef = useRef(null);
 
   const isLast = index === SLIDES.length - 1;
@@ -176,11 +184,36 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
         return;
       }
       setAddress(data.address);
+      setShowIntro(false); // (재열람 중이었다면) 인트로 종료하고 가이드로 복귀
     } catch (e) {
       Alert.alert('発行できませんでした', 'もう一度お試しください。');
     } finally {
       setProvisioning(false);
     }
+  };
+
+  // 설정 모드로 진입하면 인트로 없이 곧바로 주소를 발급(멱등)해 가이드 화면을 연다
+  useEffect(() => {
+    if (!settingsMode) return;
+    let alive = true;
+    (async () => {
+      await handleProvision();
+      if (alive) setAutoLoading(false); // 성공=가이드 표시 / 실패=인트로로 폴백
+    })();
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 인트로 캐러셀의 닫기/あとで — 재열람 중이면 가이드로 복귀, 최초 흐름이면 다음 화면으로
+  const handleCloseCarousel = () => {
+    if (showIntro) setShowIntro(false);
+    else goNext();
+  };
+
+  // 가이드에서 "사용법 다시 보기" — 인트로 캐러셀을 처음부터 다시 보여줌
+  const handleReplayIntro = () => {
+    setIndex(0);
+    setShowIntro(true);
   };
 
   const handleCopy = async () => {
@@ -195,8 +228,18 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
     navigation.navigate('ManabaReminderSetup', { address });
   };
 
-  // ── 주소 발급 후: manaba 리마인더 설정 안내 화면 ──
-  if (address) {
+  // ── 설정 모드: 주소 발급 대기 로딩 (인트로 깜빡임 방지) ──
+  if (autoLoading && !showIntro && !address) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" />
+        <LoadingDots fullscreen />
+      </SafeAreaView>
+    );
+  }
+
+  // ── 주소 발급 후: manaba 리마인더 설정 안내 화면 (인트로 재열람 중이면 아래 캐러셀 표시) ──
+  if (address && !showIntro) {
     return (
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" />
@@ -243,6 +286,13 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
 
         <View style={styles.bottomArea}>
           <Button title="manaba設定を開く" onPress={handleOpenReminderSetup} />
+          <TouchableOpacity
+            onPress={handleReplayIntro}
+            style={styles.laterButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.laterText}>使い方をもう一度見る</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -266,10 +316,10 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          onPress={goNext}
+          onPress={handleCloseCarousel}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.skipText}>閉じる</Text>
+          <Text style={styles.skipText}>{showIntro ? '戻る' : '閉じる'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -312,11 +362,11 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
               loading={provisioning}
             />
             <TouchableOpacity
-              onPress={goNext}
+              onPress={handleCloseCarousel}
               style={styles.laterButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={styles.laterText}>あとで</Text>
+              <Text style={styles.laterText}>{showIntro ? '戻る' : 'あとで'}</Text>
             </TouchableOpacity>
             <Text style={styles.footnote}>
               設定しなくても、アプリのすべての機能は使えます。{'\n'}
