@@ -13,7 +13,8 @@ import MyPostsScreen from '../screens/community/MyPostsScreen';
 import PostEditScreen from '../screens/community/PostEditScreen';
 import BlockedUsersScreen from '../screens/community/BlockedUsersScreen';
 import { colors } from '../constants/colors';
-import { spacing, shadow } from '../constants/spacing';
+import AnimatedTabBar from './AnimatedTabBar';
+import { TabBarScrollProvider } from './TabBarScrollContext';
 
 const Tab = createBottomTabNavigator();
 const ProfileStack = createNativeStackNavigator();
@@ -35,24 +36,12 @@ function ProfileStackNavigator() {
 // 로그인 후 보이는 하단 탭 5개
 export default function MainTab() {
   return (
+    <TabBarScrollProvider>
     <Tab.Navigator
       sceneContainerStyle={{ backgroundColor: colors.background }}
+      // 스크롤 방향에 따라 커지고/작아지는 토스풍 커스텀 탭바 (아이콘+라벨 ↔ 아이콘만)
+      tabBar={(props) => <AnimatedTabBar {...props} />}
       screenOptions={{
-        tabBarActiveTintColor: '#191F28',
-        tabBarInactiveTintColor: '#B0B8C1',
-        // 고정형 탭바 — 흰 배경 + 위쪽으로 향하는 옅은 그림자 (후보 1 톤)
-        tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopWidth: 0,
-          height: 80,
-          paddingBottom: spacing.lg,
-          paddingTop: spacing.sm,
-          ...shadow.tabBar,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
         headerShown: false,
       }}
     >
@@ -119,5 +108,6 @@ export default function MainTab() {
         }}
       />
     </Tab.Navigator>
+    </TabBarScrollProvider>
   );
 }

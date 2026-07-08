@@ -23,9 +23,11 @@ import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo } from '../utils/university';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
+import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 export default function ProfileScreen({ navigation }) {
   const { refreshProfile } = useAuth();
+  const { handleScroll } = useTabBarScroll();
   const [userEmail, setUserEmail]           = useState('');
   const [nickname, setNickname]             = useState('');
   const [universityName, setUniversityName] = useState('');
@@ -314,7 +316,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16} contentContainerStyle={styles.scrollContent}>
 
         {/* ── 헤더 ── */}
         <View style={styles.pageHeader}>

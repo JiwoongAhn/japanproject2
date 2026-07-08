@@ -19,6 +19,7 @@ import { BOARD_CATEGORIES, getCategoryInfo } from '../../constants/boardCategori
 import { supabase } from '../../lib/supabase';
 import { formatTimeAgo } from '../../utils/community';
 import { getUniversityInfo } from '../../utils/university';
+import { useTabBarScroll } from '../../navigation/TabBarScrollContext';
 
 // 한 번에 로드하는 게시글 수
 const PAGE_SIZE = 20;
@@ -30,6 +31,7 @@ const ALL_TABS = [
 ];
 
 export default function PostListScreen({ navigation }) {
+  const { handleScroll } = useTabBarScroll();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchText, setSearchText] = useState('');
   const [posts, setPosts] = useState([]);
@@ -203,6 +205,8 @@ export default function PostListScreen({ navigation }) {
           data={posts}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
           refreshControl={
             // OS 기본 스피너는 숨기고(투명), 새로고침 중엔 리스트 상단에 점 애니메이션 표시

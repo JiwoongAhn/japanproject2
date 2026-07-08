@@ -21,6 +21,7 @@ import CourseDetailModal from './CourseDetailModal';
 import { getPeriodStartTimeStr } from '../../utils/timetable';
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
+import { useTabBarScroll } from '../../navigation/TabBarScrollContext';
 
 // 요일 레이블 (일본어)
 const DAYS = ['月', '火', '水', '木', '金'];
@@ -47,6 +48,7 @@ function getSemesterLabel() {
 
 export default function TimetableScreen({ navigation }) {
   const { session } = useAuth();
+  const { handleScroll } = useTabBarScroll();
   const universityInfo = getUniversityInfo(session?.user?.email);
   const links = getUniversityLinks(universityInfo.id);
 
@@ -247,7 +249,7 @@ export default function TimetableScreen({ navigation }) {
       {loading ? (
         <LoadingDots fullscreen />
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
+        <ScrollView showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
           {/* ── 오늘 수업 요약 + 전체 삭제 (좌: 요약 / 우: 全て削除) ── */}
           <View style={styles.summaryRow}>
             {TODAY_COL >= 0 ? (

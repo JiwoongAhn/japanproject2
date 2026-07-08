@@ -22,8 +22,10 @@ import { getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { universities } from '../constants/universities';
 import ManabaNoticePreview from '../components/ManabaNoticePreview';
 import { openManaba } from '../utils/mailOnboarding';
+import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 export default function HomeScreen({ navigation }) {
+  const { handleScroll } = useTabBarScroll();
   const [todayCourses, setTodayCourses] = useState([]);
   const [upcomingAssignments, setUpcomingAssignments] = useState([]);
   const [recentPosts, setRecentPosts] = useState([]);
@@ -197,6 +199,8 @@ export default function HomeScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />

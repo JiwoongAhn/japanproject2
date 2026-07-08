@@ -18,6 +18,7 @@ import { typography } from '../constants/typography';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
 import { calcDday } from '../utils/assignment';
+import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 // 상태별 디자인 — pastel 토큰으로 부드럽게
 const STATUS_CONFIG = {
@@ -53,6 +54,7 @@ const EMPTY_STATE = {
 };
 
 export default function AssignmentScreen({ navigation }) {
+  const { handleScroll } = useTabBarScroll();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -219,6 +221,8 @@ export default function AssignmentScreen({ navigation }) {
           data={filteredAssignments}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={styles.listContent}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
