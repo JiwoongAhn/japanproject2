@@ -128,6 +128,29 @@ export default function TimetableScreen({ navigation }) {
     }
   };
 
+  // 欠席/遅刻 카운터 증감 — 0 미만으로는 안 내려가며, 화면을 먼저 갱신(낙관적)한 뒤 DB 저장
+  const handleAttendanceChange = async (course, field, delta) => {
+    const current = course[field] ?? 0;
+    const next = Math.max(0, current + delta);
+    if (next === current) return; // 0에서 − 누른 경우 등 변화 없으면 무시
+
+    // 낙관적 업데이트: 목록과 열려있는 모달(selectedCourse)을 즉시 반영
+    setCourses(prev => prev.map(c => (c.id === course.id ? { ...c, [field]: next } : c)));
+    setSelectedCourse(prev => (prev && prev.id === course.id ? { ...prev, [field]: next } : prev));
+
+    const { error } = await supabase
+      .from('courses')
+      .update({ [field]: next })
+      .eq('id', course.id);
+
+    if (error) {
+      // 저장 실패 시 이전 값으로 롤백
+      setCourses(prev => prev.map(c => (c.id === course.id ? { ...c, [field]: current } : c)));
+      setSelectedCourse(prev => (prev && prev.id === course.id ? { ...prev, [field]: current } : prev));
+      Alert.alert('お知らせ', '保存できませんでした。もう一度お試しください');
+    }
+  };
+
   const handleDeleteCourse = async (courseId) => {
     const { error } = await supabase
       .from('courses')
@@ -350,6 +373,21 @@ export default function TimetableScreen({ navigation }) {
                               {course.professor_name}
                             </Text>
                           ) : null}
+                          {/* 결석/지각이 1회 이상일 때만 우상단 배지 (欠=빨강, 遅=주황) */}
+                          {(course.absent_count > 0 || course.late_count > 0) ? (
+                            <View style={styles.attendanceBadge}>
+                              {course.absent_count > 0 ? (
+                                <Text style={[styles.attendanceBadgeText, { color: colors.danger }]}>
+                                  欠{course.absent_count}
+                                </Text>
+                              ) : null}
+                              {course.late_count > 0 ? (
+                                <Text style={[styles.attendanceBadgeText, { color: colors.warning }]}>
+                                  遅{course.late_count}
+                                </Text>
+                              ) : null}
+                            </View>
+                          ) : null}
                         </>
                       ) : null}
                     </TouchableOpacity>
@@ -415,6 +453,7 @@ export default function TimetableScreen({ navigation }) {
         onClose={() => setSelectedCourse(null)}
         onDelete={handleDeleteCourse}
         onEdit={(course) => navigation.navigate('CourseAdd', { course })}
+        onAttendanceChange={handleAttendanceChange}
       />
     </SafeAreaView>
   );
@@ -582,6 +621,24 @@ const styles = StyleSheet.create({
     ...typography.micro,
     opacity: 0.85,
     marginTop: 2,
+  },
+  // 결석/지각 배지 — 칸 우상단. 흰 반투명 배경으로 색 텍스트 가독성 확보
+  attendanceBadge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 4,
+    paddingHorizontal: 3,
+    paddingVertical: 1,
+  },
+  attendanceBadgeText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: '800',
   },
 
   // ── 하단 메뉴 ──────────────────────────────

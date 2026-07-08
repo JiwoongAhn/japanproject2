@@ -25,13 +25,43 @@ const PERIOD_TIMES = {
   8: '21:40 ~ 23:10',
 };
 
+// 欠席/遅刻 카운터 한 줄 (라벨 + −/숫자/+ 스테퍼)
+function AttendanceRow({ label, count, accent, onMinus, onPlus }) {
+  return (
+    <View style={styles.attendanceRow}>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <View style={styles.stepper}>
+        <TouchableOpacity
+          style={[styles.stepBtn, count === 0 && styles.stepBtnDisabled]}
+          onPress={onMinus}
+          disabled={count === 0}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={[styles.stepBtnText, count === 0 && styles.stepBtnTextDisabled]}>−</Text>
+        </TouchableOpacity>
+        <Text style={[styles.stepCount, count > 0 && { color: accent }]}>{count}</Text>
+        <TouchableOpacity
+          style={styles.stepBtn}
+          onPress={onPlus}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Text style={styles.stepBtnText}>＋</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
 // 수업 상세 모달 (바텀시트)
 // Props:
 //   course  — 선택된 수업 객체 (null이면 표시 안 함)
 //   onClose — 모달 닫기 함수
 //   onDelete(courseId) — 삭제 실행 함수
 //   onEdit(course)     — 편집 화면 열기 함수
-export default function CourseDetailModal({ course, onClose, onDelete, onEdit }) {
+//   onAttendanceChange(course, field, delta) — 欠席/遅刻 카운터 증감 (field: 'absent_count' | 'late_count')
+export default function CourseDetailModal({ course, onClose, onDelete, onEdit, onAttendanceChange }) {
   // 삭제 확인 단계 (true면 "정말 삭제?" UI 표시)
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -123,6 +153,27 @@ export default function CourseDetailModal({ course, onClose, onDelete, onEdit })
             </>
           ) : null}
         </View>
+
+        {/* 出欠カウンター — 欠席/遅刻을 탭으로 증감 (삭제 확인 중에는 숨김) */}
+        {!confirmDelete ? (
+          <View style={styles.attendanceCard}>
+            <AttendanceRow
+              label="欠席"
+              count={course.absent_count ?? 0}
+              accent={colors.danger}
+              onMinus={() => onAttendanceChange?.(course, 'absent_count', -1)}
+              onPlus={() => onAttendanceChange?.(course, 'absent_count', +1)}
+            />
+            <View style={styles.infoDivider} />
+            <AttendanceRow
+              label="遅刻"
+              count={course.late_count ?? 0}
+              accent={colors.warning}
+              onMinus={() => onAttendanceChange?.(course, 'late_count', -1)}
+              onPlus={() => onAttendanceChange?.(course, 'late_count', +1)}
+            />
+          </View>
+        ) : null}
 
         {/* 삭제 확인 단계 */}
         {confirmDelete ? (
@@ -262,6 +313,53 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginTop: spacing.xs,
     lineHeight: 20,
+  },
+
+  // ── 出欠カウンター ──
+  attendanceCard: {
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  attendanceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  stepBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.card,
+  },
+  stepBtnDisabled: {
+    backgroundColor: colors.gray100,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  stepBtnText: {
+    fontSize: 20,
+    lineHeight: 22,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  stepBtnTextDisabled: {
+    color: colors.gray200,
+  },
+  stepCount: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+    minWidth: 34,
+    textAlign: 'center',
   },
 
   // ── 삭제 확인 ──

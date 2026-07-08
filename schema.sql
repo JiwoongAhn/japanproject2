@@ -79,6 +79,10 @@ CREATE TABLE courses (
   -- 간단 메모 (선택 입력, 최대 100자)
   room            TEXT,
   -- 강의실(教室). 시라바스에서 자동 채움 + 수동 입력 보완. NULL=미취득/교실없음(집중강의 등)
+  absent_count    SMALLINT NOT NULL DEFAULT 0 CHECK (absent_count >= 0),
+  -- 결석(欠席) 누적 횟수 — 사용자가 상세 모달에서 직접 증감
+  late_count      SMALLINT NOT NULL DEFAULT 0 CHECK (late_count >= 0),
+  -- 지각(遅刻) 누적 횟수 — 사용자가 상세 모달에서 직접 증감
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
