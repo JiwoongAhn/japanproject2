@@ -54,6 +54,22 @@ export function parseResultRow(cells = []) {
   };
 }
 
+// 주 2회 수업(예: 月3·木3)은 教室 칸에 방이 여러 개(공백 구분: "11504 13204")로 온다.
+// 시라바스는 曜日時限과 教室을 같은 순서(이른 요일부터)로 나열하므로,
+// 방 개수와 슬롯 개수가 정확히 같을 때만 요청한 요일·교시 위치의 방을 골라준다.
+// 개수가 안 맞으면(방1개=양일 공용, 방3개≠슬롯2개 등) 헷갈릴 수 있으니 통째로 반환한다.
+function pickRoomForSlot(row, course) {
+  const rooms = String(row.room || '').trim().split(/\s+/).filter(Boolean);
+  if (rooms.length <= 1) return row.room || null;              // 방 1개 → 그대로
+  if (course.day == null || course.period == null) return row.room;
+  if (rooms.length !== (row.slots || []).length) return row.room; // 개수 불일치 → 안전하게 통째로
+  const idx = row.slots.findIndex(
+    (sl) => sl.day === course.day && sl.period === course.period
+  );
+  if (idx < 0) return row.room;                                // 슬롯 못 찾으면 통째로
+  return rooms[idx] || row.room;                               // 순서대로 매칭된 방
+}
+
 // 수업 1개에 대한 최적 교실 선택
 //   course : { name, professor, day, period, campus? }
 //   rows   : 시라바스 검색결과 raw 행 배열(문자열 배열의 배열)
@@ -89,7 +105,9 @@ export function matchRoom(course = {}, rows = []) {
     if (byCampus.length) cands = byCampus;
   }
 
-  return cands[0]?.room || null;
+  const best = cands[0];
+  if (!best || !best.room) return null;
+  return pickRoomForSlot(best, course);
 }
 
 // WebView(시라바스 페이지)에 주입할 스크립트 생성

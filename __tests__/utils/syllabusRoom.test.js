@@ -107,6 +107,26 @@ describe('matchRoom', () => {
     expect(matchRoom(course, rows)).toBe('B202');
   });
 
+  test('주 2회 수업: 방 2개를 요일 순서대로 분리 (月→왼쪽, 木→오른쪽)', () => {
+    const rows = [row('応用英語1', 'ヴィンセント ロバート', '月／3木／3', '町田', '11504 13204')];
+    // 月3 → 왼쪽 방
+    expect(matchRoom({ name: '応用英語1', professor: 'ヴィンセント ロバート', day: 0, period: 3 }, rows)).toBe('11504');
+    // 木3 → 오른쪽 방
+    expect(matchRoom({ name: '応用英語1', professor: 'ヴィンセント ロバート', day: 3, period: 3 }, rows)).toBe('13204');
+  });
+
+  test('주 2회지만 방 1개(양일 공용) → 양쪽 같은 방', () => {
+    const rows = [row('演習', '田中 太郎', '月／2土／5', '町田', '30403')];
+    expect(matchRoom({ name: '演習', professor: '田中 太郎', day: 0, period: 2 }, rows)).toBe('30403');
+    expect(matchRoom({ name: '演習', professor: '田中 太郎', day: 5, period: 5 }, rows)).toBe('30403');
+  });
+
+  test('방 개수와 슬롯 개수 불일치 → 안전하게 통째로 반환', () => {
+    // 슬롯 2개인데 방이 3개처럼 개수가 안 맞으면 쪼개지 않음(오배치 방지)
+    const rows = [row('特講', '佐藤', '月／1火／1', '町田', 'A101 B202 C303')];
+    expect(matchRoom({ name: '特講', professor: '佐藤', day: 0, period: 1 }, rows)).toBe('A101 B202 C303');
+  });
+
   test('교실 빈칸(집중강의) → null', () => {
     const course = { name: 'グローバルアジア論', professor: '高橋 伸子', day: null, period: null };
     const rows = [row('グローバルアジア論', '高橋 伸子', '集中', '町田', '')];
