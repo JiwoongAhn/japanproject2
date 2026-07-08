@@ -188,7 +188,7 @@ export default function HomeScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       </SafeAreaView>
     );
   }

@@ -195,7 +195,7 @@ export default function FreeTimeScreen({ navigation }) {
           <Text style={styles.headerTitle}>空き時間合わせ</Text>
           <View style={styles.backButton} />
         </View>
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       </SafeAreaView>
     );
   }

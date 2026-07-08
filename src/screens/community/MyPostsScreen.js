@@ -333,7 +333,7 @@ export default function MyPostsScreen({ navigation }) {
 
       {/* ── 콘텐츠 ── */}
       {loading ? (
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       ) : activeData.length === 0 ? (
         renderEmpty()
       ) : (

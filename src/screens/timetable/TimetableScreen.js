@@ -142,37 +142,51 @@ export default function TimetableScreen({ navigation }) {
     }
   };
 
-  // 시간표 전체 삭제 — 되돌릴 수 없으므로 반드시 확인 다이얼로그를 거친다
+  // 시간표 전체 삭제 — 되돌릴 수 없으므로 2단계 확인을 거친다(退会와 동일한 실수방지 패턴)
   const handleClearAll = () => {
     if (courses.length === 0) return;
+    // 1단계: 삭제 예고
     Alert.alert(
       '時間割を全て削除',
       `${courses.length}件の授業をすべて削除します。\nこの操作は元に戻せません。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
-          text: '全て削除',
+          text: '削除に進む',
           style: 'destructive',
-          onPress: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            // 본인 수업만 삭제 (user_id 기준)
-            const { error } = await supabase
-              .from('courses')
-              .delete()
-              .eq('user_id', user.id);
-
-            if (error) {
-              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
-            } else {
-              setCourses([]); // 즉시 UI 비움
-              fetchCourses();
-            }
+          onPress: () => {
+            // 2단계: 최종 확인 (실수로 연속 탭하는 것을 막기 위해 한 번 더 물음)
+            Alert.alert(
+              '本当に削除しますか？',
+              'すべての授業が消え、元に戻せません。',
+              [
+                { text: 'キャンセル', style: 'cancel' },
+                { text: '全て削除', style: 'destructive', onPress: performClearAll },
+              ]
+            );
           },
         },
       ]
     );
+  };
+
+  // 실제 삭제 실행 — 2단계 확인을 모두 통과했을 때만 호출된다
+  const performClearAll = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // 본인 수업만 삭제 (user_id 기준)
+    const { error } = await supabase
+      .from('courses')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (error) {
+      Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+    } else {
+      setCourses([]); // 즉시 UI 비움
+      fetchCourses();
+    }
   };
 
   // 오늘 수업 통계 (1 thing/1 page — 화면 상단의 핵심 정보 하나)
@@ -208,7 +222,7 @@ export default function TimetableScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
           {/* ── 오늘 수업 요약 + 전체 삭제 (좌: 요약 / 우: 全て削除) ── */}

@@ -198,7 +198,7 @@ export default function AssignmentScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       ) : isEmpty ? (
         <View style={styles.emptyContainer}>
           <Ionicons name={emptyInfo.icon} size={56} color={colors.textDisabled} style={styles.emptyEmoji} />

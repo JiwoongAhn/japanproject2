@@ -7,11 +7,13 @@ import { colors } from '../constants/colors';
 const DOT_COUNT = 3;
 
 /**
- * @param {number} size  점 하나의 지름(px). 기본 10
- * @param {string} color 점 색깔. 기본 앱 테마 primary
- * @param {object} style 컨테이너에 덧붙일 스타일(여백 등)
+ * @param {number}  size       점 하나의 지름(px). 기본 10
+ * @param {string}  color      점 색깔. 기본 앱 테마 primary
+ * @param {object}  style      컨테이너에 덧붙일 스타일(여백 등)
+ * @param {boolean} fullscreen true면 남은 공간을 가득 채워 점을 화면(콘텐츠 영역) 정중앙에 배치.
+ *                             풀스크린 로딩 자리에서 이 옵션 하나로 항상 중앙 정렬됨.
  */
-export default function LoadingDots({ size = 10, color = colors.primary, style }) {
+export default function LoadingDots({ size = 10, color = colors.primary, style, fullscreen = false }) {
   // 점이 위로 튀는 높이는 점 크기에 비례 (작은 점은 조금만, 큰 점은 많이)
   const lift = size * 0.6;
 
@@ -52,7 +54,7 @@ export default function LoadingDots({ size = 10, color = colors.primary, style }
   }, [dots, lift]);
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, fullscreen && styles.fullscreen, style]}>
       {dots.map((dot, i) => (
         <Animated.View
           key={i}
@@ -75,5 +77,8 @@ export default function LoadingDots({ size = 10, color = colors.primary, style }
 
 const styles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  // 남은 공간을 세로·가로 모두 채워 점을 정중앙에 둔다.
+  // alignSelf:'stretch'는 부모가 alignItems:'stretch'가 아니어도 가로폭을 확보하기 위함.
+  fullscreen: { flex: 1, alignSelf: 'stretch' },
   dot: {},
 });

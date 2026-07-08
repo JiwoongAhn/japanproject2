@@ -327,7 +327,7 @@ export default function PostDetailScreen({ navigation, route }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       </SafeAreaView>
     );
   }

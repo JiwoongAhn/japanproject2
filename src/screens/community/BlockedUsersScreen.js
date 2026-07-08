@@ -78,7 +78,7 @@ export default function BlockedUsersScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       ) : blocks.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="shield-checkmark-outline" size={40} color={colors.gray300} />

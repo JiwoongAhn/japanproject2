@@ -197,9 +197,7 @@ export default function PostListScreen({ navigation }) {
 
       {/* ── 로딩 중 ── */}
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <LoadingDots />
-        </View>
+        <LoadingDots fullscreen />
       ) : (
         <FlatList
           data={posts}

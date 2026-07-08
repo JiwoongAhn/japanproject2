@@ -177,7 +177,7 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
       </View>
 
       {loading ? (
-        <LoadingDots style={{ flex: 1 }} />
+        <LoadingDots fullscreen />
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}

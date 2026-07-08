@@ -98,6 +98,15 @@ export default function MainTab() {
             <Ionicons name={focused ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline'} size={24} color={color} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          // 게시판 탭을 누르면 항상 글 목록(PostList)으로 진입시킨다.
+          // popToTopOnBlur는 '탭을 벗어날 때'만 리셋하므로, 홈 등에서 글 상세로 딥 진입해
+          // 게시판 탭이 blur 없이 focus된 상태로 남으면 탭을 다시 눌러도 상세에 머무는
+          // 버그가 있었다(가끔 마지막 페이지로 들어가지던 현상). 이를 tabPress에서 직접 커버.
+          tabPress: () => {
+            navigation.navigate('Community', { screen: 'PostList' });
+          },
+        })}
       />
       <Tab.Screen
         name="Profile"
