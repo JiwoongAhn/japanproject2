@@ -104,6 +104,15 @@ export default function CourseDetailModal({ course, onClose, onDelete, onEdit })
             <Text style={styles.infoLabel}>時間帯</Text>
             <Text style={styles.infoValue}>{timeLabel}</Text>
           </View>
+          {course.room ? (
+            <>
+              <View style={styles.infoDivider} />
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>教室</Text>
+                <Text style={styles.infoValue}>{course.room}</Text>
+              </View>
+            </>
+          ) : null}
           {course.memo ? (
             <>
               <View style={styles.infoDivider} />

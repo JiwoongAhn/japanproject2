@@ -110,6 +110,21 @@ describe('buildCourseRows', () => {
     expect(rows[0].professor_name).toBeNull();
   });
 
+  // B-02b: 교실(room)이 있으면 행에 포함, 없으면 room 키 자체가 없음(DB NULL)
+  test('B-02b: room 있으면 포함, 없으면 미포함', () => {
+    const { rows } = buildCourseRows(
+      [
+        { name: '経営学', day: 0, period: 1, room: ' 30303 ' },
+        { name: '統計学', day: 1, period: 2 },
+        { name: '集中', day: 2, period: 3, room: '' },
+      ],
+      UID
+    );
+    expect(rows[0].room).toBe('30303'); // trim되어 저장
+    expect(rows[1]).not.toHaveProperty('room');
+    expect(rows[2]).not.toHaveProperty('room'); // 빈 문자열은 미포함
+  });
+
   // B-03: 과목명·요일·교시 앞뒤 공백 trim
   test('B-03: 과목명 trim', () => {
     const { rows } = buildCourseRows([{ name: '  英語  ', day: 2, period: 3, professor: '  Smith ' }], UID);

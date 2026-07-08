@@ -8,7 +8,6 @@ import {
   Alert,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
-import * as Clipboard from 'expo-clipboard'; // [임시 진단] 교실 정보 위치 확인용
 import { UNIPAS_USER_AGENT } from '../constants/manaba';
 import UnofficialNotice from '../components/UnofficialNotice';
 import { colors } from '../constants/colors';
@@ -57,41 +56,6 @@ const KAEDE_EXTRACT_JS = `(function(){
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'kaedeCells', cells: out, url: location.href }));
   } catch (e) {
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'kaedeCells', error: String(e) }));
-  }
-  true;
-})();`;
-
-// ─────────────────────────────────────────────────────────────
-// [임시 진단] 교실(教室) 정보가 카에데 셀에 숨어있는지 확인용.
-// 각 수업 칸의 ①.mobile-hide 전체 텍스트 ②title 속성 ③칸 전체 텍스트를 통째로 덤프.
-// 결과를 보고 A안(카에데에 이미 있음) / B안(시라바스 필요)을 판정한 뒤 이 코드는 제거한다.
-// ─────────────────────────────────────────────────────────────
-const KAEDE_DIAGNOSE_JS = `(function(){
-  try {
-    var cells = document.querySelectorAll('td.cell');
-    var out = [];
-    for (var i = 0; i < cells.length; i++) {
-      var td = cells[i];
-      var nameEl = td.querySelector('.lecture_name');
-      if (!nameEl) continue;
-      var name = (nameEl.textContent || '').trim();
-      if (!name) continue;
-      var hides = td.querySelectorAll('.mobile-hide');
-      var hideTexts = [];
-      for (var j = 0; j < hides.length; j++) {
-        hideTexts.push((hides[j].textContent || '').replace(/\\s+/g, ' ').trim());
-      }
-      out.push({
-        name: name,
-        title: td.getAttribute('title') || '',
-        hide: hideTexts,
-        fullText: (td.innerText || td.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 300)
-      });
-      if (out.length >= 4) break; // 앞 4개 수업이면 구조 파악에 충분
-    }
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'kaedeDebug', cells: out }));
-  } catch (e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'kaedeDebug', error: String(e) }));
   }
   true;
 })();`;
@@ -173,30 +137,8 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         setCreds({ id: msg.id, pw: msg.pw });
       } else if (msg.type === 'kaedeCells') {
         handleExtractedCells(msg);
-      } else if (msg.type === 'kaedeDebug') {
-        handleDiagnose(msg); // [임시 진단]
       }
     } catch (_) {}
-  };
-
-  // [임시 진단] 교실 정보 위치 확인 — 결과를 팝업으로 보여주고 전체를 클립보드에 복사
-  const handleDiagnose = async (msg) => {
-    if (msg.error || !msg.cells?.length) {
-      Alert.alert('診断エラー', '授業セルが見つかりませんでした。\nMY時間割ページで実行してください。');
-      return;
-    }
-    const readable = msg.cells
-      .map(
-        (c, i) =>
-          `[${i + 1}] ${c.name}\n · hide: ${c.hide.join(' ⁄ ') || '(なし)'}\n · title: ${c.title || '(なし)'}\n · text: ${c.fullText}`
-      )
-      .join('\n\n');
-    await Clipboard.setStringAsync(JSON.stringify(msg.cells, null, 2));
-    Alert.alert(
-      '🔍 教室診断（コピー済み）',
-      readable + '\n\n※全内容をコピーしました。開発者に貼り付けて送ってください。',
-      [{ text: 'OK' }]
-    );
   };
 
   // 추출된 셀 → 파서 라우터로 해석 → 확인 후 미리보기 화면으로
@@ -346,17 +288,6 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         </TouchableOpacity>
       )}
 
-      {/* [임시 진단] 교실 정보 위치 확인 버튼 — 확인 후 제거 예정 */}
-      {ready && isTimetablePage && (
-        <TouchableOpacity
-          style={styles.diagnoseFab}
-          onPress={() => webViewRef.current?.injectJavaScript(KAEDE_DIAGNOSE_JS)}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.extractFabText}>🔍 教室診断</Text>
-        </TouchableOpacity>
-      )}
-
       {/* 비공식 앱 면책 고지 — 로그인 전(처음 로그인 화면)에만 표시, 로그인 후 숨김 */}
       {!loggedIn && <UnofficialNotice />}
     </SafeAreaView>
@@ -425,21 +356,7 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
   },
-  // [Phase B 임시] 추출 플로팅 버튼
-  // [임시 진단] 교실 진단 버튼 — extractFab 바로 위
-  diagnoseFab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 124,
-    backgroundColor: colors.gray600,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-  },
+  // 시간표 추출 플로팅 버튼
   extractFab: {
     position: 'absolute',
     right: 16,

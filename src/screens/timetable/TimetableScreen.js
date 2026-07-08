@@ -321,12 +321,12 @@ export default function TimetableScreen({ navigation }) {
                           >
                             {course.name}
                           </Text>
-                          {course.classroom ? (
+                          {course.room ? (
                             <Text
                               style={[styles.courseRoom, { color: color.accent }]}
                               numberOfLines={1}
                             >
-                              {course.classroom}
+                              {course.room}
                             </Text>
                           ) : course.professor_name ? (
                             <Text

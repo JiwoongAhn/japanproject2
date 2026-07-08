@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 import { colors, pastel } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
@@ -20,6 +22,18 @@ import Card from '../../components/Card';
 import { supabase } from '../../lib/supabase';
 import { buildCourseRows } from '../../utils/timetable';
 import { COURSE_COLORS } from '../../constants/courseColors';
+import { SYLLABUS_URL, buildSyllabusFetchJS, matchRoom } from '../../utils/syllabusRoom';
+
+// ─────────────────────────────────────────────────────────────
+// [Step 3 목업 스위치]
+//   true  → 실제 시라바스 조회 대신 가짜 진행률로 "教室を取得中" 오버레이만 확인
+//            (Expo Go·웹에서 WebView가 안 돌아가므로 UI 방향성 먼저 검증)
+//   false → 숨은 WebView로 실제 시라바스 조회 (실기기 빌드/OTA에서 검증)
+//   ⚠️ UI 승인 후 false로 바꾸면 바로 실동작.
+const MOCK_ROOM_FETCH = false;
+// 목업이 채워넣을 가짜 교실들 (일부 null = 집중강의처럼 교실 없는 경우 재현)
+const MOCK_ROOMS = ['30303', '12203演習室', '30403', '11202', null, '20101', '13305'];
+const MOCK_STEP_MS = 600; // 한 과목당 진행 간격
 
 // 요일별 파스텔 매핑 — 한 화면에서 5±2색 이내 유지
 const DAY_PASTEL = ['mint', 'peach', 'sky', 'lavender', 'yellow', 'pink'];
@@ -62,6 +76,88 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
   // 색상 팔레트가 펼쳐진 카드 index — null이면 모두 닫힘
   const [colorPickerIdx, setColorPickerIdx] = useState(null);
 
+  // ── 시라바스 교실 조회 (Step 3) ─────────────────────────────
+  // roomPhase: idle → loading → done | error
+  const [roomPhase, setRoomPhase] = useState('idle');
+  const [roomDone, setRoomDone] = useState(0);   // 조회 완료 과목 수
+  const [roomTotal, setRoomTotal] = useState(0); // 조회 대상 과목 수
+  const roomWebRef = useRef(null);
+  const roomStartedRef = useRef(false);   // 조회 1회만 시작
+  const roomInjectedRef = useRef(false);  // WebView 로드 후 주입 1회만
+
+  // 조회 대상: 이름이 있는 과목 전부. index는 items 배열 위치 → 결과를 그 자리에 채움.
+  // 최초 파싱 결과 기준으로 1회만 계산(사용자 편집 전에 조회가 돌기 때문).
+  const roomQueries = useMemo(
+    () =>
+      (parseResult.parsed ?? [])
+        .map((it, index) => ({ index, name: (it?.name || '').trim() }))
+        .filter((q) => q.name),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  // 화면 진입 시 1회 교실 조회 시작
+  useEffect(() => {
+    if (roomStartedRef.current) return;
+    if (roomQueries.length === 0) {
+      setRoomPhase('done');
+      return;
+    }
+    roomStartedRef.current = true;
+    setRoomTotal(roomQueries.length);
+    setRoomPhase('loading');
+
+    if (MOCK_ROOM_FETCH) {
+      // [목업] 실제 조회 대신 0.6초마다 한 과목씩 가짜 교실을 채운다.
+      let i = 0;
+      const timer = setInterval(() => {
+        const q = roomQueries[i];
+        const fakeRoom = MOCK_ROOMS[i % MOCK_ROOMS.length];
+        if (fakeRoom) {
+          setItems((prev) =>
+            prev.map((it, idx) => (idx === q.index ? { ...it, room: fakeRoom } : it))
+          );
+        }
+        i += 1;
+        setRoomDone(i);
+        if (i >= roomQueries.length) {
+          clearInterval(timer);
+          setRoomPhase('done');
+        }
+      }, MOCK_STEP_MS);
+      return () => clearInterval(timer);
+    }
+    // 실동작(MOCK_ROOM_FETCH=false)은 숨은 WebView가 onLoadEnd에서 주입 → handleRoomMessage로 진행.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomQueries]);
+
+  // 숨은 WebView → RN 메시지: phase별로 진행률·교실 반영
+  const handleRoomMessage = (event) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type !== 'syllabusRoom') return;
+      if (msg.phase === 'start') {
+        if (typeof msg.total === 'number') setRoomTotal(msg.total);
+      } else if (msg.phase === 'item') {
+        // 검색결과 행 → matchRoom으로 이 과목의 교실 확정(없으면 그대로 둠)
+        setItems((prev) =>
+          prev.map((it, idx) => {
+            if (idx !== msg.index) return it;
+            const room = matchRoom(it, msg.rows || []);
+            return room ? { ...it, room } : it;
+          })
+        );
+        setRoomDone((d) => d + 1);
+      } else if (msg.phase === 'itemError') {
+        setRoomDone((d) => d + 1); // 개별 실패는 건너뛰고 진행률만 올림
+      } else if (msg.phase === 'done') {
+        setRoomPhase('done');
+      } else if (msg.phase === 'error') {
+        setRoomPhase('error');
+      }
+    } catch (_) {}
+  };
+
   const toggle = (idx) => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -87,11 +183,11 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
   // ── 편집/추가 ──────────────────────────────
   const openEdit = (idx) => {
     const it = items[idx];
-    setEditing({ index: idx, name: it.name ?? '', day: it.day ?? null, period: it.period ?? null });
+    setEditing({ index: idx, name: it.name ?? '', day: it.day ?? null, period: it.period ?? null, room: it.room ?? '' });
   };
 
   const openAdd = () => {
-    setEditing({ index: -1, name: '', day: null, period: null });
+    setEditing({ index: -1, name: '', day: null, period: null, room: '' });
   };
 
   const closeEdit = () => setEditing(null);
@@ -103,6 +199,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       return;
     }
     const { index, day, period } = editing;
+    const room = (editing.room ?? '').trim() || null; // 빈칸이면 null
     // 요일·교시가 모두 채워지면 신뢰도 high(자동 체크 대상)
     const confidence = (day != null && period != null) ? 'high' : 'low';
 
@@ -111,12 +208,12 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       const newIdx = items.length;
       setItems((prev) => [
         ...prev,
-        { name, day, period, term: defaultTerm, professor: null, confidence, colorIndex: newIdx % COURSE_COLORS.length },
+        { name, day, period, room, term: defaultTerm, professor: null, confidence, colorIndex: newIdx % COURSE_COLORS.length },
       ]);
       setSelected((prev) => new Set(prev).add(newIdx));
     } else {
       // 기존 항목 수정 — 교수/학기 등 기존 값 보존
-      setItems((prev) => prev.map((it, i) => (i === index ? { ...it, name, day, period, confidence } : it)));
+      setItems((prev) => prev.map((it, i) => (i === index ? { ...it, name, day, period, room, confidence } : it)));
       if (confidence === 'high') setSelected((prev) => new Set(prev).add(index));
     }
     setEditing(null);
@@ -265,10 +362,15 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
                       {item.name}
                     </Text>
 
-                    {/* 교수명 */}
-                    {item.professor ? (
+                    {/* 교수명 + 교실 */}
+                    {(item.professor || item.room) ? (
                       <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>{item.professor}</Text>
+                        {item.professor ? <Text style={styles.metaText}>{item.professor}</Text> : null}
+                        {item.room ? (
+                          <View style={styles.roomBadge}>
+                            <Text style={styles.roomBadgeText}>📍 {item.room}</Text>
+                          </View>
+                        ) : null}
                       </View>
                     ) : null}
                   </TouchableOpacity>
@@ -348,6 +450,50 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
         </TouchableOpacity>
       </View>
 
+      {/* ── 시라바스 교실 조회 (Step 3) ── */}
+      {/* 숨은 WebView: 실동작 시에만. 화면 밖(1x1, 투명)에서 fetch로 조회만 수행 */}
+      {!MOCK_ROOM_FETCH && roomPhase === 'loading' ? (
+        <WebView
+          ref={roomWebRef}
+          source={{ uri: SYLLABUS_URL }}
+          style={styles.hiddenWeb}
+          onMessage={handleRoomMessage}
+          onLoadEnd={() => {
+            if (roomInjectedRef.current) return; // 로드 완료가 여러 번 와도 1회만 주입
+            roomInjectedRef.current = true;
+            roomWebRef.current?.injectJavaScript(buildSyllabusFetchJS(roomQueries));
+          }}
+          onError={() => setRoomPhase('error')}
+          javaScriptEnabled
+          domStorageEnabled
+        />
+      ) : null}
+
+      {/* 진행 오버레이: 조회 중일 때 화면을 덮어 "教室を取得中 n/total" 표시 */}
+      {roomPhase === 'loading' ? (
+        <View style={styles.roomOverlay}>
+          <View style={styles.roomOverlayCard}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.roomOverlayTitle}>教室を取得中…</Text>
+            <Text style={styles.roomOverlayCount}>
+              {roomDone} / {roomTotal}
+            </Text>
+            <Text style={styles.roomOverlayHint}>
+              シラバスから教室情報を読み込んでいます
+            </Text>
+            {/* 서버가 느릴 때 교실 없이 바로 진행 */}
+            <TouchableOpacity
+              onPress={() => setRoomPhase('done')}
+              activeOpacity={0.7}
+              style={styles.roomSkipBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.roomSkipText}>スキップして続ける</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
+
       {/* ── 편집/추가 모달 ── */}
       <Modal
         visible={editing !== null}
@@ -373,6 +519,16 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
               placeholder="例: 経営学概論"
               placeholderTextColor={colors.textDisabled}
               maxLength={30}
+            />
+
+            <Text style={styles.modalLabel}>教室（任意）</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={editing?.room ?? ''}
+              onChangeText={(t) => setEditing((e) => ({ ...e, room: t }))}
+              placeholder="例: 30303"
+              placeholderTextColor={colors.textDisabled}
+              maxLength={20}
             />
 
             <Text style={styles.modalLabel}>曜日</Text>
@@ -572,6 +728,70 @@ const styles = StyleSheet.create({
   metaText: {
     ...typography.caption,
     color: colors.textSecondary,
+  },
+  // 교실 배지 — 시라바스에서 채워지면 표시
+  roomBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    backgroundColor: pastel.mint?.bg ?? colors.gray100,
+  },
+  roomBadgeText: {
+    ...typography.captionStrong,
+    color: pastel.mint?.accent ?? colors.textSecondary,
+  },
+
+  // 숨은 WebView — 화면 밖 1x1 투명(조회 전용, 사용자에겐 안 보임)
+  hiddenWeb: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    top: -1000,
+    left: -1000,
+    opacity: 0,
+  },
+
+  // 교실 조회 진행 오버레이
+  roomOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  roomOverlayCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.huge,
+    alignItems: 'center',
+    minWidth: 220,
+  },
+  roomOverlayTitle: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginTop: spacing.md,
+  },
+  roomOverlayCount: {
+    ...typography.title2,
+    color: colors.primary,
+    marginTop: spacing.xs,
+  },
+  roomOverlayHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  roomSkipBtn: {
+    marginTop: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  roomSkipText: {
+    ...typography.captionStrong,
+    color: colors.textSecondary,
+    textDecorationLine: 'underline',
   },
 
   // 빈 상태

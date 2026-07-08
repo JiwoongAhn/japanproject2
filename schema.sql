@@ -77,6 +77,8 @@ CREATE TABLE courses (
   -- 사용자가 고른 색상 인덱스 (COURSE_COLORS 0~6). NULL이면 id 기반 자동 색 사용
   memo            TEXT,
   -- 간단 메모 (선택 입력, 최대 100자)
+  room            TEXT,
+  -- 강의실(教室). 시라바스에서 자동 채움 + 수동 입력 보완. NULL=미취득/교실없음(집중강의 등)
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
