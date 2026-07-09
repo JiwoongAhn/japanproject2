@@ -4,6 +4,19 @@
 
 import { supabase } from '../lib/supabase';
 
+// manaba 시스템 메일(메일주소 인증코드/인증완료) 제목 키워드.
+// 이 메일들은 일반 공지가 아니므로 앱 공지 목록·배지에서 항상 제외한다.
+// (mail-inbound가 신규 저장을 막지만, 필터 도입 전 저장된 옛 행 방어용)
+const SYSTEM_MAIL_KEYWORDS = ['認証コード', '認証完了'];
+
+// 주어진 supabase 쿼리에 시스템 메일 제외 필터를 적용
+function excludeSystemMails(query) {
+  return SYSTEM_MAIL_KEYWORDS.reduce(
+    (q, kw) => q.not('subject', 'ilike', `%${kw}%`),
+    query,
+  );
+}
+
 // 안 읽은 공지 목록 조회 (최신순)
 // userId: auth.users.id (uuid)
 // limit: 가져올 최대 개수 (기본 20)
@@ -11,11 +24,13 @@ import { supabase } from '../lib/supabase';
 export async function fetchUnreadNotices(userId, limit = 20) {
   if (!userId) return [];
 
-  const { data, error } = await supabase
-    .from('manaba_notices')
-    .select('id, subject, sender, received_at, notice_url, course_hint, body_html')
-    .eq('user_id', userId)
-    .eq('is_read', false)
+  const { data, error } = await excludeSystemMails(
+    supabase
+      .from('manaba_notices')
+      .select('id, subject, sender, received_at, notice_url, course_hint, body_html')
+      .eq('user_id', userId)
+      .eq('is_read', false),
+  )
     .order('received_at', { ascending: false })
     .limit(limit);
 
@@ -32,11 +47,13 @@ export async function fetchUnreadNotices(userId, limit = 20) {
 export async function countUnreadNotices(userId) {
   if (!userId) return 0;
 
-  const { count, error } = await supabase
-    .from('manaba_notices')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('is_read', false);
+  const { count, error } = await excludeSystemMails(
+    supabase
+      .from('manaba_notices')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_read', false),
+  );
 
   if (error) {
     console.error('[manabaNotices] countUnread 실패:', error.message);

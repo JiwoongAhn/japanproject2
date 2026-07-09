@@ -70,7 +70,7 @@ Deno.serve(async (req: Request) => {
     const subjectText = subject ?? '';
 
     // ③.5 인증코드 메일이면: 본문 6자리 코드를 뽑아 pending_code에 저장 후 종료.
-    //      → 학생이 볼 수 없는 서버 코드를 앱이 폴링해 화면에 표시한다. (공지 저장/푸시 안 함)
+    //      → 앱이 폴링해 화면에 표시 + 학생 폰으로 코드 푸시(앱을 안 켜고 있어도 바로 받도록)
     if (subjectText.includes(AUTH_CODE_SUBJECT)) {
       const code = extractAuthCode(bodyHtml ?? '');
       if (code) {
@@ -79,6 +79,8 @@ Deno.serve(async (req: Request) => {
           .update({ pending_code: code, code_received_at: new Date().toISOString() })
           .eq('user_id', sub.user_id);
         console.log('[mail-inbound] 인증코드 저장 완료');
+        // 코드가 도착하는 즉시 학생 폰으로 푸시 → 대기 화면을 계속 보고 있지 않아도 됨
+        await sendAuthCodePush(supabase, sub.user_id, code);
       } else {
         console.warn('[mail-inbound] 인증코드 메일이나 6자리 코드를 못 찾음 — 본문 형식 점검 필요');
       }
@@ -160,6 +162,41 @@ Deno.serve(async (req: Request) => {
     return new Response('error', { status: 500 });
   }
 });
+
+/**
+ * 인증코드를 학생 폰으로 즉시 푸시 (공지 푸시와 달리 receipt 로깅 없는 단발성 전송).
+ * 앱을 켜두지 않아도 코드를 잠금화면에서 바로 확인해 manaba에 입력할 수 있게 한다.
+ * 푸시 토큰이 없거나 전송 실패해도 pending_code는 저장돼 있어 앱 폴링/재진입으로 표시된다.
+ */
+async function sendAuthCodePush(supabase: any, userId: string, code: string) {
+  const { data: tokens } = await supabase
+    .from('push_tokens')
+    .select('expo_token')
+    .eq('user_id', userId);
+  if (!tokens?.length) return;
+
+  const messages = tokens.map((t: { expo_token: string }) => ({
+    to: t.expo_token,
+    title: 'manaba 認証コード',
+    body: `認証コード: ${code}（アプリに戻って入力してください）`,
+    data: { type: 'manaba_auth_code', code },
+    sound: 'default',
+    priority: 'high',
+  }));
+
+  try {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(messages),
+    });
+    if (!res.ok) {
+      console.error('[mail-inbound] 인증코드 푸시 HTTP 실패:', res.status, await res.text());
+    }
+  } catch (e) {
+    console.error('[mail-inbound] 인증코드 푸시 예외:', e);
+  }
+}
 
 /** 본문 HTML에서 manaba 공지 URL 추출 */
 function extractManabaUrl(html: string): string | null {

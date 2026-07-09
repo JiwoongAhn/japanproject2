@@ -268,7 +268,12 @@ export default function HomeScreen({ navigation }) {
             <TouchableOpacity
               style={styles.heroTile}
               activeOpacity={0.7}
-              onPress={() => { if (links.manabaUrl) openManaba(navigation); }}
+              onPress={() => {
+                // #14: manaba 홈이 아니라 "お知らせ" 페이지로 바로 진입
+                if (links.manabaUrl) {
+                  openManaba(navigation, { screen: 'ManabaLogin', params: { target: 'notices' } });
+                }
+              }}
             >
               <View style={styles.heroLabelRow}>
                 <Text style={styles.heroLabel}>お知らせ</Text>

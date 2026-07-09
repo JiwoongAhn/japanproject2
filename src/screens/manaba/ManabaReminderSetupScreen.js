@@ -40,9 +40,12 @@ import {
 // 세션 만료 시 manaba가 리디렉션하는 학교 SSO(kaede) 주소 — ManabaLoginScreen과 동일
 const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
 
-// 폴링 설정: 5초 간격으로 최대 3분(36회)까지 인증 여부 확인
-const POLL_INTERVAL_MS = 5000;
-const POLL_MAX_ATTEMPTS = 36;
+// 폴링 설정: 3초 간격으로 최대 6분(120회)까지 인증 여부 확인.
+// manaba 인증코드 메일이 서버 도착까지 3~5분 걸리는 사례를 실측(2026-07-09)했기에
+// 넉넉히 대기한다. (예전 3분은 코드 도착 전에 타임아웃돼 사용자가 코드를 못 받았음)
+// 코드는 도착 즉시 폰 푸시로도 전달되므로, 이 화면을 계속 보고 있지 않아도 된다.
+const POLL_INTERVAL_MS = 3000;
+const POLL_MAX_ATTEMPTS = 120;
 
 // manaba 리마인더 페이지에서 "携帯メールアドレス" 입력칸을 찾아
 // 화면 중앙으로 스크롤하고 파란 테두리로 강조한다. (HTML 구조 실측 전 best-effort)
@@ -128,6 +131,31 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       if (autoReloginTimerRef.current) clearTimeout(autoReloginTimerRef.current);
     };
   }, []);
+
+  // 화면 진입 시 서버에 이미 도착한 인증코드/인증여부를 1회 확인.
+  // 메일이 늦게 도착해 이전 폴링이 끝난 뒤 다시 들어온 경우에도 곧바로 코드를 보여준다.
+  // (pending_code가 없으면 아무 일도 안 하고 정상 설정 흐름 유지)
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await supabase.functions.invoke('mail-provision');
+        if (!alive || !data) return;
+        if (data.verified) {
+          setStatus('done');
+        } else if (data.pendingCode) {
+          setPendingCode(data.pendingCode);
+          setStatus('code');
+        }
+      } catch (_) {
+        // 네트워크 오류는 무시 — 사용자가 버튼으로 다시 확인 가능
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [ready]);
 
   // 자동 재로그인 로컬 상태 리셋 (오버레이·사이클 ref·타이머). 글로벌 카운터는 헬퍼로 별도 갱신.
   const resetAutoReloginLocal = () => {
@@ -291,15 +319,18 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
         <View style={result.iconCircleWait}>
           <Ionicons name="time-outline" size={44} color={colors.primary} />
         </View>
-        <Text style={result.title}>確認に時間がかかっています</Text>
+        <Text style={result.title}>認証コードがまだ届いていません</Text>
         <Text style={result.body}>
-          設定が反映されるまで少し時間がかかる場合があります。{'\n'}
-          マイページからいつでも状態を確認できます。
+          manabaからのメールは数分遅れて届くことがあります。{'\n'}
+          manabaで「保存」を押したことを確認し、{'\n'}
+          下のボタンをもう一度押してお待ちください。
         </Text>
         <View style={result.bottom}>
-          <Button title="閉じる" onPress={handleDone} />
-          <TouchableOpacity onPress={startCodePolling} style={styles.retryBtn}>
-            <Text style={styles.retryText}>もう一度確認する</Text>
+          <TouchableOpacity onPress={startCodePolling} style={styles.retryPrimary}>
+            <Text style={styles.retryPrimaryText}>もう一度確認する</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleDone} style={styles.retryBtn}>
+            <Text style={styles.retryText}>閉じる</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -430,7 +461,11 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
               ? '認証コードを待っています…'
               : '設定を確認しています…'}
           </Text>
-          <Text style={styles.overlaySub}>少しお待ちください</Text>
+          <Text style={styles.overlaySub}>
+            {status === 'waitingCode'
+              ? 'メールの到着まで数分かかることがあります。\nコードが届いたら通知でお知らせします 🔔'
+              : '少しお待ちください'}
+          </Text>
         </View>
       )}
 
@@ -506,10 +541,17 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   overlayText: { ...typography.bodyStrong, color: colors.gray900 },
-  overlaySub: { ...typography.caption, color: colors.gray500 },
+  overlaySub: { ...typography.caption, color: colors.gray500, textAlign: 'center', lineHeight: 18 },
 
   retryBtn: { alignItems: 'center', paddingVertical: spacing.md },
-  retryText: { ...typography.bodyStrong, color: colors.primary },
+  retryText: { ...typography.bodyStrong, color: colors.gray500 },
+  retryPrimary: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  retryPrimaryText: { ...typography.bodyStrong, color: colors.white },
 });
 
 // 안내 배너 스타일
