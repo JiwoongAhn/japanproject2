@@ -35,4 +35,4 @@
 ## 4. 제출 전 점검 항목
 - ✅ **사진 권한 문자열 해결됨** (2026-07-09 확인): `app.json` → `ios.infoPlist.NSPhotoLibraryUsageDescription` = `"投稿に画像を添付するために、写真ライブラリへのアクセスを許可してください。"` 존재.
 - 입력한 App Privacy는 **앱 내 개인정보처리방침 화면(PrivacyPolicyBody)과 내용이 일치**해야 함 — 위 표 기준.
-- ⚠️ **PrivacyPolicyBody 갱신 권장**: 현재 앱 내 정책 화면의 "외부 서비스" 목록이 Supabase·Expo만 기재 → 실제로는 **Resend(OTP 메일)·Cloudflare(알림 메일 전달)** 도 처리 위탁처. 출시 전 정책 화면에 추가 반영 권장(공유가 아닌 업무 위탁 처리자로 표기).
+- ✅ **PrivacyPolicyBody 갱신 완료**(2026-07-09): 앱 내 정책 화면 §5 "利用するサービス"에 **Resend(인증코드 메일)·Cloudflare(manaba 통지 메일 전달)** 를 업무 위탁처(제3자 제공 아님)로 추가. manaba 통지 메일만 수신·해석하며 학교 비밀번호 서버 미저장 문구도 명시. 최종 갱신일 2026年7月9日로 변경.

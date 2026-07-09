@@ -14,7 +14,7 @@ export default function PrivacyPolicyBody() {
       {/* 상단 안내 카드 */}
       <Card padding="lg" radius="lg" style={styles.intro}>
         <Text style={styles.introTitle}>個人情報の取り扱いについて</Text>
-        <Text style={styles.updated}>最終更新日：2026年4月24日</Text>
+        <Text style={styles.updated}>最終更新日：2026年7月9日</Text>
       </Card>
 
       <Section title="1. はじめに">
@@ -34,7 +34,7 @@ export default function PrivacyPolicyBody() {
       </Section>
 
       <Section title="5. 利用するサービス">
-        {`本アプリは以下の外部サービスを利用しています。\n\n・Supabase（データベース・認証）\n  プライバシーポリシー: supabase.com/privacy\n\n・Expo（アプリ基盤）\n  プライバシーポリシー: expo.dev/privacy`}
+        {`本アプリは以下の外部サービス（業務委託先）を利用しています。いずれも第三者への「提供」ではなく、サービス提供に必要な範囲での処理委託です。\n\n・Supabase（データベース・認証）\n  プライバシーポリシー: supabase.com/privacy\n\n・Expo（アプリ基盤・プッシュ通知）\n  プライバシーポリシー: expo.dev/privacy\n\n・Resend（メール配信：認証コードなど）\n  プライバシーポリシー: resend.com/legal/privacy-policy\n\n・Cloudflare（メール転送：manaba通知のプッシュ配信）\n  プライバシーポリシー: cloudflare.com/privacypolicy\n\n※ manaba通知のプッシュ配信機能では、学生ごとの専用転送アドレス宛に届くmanabaの通知メールのみを受信・解析します。学校のパスワード・認証情報をサーバーに保存することはありません。`}
       </Section>
 
       <Section title="6. データの保管期間">
