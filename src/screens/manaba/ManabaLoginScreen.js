@@ -25,7 +25,7 @@ import {
 } from '../../utils/schoolCookies';
 
 const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
-import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS, GO_TO_NOTICES_JS, UNIPAS_USER_AGENT } from '../../constants/manaba';
+import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, PARSE_NOTICES_JS, UNIPAS_USER_AGENT } from '../../constants/manaba';
 
 // manaba는 PC용 레이아웃이라 viewport에 user-scalable=no / maximum-scale=1 이 설정되어 있음.
 // 페이지 로드 후 해당 제약을 제거해 핀치줌을 허용한다 (iOS + Android 공통).
@@ -57,9 +57,9 @@ const isLoggedIn = (url) =>
   !url.includes('/ct/logout');
 
 export default function ManabaLoginScreen({ navigation, route }) {
-  // 홈 배지(#14)로 진입한 경우: 로그인 후 manaba "お知らせ" 페이지로 자동 이동
+  // 홈 배지(#14)로 진입한 경우: 로그인 후 manaba 홈을 파싱해 인앱 공지목록으로 자동 이동
   const wantNotices = route?.params?.target === 'notices';
-  // お知らせ 자동 이동을 로드 사이클당 1회만 트리거하기 위한 가드
+  // 공지 자동 파싱을 1회만 트리거하기 위한 가드
   const noticesNavigatedRef = useRef(false);
   const webViewRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -205,11 +205,13 @@ export default function ManabaLoginScreen({ navigation, route }) {
     // manaba 쿠키 만료 시 kaede 로그인 페이지로 리디렉션됨 → 자동 재로그인
     const loadedUrl = nativeEvent?.url || '';
 
-    // 홈 배지(#14)로 진입한 경우: 로그인된 manaba 페이지에 도착하면 1회만
-    // "お知らせ" 페이지로 자동 이동 (링크 못 찾으면 그대로 머묾 = 무해)
-    if (wantNotices && !noticesNavigatedRef.current && isLoggedIn(loadedUrl)) {
+    // 홈 배지(#14)로 진입한 경우: manaba 홈(/ct/home)에 도착하면 1회만
+    // 홈 페이지의 최신 お知らせ(.home-newsitem)를 바로 파싱해 인앱 공지목록으로 이동.
+    // (불안정한 링크 이동 대신, 홈 미리보기와 동일한 검증된 파싱 방식 사용)
+    if (wantNotices && !noticesNavigatedRef.current && loadedUrl.includes('/ct/home')) {
       noticesNavigatedRef.current = true;
-      webViewRef.current?.injectJavaScript(GO_TO_NOTICES_JS);
+      setParsing(true);
+      webViewRef.current?.injectJavaScript(PARSE_NOTICES_JS);
     }
     // kaede 로그인 페이지면 항상 자격증명 캡처 훅을 주입.
     // (수동 로그인=값 저장 / 자동 채우기 제출=값 갱신. 훅은 __credHooked로 중복방지)

@@ -18,32 +18,6 @@ export const MANABA_LOGOUT_URL = 'https://kokushikan.manaba.jp/ct/logout';
 // 리마인더 설정 페이지 — 알림 메일 주소를 등록하는 곳 (携帯メールアドレス 칸에 토큰주소 추가)
 export const MANABA_REMINDER_URL = 'https://kokushikan.manaba.jp/ct/home_preferences_reminder';
 
-// 홈(/ct/home) 로드 후 실행: manaba 상단 글로벌 메뉴의 "お知らせ" 링크를 찾아 그 페이지로 이동.
-// 홈 배지(#14)를 눌러 들어왔을 때만 주입한다. 링크를 못 찾으면 아무 것도 안 하고
-// 홈에 그대로 머문다(= 기존 동작 유지 = 무해). manaba 페이지 구조 변화에도 안전.
-export const GO_TO_NOTICES_JS = `
-(function() {
-  try {
-    var anchors = document.querySelectorAll('a');
-    var target = null;
-    for (var i = 0; i < anchors.length; i++) {
-      var t = (anchors[i].textContent || '').replace(/\\s+/g, '');
-      var href = anchors[i].href || '';
-      if (href.indexOf('manaba.jp') === -1) continue;
-      // 글로벌 메뉴의 "お知らせ"만 (코스별 "コースお知らせ" 등은 제외)
-      if (t.indexOf('お知らせ') === 0 && t.indexOf('コース') === -1) {
-        target = href;
-        break;
-      }
-    }
-    if (target && target !== window.location.href) {
-      window.location.href = target;
-    }
-  } catch (e) {}
-})();
-true;
-`;
-
 // WebView에 주입하는 JS: 공지사항 리스트를 파싱해서 네이티브로 전달
 // 결과 메시지: { type:'notices', data:[{title,href,date,board}], pageTitle, currentUrl }
 export const PARSE_NOTICES_JS = `
