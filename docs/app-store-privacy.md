@@ -12,9 +12,14 @@
 | **Identifiers → Device ID** | Expo 푸시 토큰 | App Functionality (푸시 알림 전송) | 예 | 아니오 |
 | **User Content → Photos or Videos** | 게시판 첨부 사진 | App Functionality | 예 | 아니오 |
 | **User Content → Other User Content** | 시간표(과목·교수·메모), 과제, 게시글·댓글, 수업평가, manaba 통지 내용 | App Functionality | 예 | 아니오 |
+| **Identifiers → User ID** (추가) | manaba 알림 전달용 앱 발급 주소(`{토큰}@unipas.app`) | App Functionality (학교 알림 → 푸시) | 예 | 아니오 |
 
-- 출처 테이블: `profiles`(이메일·닉네임·대학) / `push_tokens`(토큰) / `posts`·`post_comments`·`course_reviews`·`courses`·`assignments`·`manaba_notices`(사용자 콘텐츠) / `post-images` 버킷(사진).
+- 출처 테이블: `profiles`(이메일·닉네임·대학) / `push_tokens`(토큰) / `posts`·`post_comments`·`course_reviews`·`courses`·`assignments`·`manaba_notices`(사용자 콘텐츠) / `mail_subscriptions`(알림 전달 토큰 주소) / `push_delivery_logs`(푸시 전송 로그, 내부 운영용) / `post-images` 버킷(사진).
 - 신고·차단(`*_reports`, `user_blocks`)은 위 User ID/User Content 범주에 포함되어 별도 신고 불필요.
+
+### 마나바 알림→푸시 데이터 흐름 (2026-07 추가 기능)
+- 학생별 고유 전달주소 `{토큰}@unipas.app`를 발급 → 학생이 manaba 리마인더 설정에 등록 → manaba **알림 메일만** 우리 서버(Cloudflare Email Routing)로 도착 → 파싱해 앱 푸시 발송.
+- **비밀번호·학교 로그인 자격증명은 서버에 저장/전송하지 않음** (manaba 로그인은 앱 내 WebView, kaede ID/PW는 기기 내 AES-256 저장). 수신 대상은 학교 알림 메일에 한정.
 
 ## 2. 수집하지 않는 데이터 (명시적 "No")
 
@@ -27,6 +32,7 @@
 2. **사용자 신원과 연결?** → 전부 **예** (계정에 귀속)
 3. **목적?** → 전부 **앱 기능(App Functionality)** 만 체크 (분석/광고/제3자 공유 체크 안 함)
 
-## 4. ⚠️ 관련 발견 — 제출 전 점검 필요 (별도 항목)
-- **사진 권한 사용설명 문자열 누락 가능**: `expo-image-picker`를 쓰는데 `app.json`의 `plugins`/`ios.infoPlist`에 `NSPhotoLibraryUsageDescription`(사진 접근 이유 안내문)이 안 보임. iOS는 이 문자열이 없으면 사진 접근 시 크래시 또는 심사 리젝 가능 → 제출 전 추가 권장. (예: `"NSPhotoLibraryUsageDescription": "投稿に画像を添付するために写真へのアクセスを許可してください"`)
-- 입력한 App Privacy는 **앱 내 개인정보처리방침 화면(PrivacyPolicyBody)과 내용이 일치**해야 함 — 현재 정책 문구와 위 표는 정합.
+## 4. 제출 전 점검 항목
+- ✅ **사진 권한 문자열 해결됨** (2026-07-09 확인): `app.json` → `ios.infoPlist.NSPhotoLibraryUsageDescription` = `"投稿に画像を添付するために、写真ライブラリへのアクセスを許可してください。"` 존재.
+- 입력한 App Privacy는 **앱 내 개인정보처리방침 화면(PrivacyPolicyBody)과 내용이 일치**해야 함 — 위 표 기준.
+- ⚠️ **PrivacyPolicyBody 갱신 권장**: 현재 앱 내 정책 화면의 "외부 서비스" 목록이 Supabase·Expo만 기재 → 실제로는 **Resend(OTP 메일)·Cloudflare(알림 메일 전달)** 도 처리 위탁처. 출시 전 정책 화면에 추가 반영 권장(공유가 아닌 업무 위탁 처리자로 표기).

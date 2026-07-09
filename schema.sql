@@ -575,3 +575,130 @@ CREATE INDEX IF NOT EXISTS idx_post_reports_user_id          ON post_reports(use
 CREATE INDEX IF NOT EXISTS idx_posts_user_id                 ON posts(user_id);
 CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id           ON push_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_blocks_blocked_id        ON user_blocks(blocked_id);
+
+
+-- ══════════════════════════════════════════════
+-- 기술부채 정리 (2026-07-09) — 실제 DB엔 있으나 이 파일에 누락돼 있던
+-- 테이블/함수를 DB에서 추출해 동기화 (RLS auth.uid()은 (select …) 최적화 반영본)
+-- ══════════════════════════════════════════════
+
+-- ── email_otps: 자체 OTP 코드 (service_role만 접근 = RLS on + 정책 없음) ──
+CREATE TABLE IF NOT EXISTS email_otps (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email      TEXT NOT NULL,
+  code       TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used       BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE email_otps ENABLE ROW LEVEL SECURITY; -- 정책 없음 = anon/authenticated 전면 차단(의도됨)
+
+-- ── post_likes: 게시글 좋아요 (중복방지 UNIQUE) ──
+CREATE TABLE IF NOT EXISTS post_likes (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id    UUID REFERENCES posts(id) ON DELETE CASCADE,
+  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (post_id, user_id)
+);
+ALTER TABLE post_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "likes viewable by everyone" ON post_likes FOR SELECT USING (true);
+CREATE POLICY "users can manage own likes" ON post_likes FOR ALL
+  USING ((select auth.uid()) = user_id) WITH CHECK ((select auth.uid()) = user_id);
+
+-- ── comment_likes: 댓글 좋아요 (중복방지 UNIQUE) ──
+CREATE TABLE IF NOT EXISTS comment_likes (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  comment_id UUID NOT NULL REFERENCES post_comments(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (comment_id, user_id)
+);
+ALTER TABLE comment_likes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "누구나 읽기" ON comment_likes FOR SELECT USING (true);
+CREATE POLICY "본인만 추가" ON comment_likes FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY "본인만 삭제" ON comment_likes FOR DELETE USING ((select auth.uid()) = user_id);
+
+-- ── push_delivery_logs: 푸시 전송/재시도 로그 (배치잡) ──
+CREATE TABLE IF NOT EXISTS push_delivery_logs (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  notice_id       UUID REFERENCES manaba_notices(id) ON DELETE SET NULL,
+  expo_token      TEXT NOT NULL,
+  ticket_id       TEXT,
+  status          TEXT NOT NULL,           -- pending / sent / failed / dead 등
+  attempts        SMALLINT NOT NULL DEFAULT 1,
+  last_error_code TEXT,
+  last_error_msg  TEXT,
+  next_retry_at   TIMESTAMPTZ,
+  payload         JSONB NOT NULL,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE push_delivery_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "pdl_user_select_own" ON push_delivery_logs FOR SELECT TO authenticated
+  USING ((select auth.uid()) = user_id);
+-- (insert/update는 service_role만 — Edge Function이 처리, 클라이언트 정책 없음)
+
+-- ── 누락 함수: 좋아요 토글(RPC) + updated_at 자동 갱신 트리거 ──
+CREATE OR REPLACE FUNCTION toggle_like(post_id UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  DECLARE existing_id UUID; is_liked BOOLEAN;
+  BEGIN
+    SELECT id INTO existing_id FROM post_likes
+    WHERE post_likes.post_id = toggle_like.post_id AND user_id = auth.uid();
+    IF existing_id IS NOT NULL THEN
+      DELETE FROM post_likes WHERE id = existing_id;
+      UPDATE posts SET like_count = GREATEST(like_count - 1, 0) WHERE id = toggle_like.post_id;
+      is_liked := false;
+    ELSE
+      INSERT INTO post_likes (post_id, user_id) VALUES (toggle_like.post_id, auth.uid());
+      UPDATE posts SET like_count = like_count + 1 WHERE id = toggle_like.post_id;
+      is_liked := true;
+    END IF;
+    RETURN is_liked;
+  END; $$;
+REVOKE EXECUTE ON FUNCTION toggle_like(UUID) FROM public, anon;
+GRANT  EXECUTE ON FUNCTION toggle_like(UUID) TO authenticated;
+
+CREATE OR REPLACE FUNCTION toggle_comment_like(comment_id UUID)
+RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+  DECLARE existing_id UUID; is_now_liked BOOLEAN;
+  BEGIN
+    SELECT id INTO existing_id FROM comment_likes
+    WHERE comment_likes.comment_id = toggle_comment_like.comment_id AND user_id = auth.uid();
+    IF existing_id IS NOT NULL THEN
+      DELETE FROM comment_likes WHERE id = existing_id;
+      UPDATE post_comments SET like_count = GREATEST(like_count - 1, 0)
+        WHERE id = toggle_comment_like.comment_id;
+      is_now_liked := false;
+    ELSE
+      INSERT INTO comment_likes (comment_id, user_id)
+        VALUES (toggle_comment_like.comment_id, auth.uid());
+      UPDATE post_comments SET like_count = like_count + 1
+        WHERE id = toggle_comment_like.comment_id;
+      is_now_liked := true;
+    END IF;
+    RETURN is_now_liked;
+  END; $$;
+REVOKE EXECUTE ON FUNCTION toggle_comment_like(UUID) FROM public, anon;
+GRANT  EXECUTE ON FUNCTION toggle_comment_like(UUID) TO authenticated;
+
+-- updated_at 자동 갱신 트리거 함수 3종 + 연결
+CREATE OR REPLACE FUNCTION set_pdl_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN NEW.updated_at := now(); RETURN NEW; END; $$;
+CREATE TRIGGER trg_pdl_updated_at BEFORE UPDATE ON push_delivery_logs
+  FOR EACH ROW EXECUTE FUNCTION set_pdl_updated_at();
+
+CREATE OR REPLACE FUNCTION update_mail_subscriptions_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
+CREATE TRIGGER trg_mail_subscriptions_updated_at BEFORE UPDATE ON mail_subscriptions
+  FOR EACH ROW EXECUTE FUNCTION update_mail_subscriptions_updated_at();
+
+CREATE OR REPLACE FUNCTION update_push_tokens_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END; $$;
+CREATE TRIGGER trg_push_tokens_updated_at BEFORE UPDATE ON push_tokens
+  FOR EACH ROW EXECUTE FUNCTION update_push_tokens_updated_at();
