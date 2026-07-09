@@ -60,6 +60,17 @@ const KAEDE_EXTRACT_JS = `(function(){
   true;
 })();`;
 
+// #3: 현재 페이지가 로그인 페이지인지(비밀번호 입력칸 유무)만 알려주는 프로브.
+// 로그인 페이지를 거친 뒤 비밀번호 칸이 없는 페이지에 도착하면 = 로그인 완료로 보고
+// MY時間割 페이지로 자동 이동시키는 판단에 쓴다. (URL 형태에 의존하지 않아 견고)
+const PROBE_LOGIN_STATE_JS = `(function(){
+  try {
+    var hasPw = !!document.querySelector('input[type=password]');
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pageProbe', hasPassword: hasPw, url: location.href }));
+  } catch (e) {}
+  true;
+})();`;
+
 // 범용 학교 사이트 WebView 화면 (kaede-i, 포털 등 재사용)
 // route.params: { url, title, autoLogin? }
 //
@@ -76,6 +87,9 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   const credKey = useMemo(() => credKeyForUrl(url), [url]);
   const webViewRef = useRef(null);
   const autoFilledRef = useRef(false); // 자동 입력 1회만 시도
+  // #3: 로그인 후 MY時間割 페이지로 자동 이동시키기 위한 상태
+  const sawLoginPageRef = useRef(false);          // 비밀번호 칸이 있는 로그인 페이지를 본 적 있는지
+  const redirectedToTimetableRef = useRef(false); // 시간표 페이지로 1회만 자동 이동
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(url ?? ''); // 현재 보고 있는 페이지 URL
@@ -137,8 +151,28 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         setCreds({ id: msg.id, pw: msg.pw });
       } else if (msg.type === 'kaedeCells') {
         handleExtractedCells(msg);
+      } else if (msg.type === 'pageProbe') {
+        handlePageProbe(msg);
       }
     } catch (_) {}
+  };
+
+  // #3: 로그인 완료를 감지해 MY時間割 페이지로 자동 이동
+  //   - 비밀번호 칸이 있으면 로그인 페이지 → 아직 로그인 전(플래그만 기록)
+  //   - 로그인 페이지를 거친 뒤, 비밀번호 칸 없는 페이지에 도착했는데 그게 시간표 페이지가
+  //     아니라면 → 사용자가 직접 메뉴를 찾지 않아도 되게 MY時間割로 1회 자동 이동
+  const handlePageProbe = (msg) => {
+    if (!forTimetableImport) return;
+    if (msg.hasPassword) {
+      sawLoginPageRef.current = true; // 로그인 페이지 도착 (아직 로그인 전)
+      return;
+    }
+    const here = (msg.url || '').toLowerCase();
+    if (here.includes('mytimetable')) return; // 이미 시간표 페이지 → 추출 버튼이 뜨므로 그대로 둠
+    if (sawLoginPageRef.current && !redirectedToTimetableRef.current) {
+      redirectedToTimetableRef.current = true;
+      webViewRef.current?.injectJavaScript(`location.href=${JSON.stringify(url)}; true;`);
+    }
   };
 
   // 추출된 셀 → 파서 라우터로 해석 → 확인 후 미리보기 화면으로
@@ -189,6 +223,10 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     if (!autoLogin) return;
     // 항상 캡처 hook 주입 (수동/재로그인 시 자격증명 갱신)
     webViewRef.current?.injectJavaScript(CAPTURE_CREDENTIALS_JS);
+    // #3: 시간표 일괄취급 경로에서만, 로그인 완료 후 MY時間割 자동 이동을 위해 로그인 상태 프로브 실행
+    if (forTimetableImport) {
+      webViewRef.current?.injectJavaScript(PROBE_LOGIN_STATE_JS);
+    }
     // 저장된 자격증명이 있으면 1회 자동 입력 + 제출
     if (creds && creds.pw && !autoFilledRef.current) {
       autoFilledRef.current = true;
