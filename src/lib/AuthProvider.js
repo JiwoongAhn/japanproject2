@@ -61,9 +61,11 @@ export function AuthProvider({ children }) {
       fetchProfile(session?.user?.id ?? null);
 
       // 로그인 완료 시 푸시 토큰 등록 (세션 중 1회만)
+      // prompt:false — 권한 팝업은 프리퍼미션 화면(PushPrimingScreen)에서 요청한다.
+      // 이미 허용한 사용자는 여기서 토큰만 조용히 갱신된다.
       if (event === 'SIGNED_IN' && !pushRegistered.current) {
         pushRegistered.current = true;
-        registerPushToken();
+        registerPushToken({ prompt: false });
       }
       // 로그아웃 시 다음 로그인을 위해 초기화
       if (event === 'SIGNED_OUT') {

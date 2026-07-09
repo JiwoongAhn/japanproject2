@@ -270,10 +270,14 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
           </View>
 
           {/* ② 설정 페이지 안내 */}
-          <Text style={guide.stepLabel}>② 設定ページを開く</Text>
+          <Text style={guide.stepLabel}>② manabaの「携帯メールアドレス」欄に貼り付け</Text>
           <Text style={guide.stepDesc}>
             ログイン済みのまま、manabaのリマインダ設定ページが開きます。{'\n'}
-            「携帯メールアドレス」欄に上のアドレスを入力して、manabaの「保存」を押してください。
+            上のアドレスを<Text style={guide.strong}>「携帯メールアドレス」</Text>欄に貼り付けて、manabaの<Text style={guide.strong}>「保存」</Text>を押してください。
+          </Text>
+          <Text style={guide.noteBox}>
+            💡 普段お使いのメールアドレスはそのままでOK。{'\n'}
+            空いている「携帯メールアドレス」欄に追加するだけです。
           </Text>
 
           <View style={guide.hintRow}>
@@ -535,12 +539,22 @@ const conn = StyleSheet.create({
 const guide = StyleSheet.create({
   scroll: { padding: spacing.xl, paddingBottom: spacing.lg },
   heading: { ...typography.title2, color: colors.gray900, marginBottom: spacing.xs },
-  lead: { ...typography.body2, color: colors.gray600, marginBottom: spacing.xl },
-  stepLabel: { ...typography.bodyStrong, color: colors.gray900, marginBottom: spacing.sm },
+  lead: { fontSize: 15, color: colors.gray600, lineHeight: 22, marginBottom: spacing.xl },
+  stepLabel: { fontSize: 16, fontWeight: '800', color: colors.gray900, marginBottom: spacing.sm },
   stepDesc: {
-    ...typography.body2,
+    fontSize: 15,
+    color: colors.gray700,
+    lineHeight: 23,
+    marginBottom: spacing.md,
+  },
+  strong: { fontWeight: '800', color: colors.primary },
+  noteBox: {
+    fontSize: 13,
     color: colors.gray700,
     lineHeight: 20,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.md,
+    padding: spacing.md,
     marginBottom: spacing.xl,
   },
   addressBox: {

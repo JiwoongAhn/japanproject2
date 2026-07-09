@@ -16,6 +16,7 @@ import MailConnectOnboardingScreen from '../screens/auth/MailConnectOnboardingSc
 import ManabaReminderSetupScreen from '../screens/manaba/ManabaReminderSetupScreen';
 import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
 import PrivacyConsentScreen, { PRIVACY_CONSENT_KEY } from '../screens/auth/PrivacyConsentScreen';
+import PushPrimingScreen, { PUSH_PRIMING_KEY } from '../screens/auth/PushPrimingScreen';
 import { colors } from '../constants/colors';
 
 // NavigationContainer 밖에서 navigate를 호출하기 위한 ref
@@ -46,6 +47,18 @@ export default function AppNavigator() {
       .then((v) => setConsented(!!v))
       .catch(() => setConsented(false));
   }, []);
+
+  // 통지 프리퍼미션 화면 노출 여부 (기기 단위 1회 게이트). null=확인중
+  const [pushPrimingDone, setPushPrimingDone] = useState(null);
+  useEffect(() => {
+    AsyncStorage.getItem(PUSH_PRIMING_KEY)
+      .then((v) => setPushPrimingDone(!!v))
+      .catch(() => setPushPrimingDone(false));
+  }, []);
+  const markPushPrimingDone = () => {
+    AsyncStorage.setItem(PUSH_PRIMING_KEY, '1').catch(() => {});
+    setPushPrimingDone(true);
+  };
 
   // 푸시 알림 탭 감지 → NoticePreviewModal로 이동
   useEffect(() => {
@@ -87,7 +100,7 @@ export default function AppNavigator() {
   }, []);
 
   // 세션/동의 확인 중일 때 스플래시 화면 표시 (갑작스러운 화면 전환 방지)
-  if (loading || consented === null) return <SplashScreen />;
+  if (loading || consented === null || pushPrimingDone === null) return <SplashScreen />;
 
   // 개인정보처리방침 미동의 시 가장 먼저 동의 화면 (로그인보다 앞 단계)
   if (!consented) {
@@ -96,11 +109,16 @@ export default function AppNavigator() {
 
   // 세션은 있지만 닉네임이 없으면 닉네임 입력 화면 표시 (profile이 null이면 아직 로딩 중)
   const needsNickname = session && profile !== null && !profile?.nickname;
+  // 신규 회원(닉네임 전)에게 닉네임 설정보다 먼저 통지 프리퍼미션 화면 1회 노출
+  const needsPushPriming = needsNickname && !pushPrimingDone;
   // 닉네임은 있지만 온보딩 안 했으면 온보딩 표시 (신규 회원만 1회)
   const needsOnboarding = session && profile?.nickname && profile?.onboarding_completed === false;
 
   const renderContent = () => {
     if (!session) return <AuthStack />;
+    if (needsPushPriming) {
+      return <PushPrimingScreen onDone={markPushPrimingDone} />;
+    }
     if (needsNickname) {
       return (
         <NicknameStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>

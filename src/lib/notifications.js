@@ -18,7 +18,10 @@ Notifications.setNotificationHandler({
  * 앱 시작 시 (로그인 후) 1회 호출
  * @returns {string|null} expo_token or null (실기기 아니거나 권한 거부 시)
  */
-export async function registerPushToken() {
+// options.prompt=false 이면 권한 팝업을 이 시점에 띄우지 않는다.
+//   - 이미 허용된 사용자: 토큰만 조용히 등록 (로그인 시 AuthProvider가 이렇게 호출)
+//   - 아직 미허용 사용자: 아무 것도 안 하고 반환 → 프리퍼미션 화면(PushPrimingScreen)이 직접 요청
+export async function registerPushToken({ prompt = true } = {}) {
   if (!Device.isDevice) {
     console.log('[Push] 실기기가 아닙니다 — 푸시 토큰 발급 생략');
     return null;
@@ -38,6 +41,8 @@ export async function registerPushToken() {
   let finalStatus = existingStatus;
 
   if (existingStatus !== 'granted') {
+    // 프리퍼미션 화면 없이 팝업을 미리 띄우지 않도록 — prompt=false면 여기서 중단
+    if (!prompt) return null;
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }

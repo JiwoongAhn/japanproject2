@@ -9,8 +9,10 @@ import {
   RefreshControl,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import { OPEN_MAIL_CONNECT_KEY } from '../constants/onboardingFlags';
 import LoadingDots from '../components/LoadingDots';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
@@ -119,6 +121,18 @@ export default function HomeScreen({ navigation }) {
     const unsubscribe = navigation.addListener('focus', fetchAll);
     return unsubscribe;
   }, [navigation, fetchAll]);
+
+  // 온보딩 마지막에 "manaba通知を設定する"를 선택했으면, 홈 최초 진입 시 1회 자동으로
+  // manaba 연결 화면을 연다. (플래그는 즉시 지워 재진입 시 반복되지 않게 함)
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(OPEN_MAIL_CONNECT_KEY).then((v) => {
+      if (!alive || !v) return;
+      AsyncStorage.removeItem(OPEN_MAIL_CONNECT_KEY).catch(() => {});
+      navigation.navigate('MailConnectOnboarding');
+    });
+    return () => { alive = false; };
+  }, [navigation]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

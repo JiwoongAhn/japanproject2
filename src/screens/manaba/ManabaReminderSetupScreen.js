@@ -352,9 +352,10 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       {/* 코드 단계: manaba에서 받은 6자리 인증코드를 크게 표시 + 복사 */}
       {isCodeStep ? (
         <View style={codeBox.wrap}>
+          <Text style={codeBox.title}>認証コードが届きました 📬</Text>
           <Text style={codeBox.guide}>
-            manabaから<Text style={codeBox.bold}>認証コード</Text>が届きました 📬{'\n'}
-            下のmanaba画面にこのコードを入力してください。
+            下の<Text style={codeBox.bold}>6桁のコード</Text>をコピーして、manaba画面の
+            <Text style={codeBox.bold}>「携帯メールアドレス」認証</Text>欄に入力してください。
           </Text>
           <View style={codeBox.codeRow}>
             <Text style={codeBox.code} selectable>
@@ -377,9 +378,14 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       ) : (
         /* 설정 단계: 携帯칸에 주소 입력 + 복사 안내 */
         <View style={banner.wrap}>
+          <Text style={banner.title}>「携帯メールアドレス」欄に貼り付け</Text>
           <Text style={banner.guide}>
-            <Text style={banner.bold}>「携帯メールアドレス」</Text>欄に下のアドレスを入力し、
+            下のアドレスをコピーして、下の画面の
+            <Text style={banner.bold}>「携帯メールアドレス」</Text>欄に貼り付け、
             <Text style={banner.bold}>「保存」</Text>を押してください。
+          </Text>
+          <Text style={banner.note}>
+            ※ 普段お使いのメールはそのまま。この欄に追加するだけです。
           </Text>
           <View style={banner.addressRow}>
             <Text style={banner.address} numberOfLines={1} selectable>
@@ -560,10 +566,12 @@ const banner = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  guide: { ...typography.body2, color: colors.gray800, lineHeight: 20 },
-  bold: { fontWeight: '700', color: colors.primary },
+  title: { fontSize: 16, fontWeight: '800', color: colors.gray900 },
+  guide: { fontSize: 14, color: colors.gray800, lineHeight: 21 },
+  bold: { fontWeight: '800', color: colors.primary },
+  note: { fontSize: 12, color: colors.gray600, lineHeight: 17 },
   addressRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -592,10 +600,11 @@ const codeBox = StyleSheet.create({
     backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  guide: { ...typography.body2, color: colors.gray800, lineHeight: 20 },
-  bold: { fontWeight: '700', color: colors.primary },
+  title: { fontSize: 16, fontWeight: '800', color: colors.gray900 },
+  guide: { fontSize: 14, color: colors.gray800, lineHeight: 21 },
+  bold: { fontWeight: '800', color: colors.primary },
   codeRow: {
     flexDirection: 'row',
     alignItems: 'center',

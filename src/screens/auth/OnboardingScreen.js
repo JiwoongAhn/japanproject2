@@ -11,19 +11,21 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
-import { spacing } from '../../constants/spacing';
+import { spacing, radius } from '../../constants/spacing';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
 import Button from '../../components/Button';
 import PhoneMockup from '../../components/PhoneMockup';
+import { OPEN_MAIL_CONNECT_KEY } from '../../constants/onboardingFlags';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 // === 슬라이드별 폰 화면 안에 들어갈 가짜 콘텐츠 ===
 
-// 슬라이드 1: 시간표
+// 슬라이드 1: 시간표 (일괄추가)
 const TimetableMock = () => (
   <View style={mockStyles.container}>
     <Text style={mockStyles.header}>時間割</Text>
@@ -50,7 +52,30 @@ const TimetableMock = () => (
   </View>
 );
 
-// 슬라이드 2: 과제 마감
+// 슬라이드 2: manaba 통지 (잠금화면 푸시)
+const ManabaPushMock = () => (
+  <View style={mockStyles.lockWrap}>
+    <Text style={mockStyles.lockTime}>9:41</Text>
+    <Text style={mockStyles.lockDate}>6月9日 月曜日</Text>
+    <View style={mockStyles.notifCard}>
+      <View style={mockStyles.notifHeader}>
+        <View style={mockStyles.appIcon}>
+          <Ionicons name="notifications" size={12} color={colors.white} />
+        </View>
+        <Text style={mockStyles.appName}>ユニワン</Text>
+        <Text style={mockStyles.notifTime}>今</Text>
+      </View>
+      <Text style={mockStyles.notifTitle} numberOfLines={1}>
+        【お知らせ】休講のご連絡
+      </Text>
+      <Text style={mockStyles.notifBody} numberOfLines={2}>
+        新しいお知らせが届きました。タップして確認
+      </Text>
+    </View>
+  </View>
+);
+
+// 슬라이드 3: 과제 마감
 const AssignmentMock = () => (
   <View style={mockStyles.container}>
     <Text style={mockStyles.header}>課題</Text>
@@ -72,7 +97,34 @@ const AssignmentMock = () => (
   </View>
 );
 
-// 슬라이드 3: 커뮤니티
+// 슬라이드 4: 수업 평가
+const ReviewMock = () => (
+  <View style={mockStyles.container}>
+    <Text style={mockStyles.header}>授業評価</Text>
+    {[
+      { name: '経営学概論', prof: '田中先生', stars: 5, tag: '出席ゆるめ' },
+      { name: '線形代数', prof: '佐藤先生', stars: 4, tag: 'テスト重視' },
+      { name: '心理学入門', prof: '鈴木先生', stars: 4, tag: 'レポート多め' },
+    ].map((item, i) => (
+      <View key={i} style={mockStyles.reviewCard}>
+        <View style={mockStyles.reviewTop}>
+          <Text style={mockStyles.reviewName} numberOfLines={1}>{item.name}</Text>
+          <Text style={mockStyles.reviewStars}>
+            {'★'.repeat(item.stars)}<Text style={mockStyles.reviewStarOff}>{'★'.repeat(5 - item.stars)}</Text>
+          </Text>
+        </View>
+        <View style={mockStyles.reviewBottom}>
+          <Text style={mockStyles.reviewProf}>{item.prof}</Text>
+          <View style={mockStyles.reviewTag}>
+            <Text style={mockStyles.reviewTagText}>{item.tag}</Text>
+          </View>
+        </View>
+      </View>
+    ))}
+  </View>
+);
+
+// 슬라이드 5: 익명 게시판
 const CommunityMock = () => (
   <View style={mockStyles.container}>
     <Text style={mockStyles.header}>掲示板</Text>
@@ -95,17 +147,27 @@ const CommunityMock = () => (
 const SLIDES = [
   {
     title: '時間割を、もっとスマートに',
-    subtitle: '授業も空きコマも、ひと目で確認',
+    subtitle: '学校のシステムからコピペするだけで一括登録。\n空きコマもひと目で確認できます。',
     Mock: TimetableMock,
   },
   {
+    title: 'お知らせを、スマホに通知',
+    subtitle: 'manabaを連携すると、休講・課題・重要連絡が\nあなたのスマホに直接届きます。',
+    Mock: ManabaPushMock,
+  },
+  {
     title: '課題の締切、もう忘れない',
-    subtitle: '提出期限が近い課題を一覧で表示',
+    subtitle: '提出期限が近い課題を一覧でお知らせ。\nうっかり忘れを防ぎます。',
     Mock: AssignmentMock,
   },
   {
-    title: '同じ大学の仲間とつながる',
-    subtitle: '匿名で気軽に話せる学校専用コミュニティ',
+    title: '授業のリアルな評判をチェック',
+    subtitle: '履修する前に、先輩たちの授業評価を確認。\n自分でも評価を投稿できます。',
+    Mock: ReviewMock,
+  },
+  {
+    title: '匿名で、気軽につながる',
+    subtitle: '同じ大学の仲間と、匿名の掲示板でおしゃべり。\n質問も雑談も気軽にどうぞ。',
     Mock: CommunityMock,
   },
 ];
@@ -116,39 +178,41 @@ export default function OnboardingScreen() {
   const [finishing, setFinishing] = useState(false);
   const scrollRef = useRef(null);
 
-  const isLast = index === SLIDES.length - 1;
+  // 마지막 요약 슬라이드는 SLIDES 다음의 가상 인덱스로 취급
+  const summaryIndex = SLIDES.length;
+  const totalPages = SLIDES.length + 1;
+  const isSummary = index === summaryIndex;
   const isFirst = index === 0;
 
-  // 특정 슬라이드로 부드럽게 스크롤 이동
-  const goToSlide = (i) => {
+  // 특정 페이지로 부드럽게 스크롤 이동
+  const goToPage = (i) => {
     scrollRef.current?.scrollTo({ x: i * SCREEN_WIDTH, animated: true });
   };
 
-  // "次へ" 버튼: 다음 슬라이드로, 마지막이면 완료
+  // "次へ" 버튼: 다음 페이지로 (요약 페이지 전까지)
   const handleAdvance = () => {
     if (finishing) return;
-    if (isLast) {
-      handleFinish();
-    } else {
-      goToSlide(index + 1);
-    }
+    if (index < summaryIndex) goToPage(index + 1);
   };
 
-  // 뒤로가기 화살표: 이전 슬라이드로
   const handleBack = () => {
-    if (!isFirst) goToSlide(index - 1);
+    if (!isFirst) goToPage(index - 1);
   };
 
-  // 스와이프/스크롤이 끝나면 현재 인덱스 갱신
   const handleScrollEnd = (e) => {
     const newIndex = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     setIndex(newIndex);
   };
 
-  // 온보딩 완료 처리: profiles.onboarding_completed = true → AppNavigator가 자동 전환
-  const handleFinish = async () => {
+  // 온보딩 완료 처리: profiles.onboarding_completed = true → AppNavigator가 자동 전환.
+  // openMailConnect=true 이면 홈 진입 시 manaba 연결 화면을 자동으로 열도록 플래그 저장.
+  const handleFinish = async (openMailConnect = false) => {
     if (finishing || !session?.user) return;
     setFinishing(true);
+
+    if (openMailConnect) {
+      await AsyncStorage.setItem(OPEN_MAIL_CONNECT_KEY, '1').catch(() => {});
+    }
 
     const { error } = await supabase
       .from('profiles')
@@ -168,7 +232,7 @@ export default function OnboardingScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      {/* 상단: 뒤로가기(첫 슬라이드에선 숨김) + 스킵 */}
+      {/* 상단: 뒤로가기(첫 페이지에선 숨김) + 스킵 */}
       <View style={styles.topBar}>
         {isFirst ? (
           <View style={styles.backPlaceholder} />
@@ -181,7 +245,7 @@ export default function OnboardingScreen() {
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          onPress={handleFinish}
+          onPress={() => handleFinish(false)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={styles.skipText}>スキップ</Text>
@@ -211,20 +275,63 @@ export default function OnboardingScreen() {
             </View>
           );
         })}
+
+        {/* 마지막 요약 페이지 */}
+        <View style={styles.slide}>
+          <View style={styles.summaryArea}>
+            <View style={styles.summaryBadge}>
+              <Ionicons name="checkmark-done" size={40} color={colors.white} />
+            </View>
+            <Text style={styles.summaryTitle}>準備はこれだけ！</Text>
+            <Text style={styles.summaryLead}>
+              最初のログイン1回で、あとはおまかせ。{'\n'}
+              時間割・課題・お知らせが自動でそろいます。
+            </Text>
+            <View style={styles.summaryList}>
+              {[
+                'コピペで時間割を一括登録',
+                'manaba連携でお知らせをスマホ通知',
+                '授業評価と匿名掲示板も使える',
+              ].map((t) => (
+                <View key={t} style={styles.summaryRow}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
+                  <Text style={styles.summaryRowText}>{t}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
       </ScrollView>
 
       {/* 하단 고정: 인디케이터 + 버튼 */}
       <View style={styles.bottomArea}>
         <View style={styles.dots}>
-          {SLIDES.map((_, i) => (
+          {Array.from({ length: totalPages }).map((_, i) => (
             <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
           ))}
         </View>
-        <Button
-          title={isLast ? 'はじめる' : '次へ'}
-          onPress={handleAdvance}
-          loading={finishing}
-        />
+
+        {isSummary ? (
+          <>
+            <Button
+              title="manaba通知を設定する"
+              onPress={() => handleFinish(true)}
+              loading={finishing}
+            />
+            <TouchableOpacity
+              onPress={() => handleFinish(false)}
+              style={styles.laterButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.laterText}>スキップして始める</Text>
+            </TouchableOpacity>
+            <Text style={styles.footnote}>
+              manaba連携はあとでマイページからも設定できます。
+            </Text>
+          </>
+        ) : (
+          <Button title="次へ" onPress={handleAdvance} />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -271,6 +378,54 @@ const styles = StyleSheet.create({
     color: colors.gray600,
     textAlign: 'center',
     marginBottom: spacing.xl,
+    lineHeight: 22,
+  },
+
+  // 요약 페이지
+  summaryArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingBottom: spacing.xl,
+  },
+  summaryBadge: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xl,
+  },
+  summaryTitle: {
+    ...typography.title1,
+    color: colors.gray900,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  summaryLead: {
+    ...typography.body1,
+    color: colors.gray600,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.xl,
+  },
+  summaryList: { width: '100%', gap: spacing.sm },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.gray50,
+    borderRadius: radius.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  summaryRowText: {
+    ...typography.body2,
+    color: colors.gray800,
+    flex: 1,
+    fontWeight: '600',
   },
 
   bottomArea: {
@@ -293,6 +448,14 @@ const styles = StyleSheet.create({
   dotActive: {
     width: 20,
     backgroundColor: colors.primary,
+  },
+  laterButton: { alignItems: 'center', paddingVertical: spacing.md },
+  laterText: { ...typography.bodyStrong, color: colors.gray600 },
+  footnote: {
+    ...typography.caption,
+    color: colors.gray500,
+    textAlign: 'center',
+    marginTop: spacing.xs,
   },
 });
 
@@ -327,6 +490,37 @@ const mockStyles = StyleSheet.create({
   },
   cellText: { fontSize: 9, fontWeight: '700', color: colors.gray800 },
 
+  // manaba 통지 (잠금화면)
+  lockWrap: {
+    flex: 1,
+    backgroundColor: '#EAF1FB',
+    alignItems: 'center',
+    paddingTop: 18,
+    paddingHorizontal: 12,
+  },
+  lockTime: { fontSize: 44, fontWeight: '300', color: colors.gray900, letterSpacing: -1 },
+  lockDate: { fontSize: 12, fontWeight: '600', color: colors.gray600, marginBottom: 28 },
+  notifCard: {
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 14,
+    padding: 10,
+  },
+  notifHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
+  appIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
+  },
+  appName: { fontSize: 10, fontWeight: '700', color: colors.gray700, flex: 1 },
+  notifTime: { fontSize: 9, color: colors.gray500 },
+  notifTitle: { fontSize: 11, fontWeight: '700', color: colors.gray900, marginBottom: 2 },
+  notifBody: { fontSize: 10, color: colors.gray600, lineHeight: 14 },
+
   // 과제
   assignmentCard: {
     backgroundColor: colors.gray50,
@@ -348,6 +542,32 @@ const mockStyles = StyleSheet.create({
     borderRadius: 999,
   },
   tagText: { fontSize: 8, fontWeight: '700' },
+
+  // 수업 평가
+  reviewCard: {
+    backgroundColor: colors.gray50,
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 8,
+  },
+  reviewTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  reviewName: { fontSize: 11, fontWeight: '700', color: colors.gray900, flex: 1 },
+  reviewStars: { fontSize: 11, color: '#F59E0B', letterSpacing: 1 },
+  reviewStarOff: { color: colors.gray300 },
+  reviewBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  reviewProf: { fontSize: 9, color: colors.gray600 },
+  reviewTag: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+  },
+  reviewTagText: { fontSize: 8, fontWeight: '700', color: colors.primary },
 
   // 커뮤니티
   postCard: {
