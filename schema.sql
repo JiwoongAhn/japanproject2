@@ -56,6 +56,10 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
+-- 보안: 트리거 전용 함수라 REST RPC로 직접 호출되지 못하게 EXECUTE 회수
+-- (트리거는 EXECUTE 권한을 검사하지 않으므로 트리거 동작에는 영향 없음)
+REVOKE EXECUTE ON FUNCTION handle_new_user() FROM public, anon, authenticated;
+
 
 -- ──────────────────────────────────────────────
 -- 2. courses 테이블
@@ -282,11 +286,15 @@ CREATE POLICY "로그인 사용자 강의평가 조회 가능" ON course_reviews
 --    타인의 게시글에 좋아요를 누를 수 있도록 RPC로 처리
 -- ──────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION increment_like(post_id UUID)
-RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER AS $$
+RETURNS VOID LANGUAGE plpgsql SECURITY DEFINER
+SET search_path = public, pg_temp AS $$   -- 보안: search_path 고정(조작 공격 차단)
 BEGIN
   UPDATE posts SET like_count = like_count + 1 WHERE id = post_id;
 END;
 $$;
+-- 보안: 비로그인(anon) 호출 차단, 로그인 사용자만 허용
+REVOKE EXECUTE ON FUNCTION increment_like(UUID) FROM public, anon;
+GRANT  EXECUTE ON FUNCTION increment_like(UUID) TO authenticated;
 
 
 -- ──────────────────────────────────────────────
@@ -495,6 +503,11 @@ END; $$;
 CREATE TRIGGER trg_hide_review AFTER INSERT ON course_review_reports
   FOR EACH ROW EXECUTE FUNCTION hide_review_on_reports();
 
+-- 보안: 위 3개는 트리거 전용 함수 — REST RPC로 직접 호출되지 못하게 EXECUTE 회수
+REVOKE EXECUTE ON FUNCTION hide_post_on_reports()    FROM public, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION hide_comment_on_reports() FROM public, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION hide_review_on_reports()  FROM public, anon, authenticated;
+
 -- ── SELECT RLS 재정의: 숨김 제외 + 차단 사용자 제외 (본인 콘텐츠는 항상 노출) ──
 DROP POLICY "같은 학교 게시글만 조회" ON posts;
 CREATE POLICY "같은 학교 게시글만 조회" ON posts
@@ -538,3 +551,27 @@ CREATE POLICY "같은 학교 강의평가만 조회" ON course_reviews
       )
     )
   );
+
+
+-- ══════════════════════════════════════════════
+-- 보안감사 후속 (2026-07-09) — 마이그레이션으로 실제 적용됨
+--   · security_audit_tier1_same_school_privacy : 같은 학교 프라이버시 정책 정상화 + 트리거함수 RPC 차단
+--   · security_audit_tier2_and_performance     : 함수 search_path 고정/anon 차단 + RLS auth.uid() 최적화 + 아래 FK 인덱스
+-- (RLS 정책은 DB에서 auth.uid()→(select auth.uid())로 최적화됨. 이 파일은 참조용이라 원형 유지)
+-- ══════════════════════════════════════════════
+
+-- 미인덱스 외래키 인덱스 (조인/삭제 성능)
+CREATE INDEX IF NOT EXISTS idx_assignments_course_id         ON assignments(course_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_user_id           ON assignments(user_id);
+CREATE INDEX IF NOT EXISTS idx_comment_likes_user_id         ON comment_likes(user_id);
+CREATE INDEX IF NOT EXISTS idx_comment_reports_user_id       ON comment_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_course_review_reports_user_id ON course_review_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_course_reviews_user_id        ON course_reviews(user_id);
+CREATE INDEX IF NOT EXISTS idx_courses_user_id               ON courses(user_id);
+CREATE INDEX IF NOT EXISTS idx_post_comments_post_id         ON post_comments(post_id);
+CREATE INDEX IF NOT EXISTS idx_post_comments_user_id         ON post_comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_post_likes_user_id            ON post_likes(user_id);
+CREATE INDEX IF NOT EXISTS idx_post_reports_user_id          ON post_reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_posts_user_id                 ON posts(user_id);
+CREATE INDEX IF NOT EXISTS idx_push_tokens_user_id           ON push_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_blocks_blocked_id        ON user_blocks(blocked_id);
