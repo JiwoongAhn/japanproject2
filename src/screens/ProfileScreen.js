@@ -467,6 +467,24 @@ export default function ProfileScreen({ navigation }) {
           )}
         </View>
 
+        {/* ── 保存した投稿 (관심글 저장) ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>保存した投稿</Text>
+          <TouchableOpacity
+            style={styles.infoCard}
+            onPress={() => navigation.navigate('SavedPosts')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>保存した投稿を見る</Text>
+                <Text style={styles.toggleHint}>気になる投稿を保存していつでも見返せます</Text>
+              </View>
+              <Text style={styles.menuArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* ── 공강맞추기 공유 설정 ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>空き時間合わせ設定</Text>

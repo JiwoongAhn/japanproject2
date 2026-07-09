@@ -10,6 +10,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
 import TermsOfServiceScreen from '../screens/TermsOfServiceScreen';
 import MyPostsScreen from '../screens/community/MyPostsScreen';
+import SavedPostsScreen from '../screens/community/SavedPostsScreen';
 import PostEditScreen from '../screens/community/PostEditScreen';
 import BlockedUsersScreen from '../screens/community/BlockedUsersScreen';
 import { colors } from '../constants/colors';
@@ -25,6 +26,7 @@ function ProfileStackNavigator() {
     <ProfileStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
       <ProfileStack.Screen name="ProfileMain" component={ProfileScreen} />
       <ProfileStack.Screen name="MyPosts" component={MyPostsScreen} />
+      <ProfileStack.Screen name="SavedPosts" component={SavedPostsScreen} />
       <ProfileStack.Screen name="PostEdit" component={PostEditScreen} />
       <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <ProfileStack.Screen name="TermsOfService" component={TermsOfServiceScreen} />

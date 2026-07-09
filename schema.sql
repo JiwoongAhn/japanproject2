@@ -619,6 +619,21 @@ CREATE POLICY "누구나 읽기" ON comment_likes FOR SELECT USING (true);
 CREATE POLICY "본인만 추가" ON comment_likes FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
 CREATE POLICY "본인만 삭제" ON comment_likes FOR DELETE USING ((select auth.uid()) = user_id);
 
+-- ── post_bookmarks: 게시글 북마크(관심글 저장) — 본인만 조회(프라이빗) ──
+CREATE TABLE IF NOT EXISTS post_bookmarks (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id    UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (post_id, user_id)
+);
+ALTER TABLE post_bookmarks ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "본인 북마크만 조회" ON post_bookmarks FOR SELECT USING ((select auth.uid()) = user_id);
+CREATE POLICY "본인만 북마크 추가" ON post_bookmarks FOR INSERT WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY "본인만 북마크 삭제" ON post_bookmarks FOR DELETE USING ((select auth.uid()) = user_id);
+CREATE INDEX IF NOT EXISTS idx_post_bookmarks_user_id ON post_bookmarks(user_id);
+CREATE INDEX IF NOT EXISTS idx_post_bookmarks_post_id ON post_bookmarks(post_id);
+
 -- ── push_delivery_logs: 푸시 전송/재시도 로그 (배치잡) ──
 CREATE TABLE IF NOT EXISTS push_delivery_logs (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),

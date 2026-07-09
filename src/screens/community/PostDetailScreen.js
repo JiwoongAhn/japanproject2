@@ -23,7 +23,9 @@ import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { getCategoryInfo } from '../../constants/boardCategories';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { isBookmarked, addBookmark, removeBookmark } from '../../utils/bookmarks';
 import { deleteImagesFromStorage } from '../../utils/imageUpload';
 import { findProfanity } from '../../utils/profanity';
 import { reportContent, blockUser } from '../../utils/moderation';
@@ -54,6 +56,8 @@ export default function PostDetailScreen({ navigation, route }) {
   const [submitting, setSubmitting] = useState(false);
   const [liking, setLiking] = useState(false);
   const [liked, setLiked] = useState(false); // 내가 좋아요 눌렀는지
+  const [bookmarked, setBookmarked] = useState(false); // 내가 저장(북마크)했는지
+  const [bookmarking, setBookmarking] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [likedComments, setLikedComments] = useState({}); // { commentId: true/false }
   const [likingComment, setLikingComment] = useState(null); // 현재 좋아요 처리 중인 댓글 ID
@@ -67,7 +71,7 @@ export default function PostDetailScreen({ navigation, route }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) setCurrentUserId(user.id);
 
-    const [postRes, commentsRes, likeRes, commentLikesRes] = await Promise.all([
+    const [postRes, commentsRes, likeRes, commentLikesRes, bookmarkRes] = await Promise.all([
       supabase.from('posts').select('*').eq('id', postId).single(),
       supabase
         .from('post_comments')
@@ -80,11 +84,15 @@ export default function PostDetailScreen({ navigation, route }) {
       user
         ? supabase.from('comment_likes').select('comment_id').eq('user_id', user.id)
         : Promise.resolve({ data: [] }),
+      user
+        ? supabase.from('post_bookmarks').select('id').eq('post_id', postId).eq('user_id', user.id).maybeSingle()
+        : Promise.resolve({ data: null }),
     ]);
 
     if (postRes.data) setPost(postRes.data);
     if (commentsRes.data) setComments(commentsRes.data);
     setLiked(!!likeRes.data);
+    setBookmarked(!!bookmarkRes.data);
 
     // 내가 좋아요한 댓글 ID를 { commentId: true } 형태로 저장
     const likedMap = {};
@@ -148,6 +156,19 @@ export default function PostDetailScreen({ navigation, route }) {
       }));
     }
     setLiking(false);
+  };
+
+  // 북마크(관심글 저장) 토글 — 낙관적 업데이트 후 서버 반영
+  const handleBookmark = async () => {
+    if (bookmarking || !post || !currentUserId) return;
+    setBookmarking(true);
+    const next = !bookmarked;
+    setBookmarked(next); // 낙관적
+    const ok = next
+      ? await addBookmark(postId, currentUserId)
+      : await removeBookmark(postId, currentUserId);
+    if (!ok) setBookmarked(!next); // 실패 시 롤백
+    setBookmarking(false);
   };
 
   // 댓글 좋아요 토글
@@ -425,6 +446,23 @@ export default function PostDetailScreen({ navigation, route }) {
                 <Text style={styles.commentCountIcon}>□</Text>
                 <Text style={styles.commentCountText}>{comments.length}</Text>
               </View>
+
+              {/* 관심글 저장(북마크) — 오른쪽 끝 */}
+              <TouchableOpacity
+                style={[styles.bookmarkButton, bookmarked && styles.bookmarkButtonActive]}
+                onPress={handleBookmark}
+                activeOpacity={0.7}
+                disabled={bookmarking}
+              >
+                <Ionicons
+                  name={bookmarked ? 'bookmark' : 'bookmark-outline'}
+                  size={16}
+                  color={bookmarked ? colors.primary : colors.textSecondary}
+                />
+                <Text style={[styles.bookmarkText, bookmarked && styles.bookmarkTextActive]}>
+                  {bookmarked ? '保存済み' : '保存'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
 
@@ -448,11 +486,18 @@ export default function PostDetailScreen({ navigation, route }) {
                     style={[styles.commentItem, index === 0 && styles.commentItemFirst]}
                   >
                     <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthor} numberOfLines={1}>
-                        {comment.is_anonymous
-                          ? `匿名${index + 1}`
-                          : (commentAuthors[comment.user_id] ?? '実名')}
-                      </Text>
+                      {/* 글쓴이 본인이 단 댓글은 "作成者" 뱃지로 구분 (제3자가 익명이용자와 구별) */}
+                      {post && comment.user_id === post.user_id ? (
+                        <View style={styles.authorBadge}>
+                          <Text style={styles.authorBadgeText}>作成者</Text>
+                        </View>
+                      ) : (
+                        <Text style={styles.commentAuthor} numberOfLines={1}>
+                          {comment.is_anonymous
+                            ? `匿名${index + 1}`
+                            : (commentAuthors[comment.user_id] ?? '実名')}
+                        </Text>
+                      )}
                       <View style={styles.commentHeaderRight}>
                         <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
                         {comment.user_id !== currentUserId && (
@@ -740,6 +785,28 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
+  // 북마크 버튼 (오른쪽 끝)
+  bookmarkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs + 1,
+    paddingVertical: spacing.xs + 2,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    backgroundColor: colors.gray100,
+    marginLeft: 'auto',
+  },
+  bookmarkButtonActive: {
+    backgroundColor: colors.primaryLight,
+  },
+  bookmarkText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  bookmarkTextActive: {
+    color: colors.primary,
+  },
 
   // ── 댓글 섹션 ──────────────────────────────
   commentsSection: {
@@ -792,6 +859,18 @@ const styles = StyleSheet.create({
     ...typography.captionStrong,
     color: colors.textSecondary,
     flexShrink: 1, // 닉네임이 길어도 시간/메뉴를 밀어내지 않고 말줄임 처리
+  },
+  // 글쓴이 본인 댓글 표시 뱃지
+  authorBadge: {
+    backgroundColor: colors.primaryLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+  },
+  authorBadgeText: {
+    ...typography.small,
+    color: colors.primary,
+    fontWeight: '700',
   },
   commentTime: {
     ...typography.small,

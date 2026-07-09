@@ -16,8 +16,9 @@ import { getMyReviews, deleteReview } from '../../utils/review';
 // 내 게시글 + 내가 쓴 수업평가 통합 목록 화면
 // 탭으로 분리: 掲示板 | 講義評価
 export default function MyPostsScreen({ navigation }) {
-  const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'reviews'
+  const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'comments' | 'reviews'
   const [posts, setPosts] = useState([]);
+  const [comments, setComments] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,6 +34,13 @@ export default function MyPostsScreen({ navigation }) {
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
+    // 내가 쓴 댓글 조회 (원글 제목/카테고리 조인 → 어느 글의 댓글인지 표시)
+    const { data: commentData } = await supabase
+      .from('post_comments')
+      .select('id, body, created_at, post_id, posts(title, category)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
     // 강의평가 조회
     let reviewData = [];
     try {
@@ -42,6 +50,8 @@ export default function MyPostsScreen({ navigation }) {
     }
 
     setPosts(postData ?? []);
+    // 원글이 삭제된 댓글(posts=null)은 갈 곳이 없으므로 제외
+    setComments((commentData ?? []).filter((c) => c.posts));
     setReviews(reviewData);
     setLoading(false);
   }, []);
@@ -87,6 +97,38 @@ export default function MyPostsScreen({ navigation }) {
       screen: 'PostDetail',
       params: { postId: post.id },
     });
+  };
+
+  // ── 내 댓글 핸들러 ───────────────────────────────────────────────
+
+  const handlePressComment = (comment) => {
+    // 댓글이 달린 원글로 이동
+    navigation.navigate('Community', {
+      screen: 'PostDetail',
+      params: { postId: comment.post_id },
+    });
+  };
+
+  const handleDeleteComment = (comment) => {
+    Alert.alert(
+      'コメントを削除',
+      'このコメントを削除しますか？\nこの操作は取り消せません。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '削除する',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase.from('post_comments').delete().eq('id', comment.id);
+            if (error) {
+              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+            } else {
+              setComments(prev => prev.filter(c => c.id !== comment.id));
+            }
+          },
+        },
+      ]
+    );
   };
 
   // ── 수업평가 핸들러 ──────────────────────────────────────────────
@@ -199,6 +241,48 @@ export default function MyPostsScreen({ navigation }) {
     );
   };
 
+  // ── 렌더: 내 댓글 카드 ───────────────────────────────────────────
+
+  const renderComment = ({ item: comment }) => {
+    const cat = getCategoryInfo(comment.posts?.category);
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() => handlePressComment(comment)}
+        onLongPress={() => handleDeleteComment(comment)}
+        activeOpacity={0.85}
+        delayLongPress={500}
+      >
+        <View style={styles.cardTop}>
+          <View style={[styles.catBadge, { backgroundColor: cat.color + '18' }]}>
+            <Text style={[styles.catText, { color: cat.color }]}>{cat.label}</Text>
+          </View>
+          <Text style={styles.cardTime}>{formatTimeAgo(comment.created_at)}</Text>
+        </View>
+
+        {/* 어느 글에 단 댓글인지 (원글 제목) */}
+        <Text style={styles.commentOnText} numberOfLines={1}>
+          「{comment.posts?.title ?? '削除された投稿'}」へのコメント
+        </Text>
+        {/* 내가 쓴 댓글 내용 */}
+        <Text style={styles.commentBodyText} numberOfLines={2}>{comment.body}</Text>
+
+        <View style={styles.cardBottom}>
+          <View style={styles.metaRow} />
+          <View style={styles.actions}>
+            <TouchableOpacity
+              style={styles.deleteBtn}
+              onPress={() => handleDeleteComment(comment)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+            >
+              <Text style={styles.deleteBtnText}>削除</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   // ── 렌더: 강의평가 카드 ───────────────────────────────────────────
 
   const renderReview = ({ item: review }) => {
@@ -272,6 +356,15 @@ export default function MyPostsScreen({ navigation }) {
         </View>
       );
     }
+    if (activeTab === 'comments') {
+      return (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>💬</Text>
+          <Text style={styles.emptyText}>まだコメントを書いてないみたい</Text>
+          <Text style={styles.emptySubText}>気になる投稿にコメントしてみよう</Text>
+        </View>
+      );
+    }
     return (
       <View style={styles.empty}>
         <Text style={styles.emptyEmoji}>⭐</Text>
@@ -281,8 +374,10 @@ export default function MyPostsScreen({ navigation }) {
     );
   };
 
-  const activeData = activeTab === 'posts' ? posts : reviews;
-  const renderItem = activeTab === 'posts' ? renderPost : renderReview;
+  const activeData =
+    activeTab === 'posts' ? posts : activeTab === 'comments' ? comments : reviews;
+  const renderItem =
+    activeTab === 'posts' ? renderPost : activeTab === 'comments' ? renderComment : renderReview;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -309,6 +404,22 @@ export default function MyPostsScreen({ navigation }) {
             <View style={[styles.tabBadge, activeTab === 'posts' && styles.tabBadgeActive]}>
               <Text style={[styles.tabBadgeText, activeTab === 'posts' && styles.tabBadgeTextActive]}>
                 {posts.length}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'comments' && styles.tabActive]}
+          onPress={() => setActiveTab('comments')}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.tabText, activeTab === 'comments' && styles.tabTextActive]}>
+            コメント
+          </Text>
+          {comments.length > 0 && (
+            <View style={[styles.tabBadge, activeTab === 'comments' && styles.tabBadgeActive]}>
+              <Text style={[styles.tabBadgeText, activeTab === 'comments' && styles.tabBadgeTextActive]}>
+                {comments.length}
               </Text>
             </View>
           )}
@@ -463,6 +574,18 @@ const styles = StyleSheet.create({
     ...typography.body2,
     color: colors.textSecondary,
     marginBottom: spacing.sm,
+  },
+  // 내 댓글 카드
+  commentOnText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  commentBodyText: {
+    ...typography.body1,
+    color: colors.textPrimary,
+    lineHeight: 21,
+    marginBottom: spacing.xs,
   },
   starRow: {
     flexDirection: 'row',
