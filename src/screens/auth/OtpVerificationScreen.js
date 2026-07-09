@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
@@ -124,7 +125,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <View style={styles.inner}>
@@ -146,7 +147,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
           </View>
 
           {/* 코드 입력 — iOS oneTimeCode / Android sms-otp 자동완성 */}
-          <TextInput
+          <AppTextInput
             style={styles.codeInput}
             value={code}
             onChangeText={v => setCode(v.replace(/[^0-9]/g, '').slice(0, 6))}

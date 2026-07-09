@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   RefreshControl,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { colors, pastel } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -116,7 +117,7 @@ export default function CourseReviewScreen({ navigation }) {
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Text style={styles.searchIcon}>🔍</Text>
-          <TextInput
+          <AppTextInput
             style={styles.searchInput}
             placeholder="授業名・教員名で検索"
             placeholderTextColor={colors.textDisabled}

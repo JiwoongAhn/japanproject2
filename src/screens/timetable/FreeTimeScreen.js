@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { colors, pastel } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
@@ -215,7 +216,7 @@ export default function FreeTimeScreen({ navigation }) {
       </View>
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -324,7 +325,7 @@ export default function FreeTimeScreen({ navigation }) {
             <Text style={styles.sectionTitle}>友達のIDを入力して比較</Text>
             <Text style={styles.sectionSub}>共通の空き時間が緑色で表示されます</Text>
             <View style={styles.inputRow}>
-              <TextInput
+              <AppTextInput
                 style={styles.input}
                 placeholder="友達のIDを入力"
                 placeholderTextColor={colors.textDisabled}

@@ -12,6 +12,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -308,7 +309,7 @@ export default function AssignmentAddScreen({ navigation }) {
             <Text style={styles.sectionLabel}>
               科目名 <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
+            <AppTextInput
               style={styles.textInput}
               placeholder="例: 経営学概論"
               placeholderTextColor={colors.textDisabled}
@@ -323,7 +324,7 @@ export default function AssignmentAddScreen({ navigation }) {
             <Text style={styles.sectionLabel}>
               課題タイトル <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
+            <AppTextInput
               style={styles.textInput}
               placeholder="例: 第3章 レポート提出"
               placeholderTextColor={colors.textDisabled}

@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 
 import { colors } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
@@ -117,7 +118,7 @@ export default function BulkAddInputScreen({ navigation, route }) {
 
           {/* ── 텍스트 입력 ── */}
           <Text style={styles.sectionLabel}>貼り付けエリア</Text>
-          <TextInput
+          <AppTextInput
             value={text}
             onChangeText={setText}
             placeholder="ここに貼り付け..."

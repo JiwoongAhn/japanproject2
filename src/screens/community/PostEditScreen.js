@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { findProfanityInAny } from '../../utils/profanity';
 import { colors } from '../../constants/colors';
@@ -145,12 +146,12 @@ export default function PostEditScreen({ navigation, route }) {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.inputGroup}>
             <Text style={styles.label}>タイトル</Text>
-            <TextInput
+            <AppTextInput
               style={styles.titleInput}
               value={title}
               onChangeText={setTitle}
@@ -162,7 +163,7 @@ export default function PostEditScreen({ navigation, route }) {
           </View>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>本文</Text>
-            <TextInput
+            <AppTextInput
               style={styles.bodyInput}
               value={body}
               onChangeText={setBody}

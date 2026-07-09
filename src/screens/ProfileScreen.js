@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AppTextInput from '../components/AppTextInput';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import LoadingDots from '../components/LoadingDots';
@@ -352,7 +353,7 @@ export default function ProfileScreen({ navigation }) {
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>ニックネームを変更</Text>
-              <TextInput
+              <AppTextInput
                 style={styles.modalInput}
                 value={newNickname}
                 onChangeText={setNewNickname}

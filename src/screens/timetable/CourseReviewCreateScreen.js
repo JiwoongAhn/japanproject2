@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { colors, pastel } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
@@ -141,7 +142,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         {/* ── 헤더 ── */}
         <View style={styles.header}>
@@ -177,7 +178,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
                 <Text style={styles.readonlyHint}>科目名は変更できません</Text>
               </View>
             ) : (
-              <TextInput
+              <AppTextInput
                 style={styles.textInput}
                 placeholder="例: 経営学概論"
                 placeholderTextColor={colors.textDisabled}
@@ -197,7 +198,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
                 <Text style={styles.readonlyHint}>担当教員名は変更できません</Text>
               </View>
             ) : (
-              <TextInput
+              <AppTextInput
                 style={styles.textInput}
                 placeholder="例: 田中 一郎"
                 placeholderTextColor={colors.textDisabled}
@@ -238,7 +239,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
 
             {/* 커스텀 태그 입력 */}
             <View style={styles.customTagRow}>
-              <TextInput
+              <AppTextInput
                 style={styles.customTagInput}
                 placeholder="タグを直接入力"
                 placeholderTextColor={colors.textDisabled}
@@ -281,7 +282,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
           {/* ── 코멘트 ── */}
           <Card>
             <Text style={styles.label}>コメント <Text style={styles.optional}>(任意)</Text></Text>
-            <TextInput
+            <AppTextInput
               style={styles.commentInput}
               placeholder="授業の感想を自由に書いてください"
               placeholderTextColor={colors.textDisabled}

@@ -12,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -122,7 +123,7 @@ export default function PostCreateScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
 
       {/* ── 헤더 ── */}
@@ -176,7 +177,7 @@ export default function PostCreateScreen({ navigation }) {
         {/* ── 제목 입력 ── */}
         <View style={styles.section}>
           <Text style={styles.label}>タイトル <Text style={styles.required}>*</Text></Text>
-          <TextInput
+          <AppTextInput
             style={styles.titleInput}
             placeholder="タイトルを入力してください"
             placeholderTextColor={colors.textDisabled}
@@ -191,7 +192,7 @@ export default function PostCreateScreen({ navigation }) {
         {/* ── 본문 입력 ── */}
         <View style={styles.section}>
           <Text style={styles.label}>本文 <Text style={styles.optional}>(任意)</Text></Text>
-          <TextInput
+          <AppTextInput
             style={styles.bodyInput}
             placeholder="本文を入力してください（任意）"
             placeholderTextColor={colors.textDisabled}

@@ -3,6 +3,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   FlatList, StyleSheet, SafeAreaView,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { Ionicons } from '@expo/vector-icons';
 import { universities } from '../../constants/universities';
 import { colors } from '../../constants/colors';
@@ -52,7 +53,7 @@ export default function UniversitySelectScreen({ navigation }) {
 
         <View style={styles.searchBar}>
           <Ionicons name="search" size={18} color={colors.textSecondary} />
-          <TextInput
+          <AppTextInput
             style={styles.searchInput}
             placeholder="大学名・地域で検索"
             placeholderTextColor={colors.textDisabled}

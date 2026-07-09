@@ -11,7 +11,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -19,6 +18,8 @@ import { colors, pastel } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
+import LoadingDots from '../../components/LoadingDots';
+import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { buildCourseRows } from '../../utils/timetable';
 import { COURSE_COLORS } from '../../constants/courseColors';
@@ -473,7 +474,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       {roomPhase === 'loading' ? (
         <View style={styles.roomOverlay}>
           <View style={styles.roomOverlayCard}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <LoadingDots size={14} style={{ marginBottom: spacing.xs }} />
             <Text style={styles.roomOverlayTitle}>教室を取得中…</Text>
             <Text style={styles.roomOverlayCount}>
               {roomDone} / {roomTotal}
@@ -512,7 +513,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
             </Text>
 
             <Text style={styles.modalLabel}>科目名</Text>
-            <TextInput
+            <AppTextInput
               style={styles.modalInput}
               value={editing?.name ?? ''}
               onChangeText={(t) => setEditing((e) => ({ ...e, name: t }))}
@@ -522,7 +523,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
             />
 
             <Text style={styles.modalLabel}>教室（任意）</Text>
-            <TextInput
+            <AppTextInput
               style={styles.modalInput}
               value={editing?.room ?? ''}
               onChangeText={(t) => setEditing((e) => ({ ...e, room: t }))}

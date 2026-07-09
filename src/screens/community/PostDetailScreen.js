@@ -14,6 +14,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -365,7 +366,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={0}
       >
         <ScrollView
@@ -502,7 +503,7 @@ export default function PostDetailScreen({ navigation, route }) {
             <Text style={[styles.anonLabel, isAnonymous && styles.anonLabelOn]}>匿名</Text>
           </TouchableOpacity>
 
-          <TextInput
+          <AppTextInput
             style={styles.commentInput}
             placeholder="コメントを入力..."
             placeholderTextColor={colors.textDisabled}

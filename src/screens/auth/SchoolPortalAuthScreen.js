@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
@@ -80,7 +81,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -108,7 +109,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>学校メールアドレス</Text>
-              <TextInput
+              <AppTextInput
                 style={styles.input}
                 placeholder={university?.emailDomain ? `学籍番号@${university.emailDomain}` : '学籍番号@university.ac.jp'}
                 placeholderTextColor={colors.textDisabled}

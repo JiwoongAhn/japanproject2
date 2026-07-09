@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
@@ -129,7 +130,7 @@ export default function CourseAddScreen({ route, navigation }) {
             <Text style={styles.sectionLabel}>
               科目名 <Text style={styles.required}>*</Text>
             </Text>
-            <TextInput
+            <AppTextInput
               style={styles.textInput}
               placeholder="例: 経営学概論"
               placeholderTextColor={colors.textDisabled}
@@ -192,7 +193,7 @@ export default function CourseAddScreen({ route, navigation }) {
             <Text style={styles.sectionLabel}>
               担当教員 <Text style={styles.optional}>(任意)</Text>
             </Text>
-            <TextInput
+            <AppTextInput
               style={styles.textInput}
               placeholder="例: 田中 一郎"
               placeholderTextColor={colors.textDisabled}
@@ -207,7 +208,7 @@ export default function CourseAddScreen({ route, navigation }) {
             <Text style={styles.sectionLabel}>
               メモ <Text style={styles.optional}>(任意)</Text>
             </Text>
-            <TextInput
+            <AppTextInput
               style={[styles.textInput, styles.textArea]}
               placeholder="例: テスト範囲は3章まで / 出席重視"
               placeholderTextColor={colors.textDisabled}

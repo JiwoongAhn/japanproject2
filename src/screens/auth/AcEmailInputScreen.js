@@ -4,6 +4,7 @@ import {
   StyleSheet, SafeAreaView, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../lib/AuthProvider';
 import { colors } from '../../constants/colors';
@@ -75,7 +76,7 @@ export default function AcEmailInputScreen({ route }) {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -98,7 +99,7 @@ export default function AcEmailInputScreen({ route }) {
           <View style={styles.form}>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>ニックネーム</Text>
-              <TextInput
+              <AppTextInput
                 style={styles.input}
                 placeholder="例：たろう"
                 placeholderTextColor={colors.textDisabled}

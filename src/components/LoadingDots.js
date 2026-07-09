@@ -7,15 +7,17 @@ import { colors } from '../constants/colors';
 const DOT_COUNT = 3;
 
 /**
- * @param {number}  size       점 하나의 지름(px). 기본 10
+ * @param {number}  size       점 하나의 지름(px). 미지정 시 fullscreen이면 16, 아니면 10
  * @param {string}  color      점 색깔. 기본 앱 테마 primary
  * @param {object}  style      컨테이너에 덧붙일 스타일(여백 등)
  * @param {boolean} fullscreen true면 남은 공간을 가득 채워 점을 화면(콘텐츠 영역) 정중앙에 배치.
- *                             풀스크린 로딩 자리에서 이 옵션 하나로 항상 중앙 정렬됨.
+ *                             풀스크린 로딩 자리에서 이 옵션 하나로 항상 중앙 정렬 + 크게 표시됨.
  */
-export default function LoadingDots({ size = 10, color = colors.primary, style, fullscreen = false }) {
+export default function LoadingDots({ size, color = colors.primary, style, fullscreen = false }) {
+  // 크기 미지정 시: 풀스크린 로딩은 눈에 잘 띄게 크게(16), 인라인/버튼용은 작게(10)
+  const dotSize = size ?? (fullscreen ? 16 : 10);
   // 점이 위로 튀는 높이는 점 크기에 비례 (작은 점은 조금만, 큰 점은 많이)
-  const lift = size * 0.6;
+  const lift = dotSize * 0.6;
 
   // 점마다 Animated.Value 1개씩 준비 (위아래 이동값)
   const dots = useRef(
@@ -61,11 +63,11 @@ export default function LoadingDots({ size = 10, color = colors.primary, style, 
           style={[
             styles.dot,
             {
-              width: size,
-              height: size,
-              borderRadius: size / 2,
+              width: dotSize,
+              height: dotSize,
+              borderRadius: dotSize / 2,
               backgroundColor: color,
-              marginHorizontal: size * 0.4, // gap 대신 margin (구버전 RN 호환)
+              marginHorizontal: dotSize * 0.4, // gap 대신 margin (구버전 RN 호환)
               transform: [{ translateY: dot }],
             },
           ]}
