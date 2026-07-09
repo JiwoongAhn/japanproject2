@@ -16,7 +16,7 @@ export const universityLinks = {
   // ── 배치 1 ────────────────────────────────────────────────────────────────
   'nihon-u': {
     homepageUrl: 'https://www.nihon-u.ac.jp',
-    manabaUrl:   '', // 자체 LMS 사용 (학부별 상이)
+    manabaUrl:   '', // 학부별 LMS 완전 상이 — 단일 URL 불가로 LMS 버튼 생략 (ホームページ만 제공)
     kaedeUrl:    '',
     syllabusUrl: '', // 학부별 URL 상이 — 일괄 제공 불가
     portalUrl:   '',
@@ -31,13 +31,17 @@ export const universityLinks = {
   'komazawa-u': {
     homepageUrl: 'https://www.komazawa-u.ac.jp',
     manabaUrl:   '', // KONECO 자체 LMS 사용
+    lmsUrl:      'https://koneco.komazawa-u.ac.jp/',
+    lmsLabel:    'KONECO',
     kaedeUrl:    '',
     syllabusUrl: 'https://koneco.komazawa-u.ac.jp/',
     portalUrl:   '',
   },
   'senshu-u': {
     homepageUrl: 'https://www.senshu-u.ac.jp',
-    manabaUrl:   '', // 자체 LMS 사용
+    manabaUrl:   '', // 자체 LMS 사용 (教務Webサービス)
+    lmsUrl:      'https://ris.acc.senshu-u.ac.jp/kyougaku/indexSP.jsp',
+    lmsLabel:    '教務システム',
     kaedeUrl:    '',
     syllabusUrl: 'https://syllabus.acc.senshu-u.ac.jp/syllsenshu/slbssrch.do',
     portalUrl:   '',
@@ -107,7 +111,9 @@ export const universityLinks = {
   },
   tamagawa: {
     homepageUrl: 'https://www.tamagawa.jp/university/',
-    manabaUrl:   '', // Blackboard 사용 (外部公開URLなし)
+    manabaUrl:   '', // Blackboard(수업) + UNITAMA(포털) 사용. 포털을 대표 링크로
+    lmsUrl:      'https://unitama.tamagawa.ac.jp/',
+    lmsLabel:    'UNITAMA',
     kaedeUrl:    '',
     syllabusUrl: 'http://acweb01.adm.tamagawa.ac.jp/Syllabus.nsf',
     portalUrl:   '',
@@ -134,16 +140,20 @@ export const universityLinks = {
   // ── 배치 4 ────────────────────────────────────────────────────────────────
   oiu: {
     homepageUrl: 'https://www.oiu.ac.jp',
-    manabaUrl:   '', // 미확인
+    manabaUrl:   '', // manaba 미사용 (Moodle + OIU UNIPA)
+    lmsUrl:      'https://www6.oiu.ac.jp/share/htdocs/',
+    lmsLabel:    'ポータル',
     kaedeUrl:    '',
-    syllabusUrl: '', // 미확인
+    syllabusUrl: '', // 포털 로그인 필요
     portalUrl:   '',
   },
   nbu: {
     homepageUrl: 'https://www.nbu.ac.jp',
-    manabaUrl:   '', // 미확인
+    manabaUrl:   '', // manaba 미사용 (UNIVERSAL PASSPORT)
+    lmsUrl:      'https://www.nbu.ac.jp/upx-login.html',
+    lmsLabel:    'UNIPA',
     kaedeUrl:    '',
-    syllabusUrl: '', // 미확인
+    syllabusUrl: '', // 포털 로그인 필요
     portalUrl:   '',
   },
 };
