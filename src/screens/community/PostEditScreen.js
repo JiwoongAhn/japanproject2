@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
+import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 import { supabase } from '../../lib/supabase';
 import { findProfanityInAny } from '../../utils/profanity';
 import { colors } from '../../constants/colors';
@@ -146,7 +147,7 @@ export default function PostEditScreen({ navigation, route }) {
 
       {/* iOS는 ScrollView의 automaticallyAdjustKeyboardInsets가 포커스 칸을 자동 스크롤 */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={undefined}>
-        <ScrollView
+        <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets
@@ -222,7 +223,7 @@ export default function PostEditScreen({ navigation, route }) {
               })}
             </ScrollView>
           </View>
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

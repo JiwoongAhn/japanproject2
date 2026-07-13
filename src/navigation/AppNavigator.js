@@ -188,6 +188,13 @@ export default function AppNavigator() {
           component={ManabaReminderSetupScreen}
           options={{ presentation: 'modal' }}
         />
+        {/* 마이페이지 "使い方をもう一度見る"에서 여는 온보딩 다시 보기(모달, DB 미변경) */}
+        <RootStack.Screen
+          name="OnboardingReview"
+          component={OnboardingScreen}
+          options={{ presentation: 'modal' }}
+          initialParams={{ review: true }}
+        />
       </RootStack.Navigator>
     );
   };

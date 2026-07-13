@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
+import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 import { colors, pastel } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
@@ -161,7 +162,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -295,7 +296,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
           </Card>
 
           <View style={{ height: spacing.huge }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

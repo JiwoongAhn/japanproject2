@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
+import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -144,7 +145,7 @@ export default function PostCreateScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         automaticallyAdjustKeyboardInsets
@@ -273,7 +274,7 @@ export default function PostCreateScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
-      </ScrollView>
+      </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

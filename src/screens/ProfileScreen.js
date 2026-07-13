@@ -568,6 +568,24 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
+        {/* ── 앱 사용법 다시 보기 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>アプリの使い方</Text>
+          <TouchableOpacity
+            style={styles.infoCard}
+            onPress={() => navigation.navigate('OnboardingReview')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>使い方をもう一度見る</Text>
+                <Text style={styles.toggleHint}>最初に表示された紹介をもう一度確認できます</Text>
+              </View>
+              <Text style={styles.menuArrow}>›</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* ── 안전·프라이버시: 차단 관리 ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>安全とプライバシー</Text>

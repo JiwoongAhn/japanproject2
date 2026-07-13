@@ -12,6 +12,7 @@ import {
   Platform,
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
+import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
@@ -107,7 +108,7 @@ export default function CourseAddScreen({ route, navigation }) {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={undefined}
         style={{ flex: 1 }}
       >
         {/* ── 헤더 (보더 없는 토스 스타일) ── */}
@@ -119,11 +120,12 @@ export default function CourseAddScreen({ route, navigation }) {
           <View style={styles.headerSide} />
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets
         >
           {/* ── 과목명 ── */}
           <Card style={styles.section}>
@@ -247,7 +249,7 @@ export default function CourseAddScreen({ route, navigation }) {
           </Card>
 
           <View style={{ height: spacing.huge }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {/* ── 저장 버튼 ── */}
         <View style={styles.saveButtonContainer}>

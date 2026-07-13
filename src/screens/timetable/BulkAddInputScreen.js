@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
+import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 
 import { colors } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
@@ -77,7 +78,7 @@ export default function BulkAddInputScreen({ navigation, route }) {
 
       {/* iOS는 ScrollView의 automaticallyAdjustKeyboardInsets가 포커스 칸을 자동 스크롤 */}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={undefined}>
-        <ScrollView
+        <KeyboardAwareScrollView
           style={{ flex: 1 }}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -137,7 +138,7 @@ export default function BulkAddInputScreen({ navigation, route }) {
               <Text style={styles.appendButtonText}>📋 既存の結果に追加</Text>
             </TouchableOpacity>
           ) : null}
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {/* ── 하단 fixed 영역 ── */}
         <View style={styles.bottomBar}>

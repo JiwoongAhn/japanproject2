@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
+import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -296,7 +297,7 @@ export default function AssignmentAddScreen({ navigation }) {
           <View style={styles.headerSide} />
         </View>
 
-        <ScrollView
+        <KeyboardAwareScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
@@ -376,7 +377,7 @@ export default function AssignmentAddScreen({ navigation }) {
           </Card>
 
           <View style={{ height: spacing.huge }} />
-        </ScrollView>
+        </KeyboardAwareScrollView>
 
         {/* 저장 버튼 */}
         <View style={styles.saveButtonContainer}>

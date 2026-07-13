@@ -199,8 +199,10 @@ const SLIDES = [
   },
 ];
 
-export default function OnboardingScreen() {
+export default function OnboardingScreen({ navigation, route }) {
   const { session, refreshProfile } = useAuth();
+  // 마이페이지 "使い方をもう一度見る"로 열면 review=true → DB 안 건드리고 닫기만 한다.
+  const isReview = route?.params?.review === true;
   const [index, setIndex] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const scrollRef = useRef(null);
@@ -235,7 +237,7 @@ export default function OnboardingScreen() {
   // mail-provision은 멱등이라, 이후 마나바 설정 화면이 다시 호출해도 즉시 반환돼 대기가 사라진다.
   const prewarmedRef = useRef(false);
   useEffect(() => {
-    if (index !== summaryIndex || prewarmedRef.current) return;
+    if (index !== summaryIndex || prewarmedRef.current || isReview) return;
     prewarmedRef.current = true;
     supabase.functions.invoke('mail-provision').catch(() => {});
   }, [index, summaryIndex]);
@@ -243,7 +245,13 @@ export default function OnboardingScreen() {
   // 온보딩 완료 처리: profiles.onboarding_completed = true → AppNavigator가 자동 전환.
   // openMailConnect=true 이면 홈 진입 시 manaba 연결 화면을 자동으로 열도록 플래그 저장.
   const handleFinish = async (openMailConnect = false) => {
-    if (finishing || !session?.user) return;
+    if (finishing) return;
+    // 다시 보기 모드: 진행 상태를 저장하지 않고 그냥 닫는다.
+    if (isReview) {
+      navigation?.goBack();
+      return;
+    }
+    if (!session?.user) return;
     setFinishing(true);
 
     if (openMailConnect) {
@@ -284,7 +292,7 @@ export default function OnboardingScreen() {
           onPress={() => handleFinish(false)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.skipText}>スキップ</Text>
+          <Text style={styles.skipText}>{isReview ? '閉じる' : 'スキップ'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -348,23 +356,27 @@ export default function OnboardingScreen() {
         </View>
 
         {isSummary ? (
-          <>
-            <Button
-              title="manaba通知を設定する"
-              onPress={() => handleFinish(true)}
-              loading={finishing}
-            />
-            <TouchableOpacity
-              onPress={() => handleFinish(false)}
-              style={styles.laterButton}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.laterText}>スキップして始める</Text>
-            </TouchableOpacity>
-            <Text style={styles.footnote}>
-              manaba連携はあとでマイページからも設定できます。
-            </Text>
-          </>
+          isReview ? (
+            <Button title="閉じる" onPress={() => navigation?.goBack()} />
+          ) : (
+            <>
+              <Button
+                title="manaba通知を設定する"
+                onPress={() => handleFinish(true)}
+                loading={finishing}
+              />
+              <TouchableOpacity
+                onPress={() => handleFinish(false)}
+                style={styles.laterButton}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.laterText}>スキップして始める</Text>
+              </TouchableOpacity>
+              <Text style={styles.footnote}>
+                manaba連携はあとでマイページからも設定できます。
+              </Text>
+            </>
+          )
         ) : (
           <Button title="次へ" onPress={handleAdvance} />
         )}
