@@ -140,10 +140,8 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/* iOS는 ScrollView의 automaticallyAdjustKeyboardInsets가 포커스 칸을 자동 스크롤 */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={undefined}>
         {/* ── 헤더 ── */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.cancelButton} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -167,6 +165,7 @@ export default function CourseReviewCreateScreen({ navigation, route }) {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
         >
           {/* ── 과목명 ── */}
           <Card>

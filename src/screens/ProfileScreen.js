@@ -22,6 +22,7 @@ import { spacing, radius, shadow } from '../constants/spacing';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo } from '../utils/university';
+import { clearCachedNotices } from '../utils/manabaCache';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
@@ -263,7 +264,8 @@ export default function ProfileScreen({ navigation }) {
         return;
       }
 
-      // 계정 삭제 성공 → 세션 정리 → 자동으로 로그인 화면 이동
+      // 계정 삭제 성공 → manaba 캐시 정리(다른 계정에 옛 공지 섞임 방지) → 세션 정리 → 로그인 화면 이동
+      await clearCachedNotices();
       await supabase.auth.signOut();
     } catch (e) {
       Alert.alert('エラー', `通信エラーが発生しました。\n${e.message}`);
@@ -282,6 +284,8 @@ export default function ProfileScreen({ navigation }) {
           style: 'destructive',
           onPress: async () => {
             setLoggingOut(true);
+            // manaba 공지 캐시 정리 → 다른 계정으로 로그인해도 옛 공지가 홈에 남지 않게
+            await clearCachedNotices();
             // scope: 'local' → 서버 요청 실패해도 로컬 세션 강제 삭제
             await supabase.auth.signOut({ scope: 'local' });
           },

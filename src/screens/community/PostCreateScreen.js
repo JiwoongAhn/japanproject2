@@ -121,10 +121,10 @@ export default function PostCreateScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/* iOS는 아래 ScrollView의 automaticallyAdjustKeyboardInsets가 포커스 칸을 키보드 위로
+          자동 스크롤하므로 KeyboardAvoidingView padding을 주지 않는다(이중 오프셋 방지).
+          Android는 매니페스트 adjustResize 사용 */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={undefined}>
 
       {/* ── 헤더 ── */}
       <View style={styles.header}>
@@ -144,7 +144,12 @@ export default function PostCreateScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+      >
 
         {/* ── 카테고리 선택 ── */}
         <View style={styles.section}>

@@ -157,6 +157,36 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     };
   }, [ready]);
 
+  // 설정 단계 동안 백그라운드로 인증코드 도착을 자동 감지한다.
+  // 사용자가 manaba에 주소를 붙여넣고 "保存"만 눌러 두면, 이 화면을 벗어나지 않아도
+  // (버튼을 따로 누르지 않아도) 코드가 도착하는 즉시 자동으로 code 단계로 전환된다.
+  // status가 setup이 아닐 땐(수동 폴링/코드표시 등) 이중 폴링을 피하려 멈춘다.
+  useEffect(() => {
+    if (!ready || status !== 'setup') return;
+    let alive = true;
+    let timer = null;
+    const tick = async () => {
+      try {
+        const { data } = await supabase.functions.invoke('mail-provision');
+        if (!alive) return;
+        if (data?.verified) { setStatus('done'); return; }
+        if (data?.pendingCode) {
+          setPendingCode(data.pendingCode);
+          setStatus('code');
+          return;
+        }
+      } catch (_) {
+        // 네트워크 오류는 무시하고 다음 주기에 재시도
+      }
+      if (alive) timer = setTimeout(tick, POLL_INTERVAL_MS);
+    };
+    timer = setTimeout(tick, POLL_INTERVAL_MS);
+    return () => {
+      alive = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [ready, status]);
+
   // 자동 재로그인 로컬 상태 리셋 (오버레이·사이클 ref·타이머). 글로벌 카운터는 헬퍼로 별도 갱신.
   const resetAutoReloginLocal = () => {
     setAutoRelogging(false);

@@ -285,10 +285,8 @@ export default function AssignmentAddScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+      {/* iOS는 ScrollView의 automaticallyAdjustKeyboardInsets가 포커스 칸을 자동 스크롤 */}
+      <KeyboardAvoidingView behavior={undefined} style={{ flex: 1 }}>
         {/* 헤더 */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerSide} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -303,6 +301,7 @@ export default function AssignmentAddScreen({ navigation }) {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets
         >
           {/* 수업명 */}
           <Card padding="lg" radius="lg" style={styles.section}>

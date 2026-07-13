@@ -75,16 +75,14 @@ export default function BulkAddInputScreen({ navigation, route }) {
         <View style={styles.headerRight} />
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={20}
-      >
+      {/* iOS는 ScrollView의 automaticallyAdjustKeyboardInsets가 포커스 칸을 자동 스크롤 */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={undefined}>
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets
         >
           {/* ── 안내 카드 (sky 파스텔) ── */}
           <Card pastel="sky" padding="lg" style={{ marginBottom: spacing.lg }}>

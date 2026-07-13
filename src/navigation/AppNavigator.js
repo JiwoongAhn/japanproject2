@@ -17,6 +17,7 @@ import ManabaReminderSetupScreen from '../screens/manaba/ManabaReminderSetupScre
 import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
 import PrivacyConsentScreen, { PRIVACY_CONSENT_KEY } from '../screens/auth/PrivacyConsentScreen';
 import PushPrimingScreen, { PUSH_PRIMING_KEY } from '../screens/auth/PushPrimingScreen';
+import WelcomeScreen, { WELCOME_SEEN_KEY } from '../screens/auth/WelcomeScreen';
 import { colors } from '../constants/colors';
 
 // NavigationContainer 밖에서 navigate를 호출하기 위한 ref
@@ -39,6 +40,18 @@ const linking = {
 
 export default function AppNavigator() {
   const { session, profile, loading, pendingNotice, clearPendingNotice } = useAuth();
+
+  // 환영 화면 노출 여부 (첫 실행 1회 게이트, 개인정보 동의보다 앞). null=확인중
+  const [welcomeSeen, setWelcomeSeen] = useState(null);
+  useEffect(() => {
+    AsyncStorage.getItem(WELCOME_SEEN_KEY)
+      .then((v) => setWelcomeSeen(!!v))
+      .catch(() => setWelcomeSeen(false));
+  }, []);
+  const markWelcomeSeen = () => {
+    AsyncStorage.setItem(WELCOME_SEEN_KEY, '1').catch(() => {});
+    setWelcomeSeen(true);
+  };
 
   // 개인정보처리방침 동의 여부 (첫 실행 1회 게이트). null=확인중
   const [consented, setConsented] = useState(null);
@@ -100,9 +113,14 @@ export default function AppNavigator() {
   }, []);
 
   // 세션/동의 확인 중일 때 스플래시 화면 표시 (갑작스러운 화면 전환 방지)
-  if (loading || consented === null || pushPrimingDone === null) return <SplashScreen />;
+  if (loading || welcomeSeen === null || consented === null || pushPrimingDone === null) return <SplashScreen />;
 
-  // 개인정보처리방침 미동의 시 가장 먼저 동의 화면 (로그인보다 앞 단계)
+  // 최초 실행: 가장 먼저 부드러운 환영 화면 (동의보다 앞)
+  if (!welcomeSeen) {
+    return <WelcomeScreen onStart={markWelcomeSeen} />;
+  }
+
+  // 개인정보처리방침 미동의 시 동의 화면 (로그인보다 앞 단계)
   if (!consented) {
     return <PrivacyConsentScreen onConsent={() => setConsented(true)} />;
   }

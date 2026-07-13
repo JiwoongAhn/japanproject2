@@ -124,12 +124,14 @@ export default function HomeScreen({ navigation }) {
 
   // 온보딩 마지막에 "manaba通知を設定する"를 선택했으면, 홈 최초 진입 시 1회 자동으로
   // manaba 연결 화면을 연다. (플래그는 즉시 지워 재진입 시 반복되지 않게 함)
+  // mode:'settings' → 온보딩에서 이미 마나바 안내를 봤으므로 중복 인트로 슬라이드를 건너뛰고
+  // 곧바로 주소 발급 + 설정 가이드로 진입한다("온보딩 to 온보딩" 중복 제거 + 대기시간 단축).
   useEffect(() => {
     let alive = true;
     AsyncStorage.getItem(OPEN_MAIL_CONNECT_KEY).then((v) => {
       if (!alive || !v) return;
       AsyncStorage.removeItem(OPEN_MAIL_CONNECT_KEY).catch(() => {});
-      navigation.navigate('MailConnectOnboarding');
+      navigation.navigate('MailConnectOnboarding', { mode: 'settings' });
     });
     return () => { alive = false; };
   }, [navigation]);

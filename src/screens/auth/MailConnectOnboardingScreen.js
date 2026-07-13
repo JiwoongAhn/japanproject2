@@ -249,6 +249,20 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
             manabaの「リマインダ設定」に、下のアドレスを追加します。
           </Text>
 
+          {/* 안심 문구 — 파스워드 불필요 / 마나바 공지만 / 언제든 정지 */}
+          <View style={guide.safeCard}>
+            {[
+              { icon: 'key', text: 'パスワードは不要。アドレスを追加するだけ。' },
+              { icon: 'mail-unread', text: 'manabaのお知らせだけが届きます。' },
+              { icon: 'power', text: 'いつでも設定から停止できます。' },
+            ].map((p) => (
+              <View key={p.text} style={guide.safeRow}>
+                <Ionicons name={p.icon} size={16} color={colors.primary} />
+                <Text style={guide.safeText}>{p.text}</Text>
+              </View>
+            ))}
+          </View>
+
           {/* ① 토큰주소 + 복사 */}
           <Text style={guide.stepLabel}>① あなた専用アドレス</Text>
           <View style={guide.addressBox}>
@@ -538,15 +552,25 @@ const conn = StyleSheet.create({
 // ── 전달주소 가이드 화면 스타일 ──
 const guide = StyleSheet.create({
   scroll: { padding: spacing.xl, paddingBottom: spacing.lg },
-  heading: { ...typography.title2, color: colors.gray900, marginBottom: spacing.xs },
-  lead: { fontSize: 15, color: colors.gray600, lineHeight: 22, marginBottom: spacing.xl },
-  stepLabel: { fontSize: 16, fontWeight: '800', color: colors.gray900, marginBottom: spacing.sm },
+  heading: { ...typography.title2, fontSize: 24, color: colors.gray900, marginBottom: spacing.xs },
+  lead: { fontSize: 16, color: colors.gray600, lineHeight: 24, marginBottom: spacing.lg },
+  stepLabel: { fontSize: 17, fontWeight: '800', color: colors.gray900, marginBottom: spacing.sm },
   stepDesc: {
-    fontSize: 15,
+    fontSize: 16,
     color: colors.gray700,
-    lineHeight: 23,
+    lineHeight: 25,
     marginBottom: spacing.md,
   },
+  // 안심 문구 카드
+  safeCard: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  safeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  safeText: { fontSize: 14, color: colors.gray800, fontWeight: '600', flex: 1, lineHeight: 20 },
   strong: { fontWeight: '800', color: colors.primary },
   noteBox: {
     fontSize: 13,

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -144,15 +144,37 @@ const CommunityMock = () => (
   </View>
 );
 
+// 슬라이드 6: 최초 1회 로그인 안내 (매번 로그인해야 하나? 불안 해소)
+const OneTimeLoginMock = () => (
+  <View style={mockStyles.oneTimeWrap}>
+    <View style={mockStyles.oneTimeBadge}>
+      <Ionicons name="lock-open" size={30} color={colors.white} />
+    </View>
+    <Text style={mockStyles.oneTimeStep}>最初の1回だけ</Text>
+    <View style={mockStyles.oneTimeRow}>
+      <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+      <Text style={mockStyles.oneTimeRowText}>manaba にログイン</Text>
+    </View>
+    <View style={mockStyles.oneTimeRow}>
+      <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+      <Text style={mockStyles.oneTimeRowText}>カエデアイ にログイン</Text>
+    </View>
+    <View style={mockStyles.oneTimeAfter}>
+      <Ionicons name="sync" size={14} color={colors.gray500} />
+      <Text style={mockStyles.oneTimeAfterText}>あとは自動でつながります</Text>
+    </View>
+  </View>
+);
+
 const SLIDES = [
   {
-    title: '時間割を、もっとスマートに',
-    subtitle: '学校のシステムからコピペするだけで一括登録。\n空きコマもひと目で確認できます。',
+    title: '時間割は、コピペで一括登録',
+    subtitle: '学校のシステムからコピーして貼り付けるだけ。\n1つずつ入力しなくても、まとめて取り込めます。',
     Mock: TimetableMock,
   },
   {
-    title: 'お知らせを、スマホに通知',
-    subtitle: 'manabaを連携すると、休講・課題・重要連絡が\nあなたのスマホに直接届きます。',
+    title: 'manabaのお知らせを、\nスマホの通知に',
+    subtitle: '休講・課題・重要連絡を見逃さない。\nメールを開かなくても、通知で届きます。',
     Mock: ManabaPushMock,
   },
   {
@@ -169,6 +191,11 @@ const SLIDES = [
     title: '匿名で、気軽につながる',
     subtitle: '同じ大学の仲間と、匿名の掲示板でおしゃべり。\n質問も雑談も気軽にどうぞ。',
     Mock: CommunityMock,
+  },
+  {
+    title: '最初の1回だけ、ログイン',
+    subtitle: 'manabaとカエデアイは、最初に一度ログインするだけ。\nあとは毎回ログインしなくても自動でつながります。',
+    Mock: OneTimeLoginMock,
   },
 ];
 
@@ -203,6 +230,15 @@ export default function OnboardingScreen() {
     const newIndex = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     setIndex(newIndex);
   };
+
+  // 대기시간 단축: 요약 페이지에 도달하면 전달주소(토큰)를 백그라운드에서 미리 발급해 둔다.
+  // mail-provision은 멱등이라, 이후 마나바 설정 화면이 다시 호출해도 즉시 반환돼 대기가 사라진다.
+  const prewarmedRef = useRef(false);
+  useEffect(() => {
+    if (index !== summaryIndex || prewarmedRef.current) return;
+    prewarmedRef.current = true;
+    supabase.functions.invoke('mail-provision').catch(() => {});
+  }, [index, summaryIndex]);
 
   // 온보딩 완료 처리: profiles.onboarding_completed = true → AppNavigator가 자동 전환.
   // openMailConnect=true 이면 홈 진입 시 manaba 연결 화면을 자동으로 열도록 플래그 저장.
@@ -586,4 +622,41 @@ const mockStyles = StyleSheet.create({
   catBadgeText: { fontSize: 8, fontWeight: '700', color: colors.primary },
   postTitle: { fontSize: 11, fontWeight: '700', color: colors.gray900, marginBottom: 3 },
   postMeta: { fontSize: 9, color: colors.gray500 },
+
+  // 최초 1회 로그인
+  oneTimeWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  oneTimeBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  oneTimeStep: { fontSize: 13, fontWeight: '800', color: colors.gray900, marginBottom: 12 },
+  oneTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.gray50,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginBottom: 6,
+    width: '100%',
+  },
+  oneTimeRowText: { fontSize: 11, fontWeight: '700', color: colors.gray800 },
+  oneTimeAfter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 8,
+  },
+  oneTimeAfterText: { fontSize: 10, fontWeight: '600', color: colors.gray500 },
 });
