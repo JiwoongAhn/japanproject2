@@ -18,6 +18,7 @@ import NoticePreviewModal from '../screens/notice/NoticePreviewModal';
 import PrivacyConsentScreen, { PRIVACY_CONSENT_KEY } from '../screens/auth/PrivacyConsentScreen';
 import PushPrimingScreen, { PUSH_PRIMING_KEY } from '../screens/auth/PushPrimingScreen';
 import WelcomeScreen, { WELCOME_SEEN_KEY } from '../screens/auth/WelcomeScreen';
+import { resolveAuthGate } from '../utils/authRoute';
 import { colors } from '../constants/colors';
 
 // NavigationContainer 밖에서 navigate를 호출하기 위한 ref
@@ -112,32 +113,20 @@ export default function AppNavigator() {
     return () => subscription.remove();
   }, []);
 
-  // 세션/동의 확인 중일 때 스플래시 화면 표시 (갑작스러운 화면 전환 방지)
-  if (loading || welcomeSeen === null || consented === null || pushPrimingDone === null) return <SplashScreen />;
+  // 지금 보여줄 화면을 순수 함수로 결정 (분기 로직은 utils/authRoute에서 테스트)
+  const gate = resolveAuthGate({ loading, welcomeSeen, consented, pushPrimingDone, session, profile });
 
-  // 최초 실행: 가장 먼저 부드러운 환영 화면 (동의보다 앞)
-  if (!welcomeSeen) {
-    return <WelcomeScreen onStart={markWelcomeSeen} />;
-  }
-
-  // 개인정보처리방침 미동의 시 동의 화면 (로그인보다 앞 단계)
-  if (!consented) {
-    return <PrivacyConsentScreen onConsent={() => setConsented(true)} />;
-  }
-
-  // 세션은 있지만 닉네임이 없으면 닉네임 입력 화면 표시 (profile이 null이면 아직 로딩 중)
-  const needsNickname = session && profile !== null && !profile?.nickname;
-  // 신규 회원(닉네임 전)에게 닉네임 설정보다 먼저 통지 프리퍼미션 화면 1회 노출
-  const needsPushPriming = needsNickname && !pushPrimingDone;
-  // 닉네임은 있지만 온보딩 안 했으면 온보딩 표시 (신규 회원만 1회)
-  const needsOnboarding = session && profile?.nickname && profile?.onboarding_completed === false;
+  // 로그인 이전 게이트 + 스플래시는 NavigationContainer 바깥에서 바로 반환
+  if (gate === 'splash') return <SplashScreen />;
+  if (gate === 'welcome') return <WelcomeScreen onStart={markWelcomeSeen} />;
+  if (gate === 'consent') return <PrivacyConsentScreen onConsent={() => setConsented(true)} />;
 
   const renderContent = () => {
-    if (!session) return <AuthStack />;
-    if (needsPushPriming) {
+    if (gate === 'auth') return <AuthStack />;
+    if (gate === 'pushPriming') {
       return <PushPrimingScreen onDone={markPushPrimingDone} />;
     }
-    if (needsNickname) {
+    if (gate === 'nickname') {
       return (
         <NicknameStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <NicknameStack.Screen
@@ -151,14 +140,14 @@ export default function AppNavigator() {
         </NicknameStack.Navigator>
       );
     }
-    if (needsOnboarding) {
+    if (gate === 'onboarding') {
       return (
         <OnboardingStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
           <OnboardingStack.Screen name="Onboarding" component={OnboardingScreen} />
         </OnboardingStack.Navigator>
       );
     }
-    // 로그인 완료 상태: MainTab(하단 탭) + Manaba(모달) 형제 등록
+    // 로그인 완료 상태(gate==='main'): MainTab(하단 탭) + Manaba(모달) 형제 등록
     // → 어느 화면에서든 navigation.navigate('Manaba')로 WebView 모달 진입 가능
     return (
       <RootStack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>

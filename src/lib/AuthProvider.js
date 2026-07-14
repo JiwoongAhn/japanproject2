@@ -32,13 +32,20 @@ export function AuthProvider({ children }) {
   const pushRegistered = useRef(false);
 
   // 세션이 생기면 프로필(닉네임) 확인
-  const fetchProfile = async (userId) => {
+  // 신규 가입 직후엔 handle_new_user 트리거로 profiles 행이 막 생성되는 타이밍이라
+  // 첫 조회가 null일 수 있다 → 잠깐 뒤 재시도 (profile을 null로 확정하지 않음).
+  // 재시도 동안 AppNavigator는 'splash'를 유지해 메인 조기 진입(온보딩 건너뜀)을 막는다.
+  const fetchProfile = async (userId, retriesLeft = 4) => {
     if (!userId) { setProfile(null); return; }
     const { data } = await supabase
       .from('profiles')
       .select('id, nickname, university, school_email, onboarding_completed')
       .eq('id', userId)
       .maybeSingle();
+    if (!data && retriesLeft > 0) {
+      setTimeout(() => fetchProfile(userId, retriesLeft - 1), 500);
+      return;
+    }
     setProfile(data ?? null);
   };
 
