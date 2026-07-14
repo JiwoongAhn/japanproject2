@@ -15,6 +15,7 @@ import {
   DISABLE_AUTOCAPS_JS,
   saveCookies,
   getSavedCookieHeader,
+  restoreCookies,
   clearCookies,
   cookieKeyForUrl,
   credKeyForUrl,
@@ -76,16 +77,21 @@ export default function ManabaLoginScreen({ navigation, route }) {
   const cookieKey = useMemo(() => cookieKeyForUrl(MANABA_LOGIN_URL), []);
   const kaedeCredKey = useMemo(() => credKeyForUrl(KAEDE_URL), []);
 
-  // 마운트 시 저장된 쿠키 헤더를 불러온 뒤 WebView 렌더
+  // 마운트 시 저장된 쿠키를 복원한 뒤 WebView 렌더
+  // - restoreCookies: WKWebView 쿠키 저장소에 직접 주입 + 만료일 7일 부여
+  //   (세션 쿠키가 앱 종료/내부 리디렉션에도 살아남도록 영속화 — iOS headers.Cookie 불안정 보완)
+  // - getSavedCookieHeader: 첫 요청 headers.Cookie 보조용
   // 쿠키가 있으면 /ct/login 진입 시 서버가 /ct/home으로 보내 자동 파싱됨
   useEffect(() => {
     let mounted = true;
-    getSavedCookieHeader(cookieKey).then((header) => {
+    (async () => {
+      await restoreCookies(MANABA_LOGIN_URL, cookieKey);
+      const header = await getSavedCookieHeader(cookieKey);
       if (mounted) {
         setCookieHeader(header || null);
         setReady(true);
       }
-    });
+    })();
     return () => {
       mounted = false;
     };
