@@ -7,13 +7,17 @@
 //
 // 핵심 원칙: 비밀번호 서버 저장 ❌ — 기존 manaba 쿠키 영속 방식만 재사용.
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Swipeable } from 'react-native-gesture-handler';
 import { WebView } from 'react-native-webview';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
+import { NOTICE_COACH_SHOWN_KEY } from '../constants/onboardingFlags';
+import { parseCoachFlag, shouldShowCoachOnTap } from '../utils/noticeCoach';
 import { MANABA_LOGIN_URL, MANABA_HOME_URL, PARSE_NOTICES_JS, UNIPAS_USER_AGENT } from '../constants/manaba';
 import { getSavedCookieHeader, cookieKeyForUrl } from '../utils/schoolCookies';
 import { getCachedNotices, setCachedNotices, getDismissedKeys, addDismissedKey, noticeKey } from '../utils/manabaCache';
@@ -84,6 +88,57 @@ function NoticeRow({ item, onDismiss, onPressItem }) {
   );
 }
 
+// 홈에서 공지 카드를 처음 탭했을 때 1회만 뜨는 사용법 안내 모달.
+// 스와이프 삭제·탭 이동을 간단한 아이콘 카드로 알려준다.
+const COACH_POINTS = [
+  {
+    icon: 'arrow-back',
+    title: '左にスワイプで既読',
+    body: 'カードを左にスワイプすると、そのお知らせを既読にできます。',
+  },
+  {
+    icon: 'open-outline',
+    title: 'タップで原文へ',
+    body: 'カードをタップすると、manabaの元のお知らせがそのまま開きます。',
+  },
+  {
+    icon: 'list',
+    title: '一覧でも同じ操作',
+    body: '「すべて見る」の一覧でも、左スワイプで既読にできます。',
+  },
+];
+
+function NoticeCoachModal({ visible, onConfirm, onDismiss }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
+      <View style={coach.overlay}>
+        <View style={coach.card}>
+          <View style={coach.iconCircle}>
+            <Ionicons name="hand-left" size={28} color={colors.primary} />
+          </View>
+          <Text style={coach.heading}>お知らせの使い方</Text>
+          <View style={coach.points}>
+            {COACH_POINTS.map((p) => (
+              <View key={p.title} style={coach.point}>
+                <View style={coach.pointIcon}>
+                  <Ionicons name={p.icon} size={18} color={colors.primary} />
+                </View>
+                <View style={coach.pointText}>
+                  <Text style={coach.pointTitle}>{p.title}</Text>
+                  <Text style={coach.pointBody}>{p.body}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+          <TouchableOpacity style={coach.button} activeOpacity={0.8} onPress={onConfirm}>
+            <Text style={coach.buttonText}>わかりました</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   const { user } = useAuth();
   const [notices, setNotices] = useState([]);          // WebView 파싱 결과 (Phase 1)
@@ -96,6 +151,19 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   // 만료 시에는 자동 재로그인을 하지 않고(봇 탐지 회피) "재로그인 필요" 안내만 표시.
   const [sessionExpired, setSessionExpired] = useState(false);
   const cookieKey = useRef(cookieKeyForUrl(MANABA_LOGIN_URL)).current;
+
+  // 첫 탭 사용법 코치 모달 상태.
+  //  coachShown: null=플래그 로드 전 / false=아직 안 봄 / true=이미 봄
+  //  pendingItem: 코치를 먼저 띄우느라 대기 중인, 사용자가 탭한 공지
+  const [coachShown, setCoachShown] = useState(null);
+  const [pendingItem, setPendingItem] = useState(null);
+
+  // 마운트 시 1회 플래그 로드 (한 번만 표시하기 위함)
+  useEffect(() => {
+    AsyncStorage.getItem(NOTICE_COACH_SHOWN_KEY)
+      .then((v) => setCoachShown(parseCoachFlag(v)))
+      .catch(() => setCoachShown(true)); // 읽기 실패 시엔 굳이 안 띄움
+  }, []);
 
   // 화면에 들어올 때마다: 캐시/DB 로드 + 쿠키 확인 + 숨은 WebView 새로고침
   useFocusEffect(
@@ -205,6 +273,28 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
       params: { url: item.href, title: item.title },
     });
   };
+
+  // 카드 탭 진입점: 최초 1회는 사용법 코치 모달을 먼저 띄우고, 확인 후 원본으로 이동.
+  // coachShown이 아직 로드 전(null)이면 굳이 붙잡지 않고 바로 이동(짧은 마운트 직후 레이스 대비).
+  const handleNoticePress = (item) => {
+    if (shouldShowCoachOnTap(coachShown)) {
+      setPendingItem(item);
+      return;
+    }
+    goToDetail(item);
+  };
+
+  // 코치 모달 "확인" → 1회 플래그 저장 후, 원래 열려던 공지로 이동
+  const handleCoachConfirm = () => {
+    setCoachShown(true);
+    AsyncStorage.setItem(NOTICE_COACH_SHOWN_KEY, '1').catch(() => {});
+    const item = pendingItem;
+    setPendingItem(null);
+    if (item) goToDetail(item);
+  };
+
+  // Android 뒤로가기 등으로 코치를 취소 — 이동/저장하지 않고 닫기만 (다음 탭에 다시 안내)
+  const handleCoachDismiss = () => setPendingItem(null);
 
   // 既読(삭제) 처리 — 화면에서 즉시 제거하고 영구 반영한다.
   //  · 공통: 식별자를 로컬 숨김 목록에 저장 → 다시 파싱/재조회돼도 안 보이게
@@ -326,11 +416,16 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
             key={item._id || item.href || i}
             item={item}
             onDismiss={dismissNotice}
-            onPressItem={goToDetail}
+            onPressItem={handleNoticePress}
           />
         ))}
 
         {hiddenWebView}
+        <NoticeCoachModal
+          visible={!!pendingItem}
+          onConfirm={handleCoachConfirm}
+          onDismiss={handleCoachDismiss}
+        />
       </View>
     );
   }
@@ -547,5 +642,77 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: '#8C5800',
     lineHeight: 18,
+  },
+});
+
+// ── 첫 탭 사용법 코치 모달 스타일 ──
+const coach = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  iconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  heading: {
+    ...typography.subtitle,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
+  },
+  points: {
+    width: '100%',
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  point: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  pointIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.primary + '18',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pointText: { flex: 1 },
+  pointTitle: {
+    ...typography.body2,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  pointBody: {
+    ...typography.small,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  button: {
+    width: '100%',
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+  },
+  buttonText: {
+    ...typography.body2,
+    color: colors.white,
+    fontWeight: '700',
   },
 });
