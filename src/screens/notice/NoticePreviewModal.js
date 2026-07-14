@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   SafeAreaView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../lib/AuthProvider';
+import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { markNoticeAsRead } from '../../utils/manabaNotices';
 import { summarizeManabaMail } from '../../utils/manabaMailSummary';
@@ -55,7 +57,7 @@ function buildHtml(bodyHtml) {
         img { max-width: 100%; height: auto; }
       </style>
     </head>
-    <body>${bodyHtml ?? '<p>본문을 불러올 수 없습니다.</p>'}</body>
+    <body>${bodyHtml ?? '<p>本文を読み込めませんでした。</p>'}</body>
     </html>
   `;
 }
@@ -70,6 +72,34 @@ export default function NoticePreviewModal() {
   // 본문 정규식 파싱으로 과목/요약/마감/첨부 추출.
   // 본문 WebView 위에 한 줄 요약 카드를 띄워 빠른 인지 도움.
   const summary = summarizeManabaMail({ subject, bodyHtml });
+
+  // AI 요약(온디맨드): 사용자가 버튼을 누를 때만 Edge Function 호출 → 비용 통제.
+  // PC용 긴 본문을 학생이 읽기 쉬운 일본어 요점으로 정리해 가독성 개선.
+  const [aiSummary, setAiSummary] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+
+  const handleAiSummarize = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('summarize-notice', {
+        body: { subject, bodyHtml },
+      });
+      // invoke는 함수가 4xx/5xx여도 error에 담긴다. 서버가 준 일본어 메시지를 우선 표시.
+      const serverMsg = data?.error;
+      if (error || serverMsg || !data?.summary) {
+        setAiError(serverMsg ?? '要約できませんでした。しばらくして再度お試しください。');
+        return;
+      }
+      setAiSummary(data.summary);
+    } catch (e) {
+      setAiError('要約できませんでした。しばらくして再度お試しください。');
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   // 미리보기 모달이 열린 시점 = 사용자가 푸시를 확인한 시점 → 읽음 처리.
   // 닫기/原本 이동 어느 경로로 빠져나가도 동일하게 적용한다.
@@ -120,19 +150,33 @@ export default function NoticePreviewModal() {
       {/* 헤더 */}
       <View style={styles.header}>
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-          <Text style={styles.closeText}>닫기</Text>
+          <Text style={styles.closeText}>閉じる</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle} numberOfLines={1}>
-          공지 미리보기
+          お知らせプレビュー
         </Text>
         <View style={styles.closeButton} />
       </View>
 
       {/* 공지 제목 */}
       <View style={styles.subjectBox}>
-        <Text style={styles.subjectLabel}>제목</Text>
-        <Text style={styles.subjectText}>{subject ?? '(제목 없음)'}</Text>
+        <Text style={styles.subjectLabel}>件名</Text>
+        <Text style={styles.subjectText}>{subject ?? '(件名なし)'}</Text>
       </View>
+
+      {/* AI 요약 카드 — 버튼을 눌러 생성된 경우에만 표시 (읽기 쉬운 요점) */}
+      {(aiSummary || aiError) && (
+        <View style={aiError ? styles.aiErrorCard : styles.aiCard}>
+          {aiSummary ? (
+            <>
+              <Text style={styles.aiCardLabel}>🤖 AI要約</Text>
+              <Text style={styles.aiCardText}>{aiSummary}</Text>
+            </>
+          ) : (
+            <Text style={styles.aiErrorText}>{aiError}</Text>
+          )}
+        </View>
+      )}
 
       {/* 요약 카드 — 정형 메일이면 과목/요약/마감/첨부 한눈에 표시 */}
       {(summary.courseName || summary.summary) && (
@@ -155,9 +199,9 @@ export default function NoticePreviewModal() {
           {(summary.deadline || summary.hasAttach || summary.author) && (
             <View style={styles.summaryMetaRow}>
               {!!summary.deadline && (
-                <Text style={styles.summaryDeadline}>⏰ 마감 {summary.deadline}</Text>
+                <Text style={styles.summaryDeadline}>⏰ 締切 {summary.deadline}</Text>
               )}
-              {summary.hasAttach && <Text style={styles.summaryMeta}>📎 첨부</Text>}
+              {summary.hasAttach && <Text style={styles.summaryMeta}>📎 添付</Text>}
               {!!summary.author && (
                 <Text style={styles.summaryMeta} numberOfLines={1}>
                   ✍️ {summary.author}
@@ -177,9 +221,23 @@ export default function NoticePreviewModal() {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* 하단 버튼 — 과제 추가 버튼이 위, manaba 원본 보기가 아래로 세로 정렬 */}
-      {(canAddAssignment || noticeUrl) ? (
+      {/* 하단 버튼 — AI요약 / 과제추가 / manaba원본 세로 정렬 */}
+      {(canAddAssignment || noticeUrl || (bodyHtml && !aiSummary)) ? (
         <View style={styles.footer}>
+          {/* AI 요약: 본문이 있고 아직 요약 전일 때만 노출 (재과금 방지) */}
+          {bodyHtml && !aiSummary && (
+            <TouchableOpacity
+              style={styles.aiButton}
+              onPress={handleAiSummarize}
+              disabled={aiLoading}
+            >
+              {aiLoading ? (
+                <ActivityIndicator size="small" color={colors.primary} />
+              ) : (
+                <Text style={styles.aiButtonText}>🤖 AIで要約</Text>
+              )}
+            </TouchableOpacity>
+          )}
           {canAddAssignment && (
             <TouchableOpacity
               style={styles.addAssignmentButton}
@@ -249,6 +307,53 @@ const styles = StyleSheet.create({
   webview: {
     flex: 1,
     backgroundColor: colors.surface,
+  },
+  aiCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 14,
+    backgroundColor: '#F5F3FF', // 보라 계열(AI 강조)
+    borderRadius: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#8B5CF6',
+    gap: 6,
+  },
+  aiCardLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#7C3AED',
+  },
+  aiCardText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+    lineHeight: 21,
+  },
+  aiErrorCard: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 4,
+    padding: 12,
+    backgroundColor: colors.gray50,
+    borderRadius: 12,
+  },
+  aiErrorText: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 19,
+  },
+  aiButton: {
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#8B5CF6',
+  },
+  aiButtonText: {
+    color: '#7C3AED',
+    fontSize: 16,
+    fontWeight: '700',
   },
   summaryCard: {
     marginHorizontal: 16,
