@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, SafeAreaView, Alert,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, AppState,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
@@ -11,6 +12,7 @@ import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { DEMO_EMAIL } from '../../constants/demo';
+import { extractOtpCode } from '../../utils/otpCode';
 
 // 학교 이메일 OTP 인증 화면
 // SchoolPortalAuthScreen에서 OTP 발송 후 이 화면으로 이동
@@ -21,7 +23,35 @@ export default function OtpVerificationScreen({ navigation, route }) {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(60); // 재발송 쿨다운(초)
+  const [clipboardCode, setClipboardCode] = useState(null); // 클립보드에서 찾은 6자리 코드
   const timerRef = useRef(null);
+
+  // 클립보드에 6자리 코드가 있으면 "貼り付け" 칩을 띄운다.
+  // number-pad 키보드는 iOS의 붙여넣기 제안 바가 안 떠서 앱이 직접 제공.
+  const checkClipboard = useCallback(async () => {
+    try {
+      const found = extractOtpCode(await Clipboard.getStringAsync());
+      setClipboardCode(found);
+    } catch {
+      setClipboardCode(null);
+    }
+  }, []);
+
+  // 진입 시 1회 + 메일 앱에서 코드 복사 후 돌아올 때(active) 다시 확인
+  useEffect(() => {
+    checkClipboard();
+    const sub = AppState.addEventListener('change', (s) => {
+      if (s === 'active') checkClipboard();
+    });
+    return () => sub.remove();
+  }, [checkClipboard]);
+
+  // 붙여넣기 칩 탭 → 코드 입력칸에 채움
+  const handlePasteCode = () => {
+    if (!clipboardCode) return;
+    setCode(clipboardCode);
+    setClipboardCode(null);
+  };
 
   // 60초 카운트다운
   useEffect(() => {
@@ -146,6 +176,17 @@ export default function OtpVerificationScreen({ navigation, route }) {
             </Text>
           </View>
 
+          {/* 붙여넣기 칩 — 클립보드에 6자리 코드가 있을 때만 노출 (미입력 상태) */}
+          {clipboardCode && code !== clipboardCode && (
+            <TouchableOpacity
+              style={styles.pasteChip}
+              onPress={handlePasteCode}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.pasteChipText}>📋 {clipboardCode} を貼り付け</Text>
+            </TouchableOpacity>
+          )}
+
           {/* 코드 입력 — iOS oneTimeCode / Android sms-otp 자동완성 */}
           <AppTextInput
             style={styles.codeInput}
@@ -260,6 +301,21 @@ const styles = StyleSheet.create({
     color: colors.primary,
     letterSpacing: 12,
     marginBottom: spacing.xxl,
+  },
+
+  // 붙여넣기 칩 — 입력칸 바로 위에 뜨는 iOS 제안 바 느낌
+  pasteChip: {
+    alignSelf: 'center',
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  pasteChipText: {
+    ...typography.captionStrong,
+    color: colors.primary,
+    letterSpacing: 2,
   },
 
   button: {
