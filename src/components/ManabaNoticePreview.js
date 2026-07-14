@@ -17,6 +17,7 @@ import { spacing, radius, shadow } from '../constants/spacing';
 import { MANABA_LOGIN_URL, MANABA_HOME_URL, PARSE_NOTICES_JS, UNIPAS_USER_AGENT } from '../constants/manaba';
 import { getSavedCookieHeader, cookieKeyForUrl } from '../utils/schoolCookies';
 import { getCachedNotices, setCachedNotices, getDismissedKeys, addDismissedKey, noticeKey } from '../utils/manabaCache';
+import { mergeNotices, countUnreadPush } from '../utils/manabaMerge';
 import { getAutoReloginState } from '../utils/manabaSession';
 import { fetchUnreadNotices, markNoticeAsRead, markAllAsRead } from '../utils/manabaNotices';
 import { summarizeManabaMail } from '../utils/manabaMailSummary';
@@ -144,7 +145,16 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
         return;
       }
       const data = Array.isArray(msg.data) ? msg.data : [];
-      if (data.length === 0) return; // 빈 결과는 기존 캐시 유지
+      if (data.length === 0) {
+        // 홈(/ct/home)이 정상 로드됐는데 공지가 0건 = 마나바에서 직접 모두
+        // 읽음/삭제한 상태 → 홈 캐시도 비워 동기화(버그 ②).
+        // 그 외(로그인 리다이렉트·전환 중 등 애매한 페이지)면 캐시 유지.
+        if (msg.currentUrl && msg.currentUrl.includes('/ct/home')) {
+          setNotices([]);
+          setCachedNotices([]);
+        }
+        return;
+      }
       setNotices(data);
       setCachedNotices(data);
     } catch {
@@ -175,18 +185,11 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
     };
   };
 
-  // 두 데이터 소스 병합 — URL 기준 dedup, DB(읽음 추적 가능) 우선
-  // WebView 공지는 사용자가 既読 처리한 것(dismissedKeys)을 제외한다.
-  const dbUrls = new Set(dbNotices.map((n) => n.notice_url).filter(Boolean));
-  const dismissedSet = new Set(dismissedKeys);
-  const merged = [
-    ...dbNotices.map(normalizeDbNotice),
-    ...notices
-      .filter((n) => !n.href || !dbUrls.has(n.href))
-      .map((n) => ({ ...n, _source: 'web' }))
-      .filter((n) => !dismissedSet.has(noticeKey(n))),
-  ];
-  const unreadCount = dbNotices.length;
+  // 두 데이터 소스 병합 — URL 기준 dedup + 既読(삭제) 제외 (순수함수, 테스트됨)
+  // push·web 모두 dismissedKeys로 걸러 "삭제 후 부활"을 막는다(버그 ①).
+  const merged = mergeNotices(dbNotices.map(normalizeDbNotice), notices, dismissedKeys);
+  // 배지 숫자는 merged의 push 개수 = 목록 화면 항목 수와 항상 일치(버그 ③)
+  const unreadCount = countUnreadPush(merged);
 
   // 부모(HomeScreen 히어로 카드)에 카운트 보고 — 미리보기 배지와 숫자를 동일하게 맞춤
   //  unread: 안 읽은 푸시 수 / total: 현재 공지 전체(푸시+WebView 캐시, 중복 제거)
@@ -203,24 +206,26 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
     });
   };
 
-  // 既読(삭제) 처리 — 출처에 따라 다르게 영구 반영하고 화면에서 즉시 제거
-  //  · push: manaba_notices.is_read = true (DB)
-  //  · web : 식별자를 숨김 목록에 저장 (다시 파싱돼도 안 보이게)
+  // 既読(삭제) 처리 — 화면에서 즉시 제거하고 영구 반영한다.
+  //  · 공통: 식별자를 로컬 숨김 목록에 저장 → 다시 파싱/재조회돼도 안 보이게
+  //          (push의 DB 읽음 처리가 실패해도 홈에서 부활하지 않음 — 버그 ①)
+  //  · push: 추가로 manaba_notices.is_read = true (DB) 반영
   const dismissNotice = (item) => {
+    const key = noticeKey(item);
+    setDismissedKeys((prev) => (prev.includes(key) ? prev : [key, ...prev]));
+    addDismissedKey(key);
     if (item._source === 'push' && item._id) {
       setDbNotices((prev) => prev.filter((n) => n.id !== item._id));
       markNoticeAsRead(item._id);
-    } else {
-      const key = noticeKey(item);
-      setDismissedKeys((prev) => (prev.includes(key) ? prev : [key, ...prev]));
-      addDismissedKey(key);
     }
   };
 
+  // "すべて見る" — 홈과 동일한 병합 목록(push + web)을 넘긴다.
+  // notices(WebView)만 넘기면 홈 카운트가 push 공지일 때 목록이 비는 문제(버그 ③) 방지.
   const goToList = () =>
     navigation.navigate('Manaba', {
       screen: 'ManabaNoticeList',
-      params: { notices },
+      params: { notices: merged },
     });
 
   const handleMarkAllRead = () => {

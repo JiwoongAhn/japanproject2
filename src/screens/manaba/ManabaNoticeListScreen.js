@@ -10,6 +10,7 @@ import {
 import { Swipeable } from 'react-native-gesture-handler';
 import { colors } from '../../constants/colors';
 import { getDismissedKeys, addDismissedKey, noticeKey } from '../../utils/manabaCache';
+import { markNoticeAsRead } from '../../utils/manabaNotices';
 
 // 공지 1건 = 스와이프 카드.
 // 스와이프로 열린 상태(openRef=true)에서는 카드 탭을 무시하고 닫기만 한다.
@@ -74,11 +75,15 @@ export default function ManabaNoticeListScreen({ route, navigation }) {
     return () => { active = false; };
   }, []);
 
-  // 既読(삭제) — 숨김 목록에 저장하고 화면에서 즉시 제거
+  // 既読(삭제) — 숨김 목록에 저장하고 화면에서 즉시 제거.
+  // push 공지는 DB 읽음 처리도 함께(홈 화면과 동일한 동작 — 버그 ①·③).
   const handleDismiss = (item) => {
     const key = noticeKey(item);
     setDismissed((prev) => (prev.includes(key) ? prev : [key, ...prev]));
     addDismissedKey(key);
+    if (item._source === 'push' && item._id) {
+      markNoticeAsRead(item._id);
+    }
   };
 
   // 아직 既読하지 않은 공지만 표시
