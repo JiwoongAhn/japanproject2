@@ -30,6 +30,7 @@ import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo } from '../utils/university';
 import { parseTimetable } from '../utils/timetableRouter';
 import { getCurrentTerm } from '../utils/timetable';
+import { shouldShowExtractButton } from '../utils/timetableImport';
 
 // 카에데 MY時間割 셀 추출 스크립트
 // 각 수업 칸은 <td id="Cell{열}_{교시}_{Spring|Autumn}" class="cell"> 구조.
@@ -127,9 +128,10 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     }
   };
 
-  // 시간표 일괄추가로 진입(forTimetableImport) + MY時間割 페이지일 때만 추출 버튼 노출.
-  // 홈 등 다른 경로로 kaede-i를 연 경우엔 MyTimeTable에 가도 버튼을 띄우지 않는다.
-  const isTimetablePage = forTimetableImport && currentUrl.toLowerCase().includes('mytimetable');
+  // 추출 버튼 노출 여부 — 시간표 임포트 경로 + (로그인됨 또는 시간표 페이지).
+  // 기기별 자동이동 실패로 URL이 안 맞아도, 로그인만 됐으면 버튼을 띄워 직접 열고
+  // 누를 수 있게 한다. (판단 로직은 utils/timetableImport에서 테스트)
+  const showExtractButton = shouldShowExtractButton({ forTimetableImport, loggedIn, currentUrl });
 
   // WebView 내부 페이지 뒤로가기 (잘못 들어갔을 때 한 페이지 복귀)
   const handleWebBack = () => {
@@ -187,14 +189,12 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     });
     const count = parseResult.parsed.length;
     if (count === 0) {
-      // 추출할 수업이 없음 → 드래그로 닫는 대신 "원래 화면으로 돌아가기" 안내
+      // 추출 0건 → 시간표 페이지가 아닐 수 있으니 먼저 그 페이지를 열도록 유도.
+      // (기기별 자동이동 실패로 다른 페이지에서 눌렀을 수 있음)
       Alert.alert(
         'お知らせ',
-        '今学期の授業が見つかりませんでした。\n元の画面に戻りますか?',
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          { text: '元の画面に戻る', onPress: () => navigation.goBack() },
-        ]
+        '授業が見つかりませんでした。\n「MY時間割」ページを開いてから、もう一度「取り込む」を押してください。',
+        [{ text: 'OK', style: 'cancel' }]
       );
       return;
     }
@@ -315,8 +315,8 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         />
       )}
 
-      {/* 시간표 가져오기 버튼 — MY時間割 페이지에서만 노출 */}
-      {ready && isTimetablePage && (
+      {/* 시간표 가져오기 버튼 — 로그인 후 노출 (자동이동 실패 대비) */}
+      {ready && showExtractButton && (
         <TouchableOpacity
           style={styles.extractFab}
           onPress={() => webViewRef.current?.injectJavaScript(KAEDE_EXTRACT_JS)}
