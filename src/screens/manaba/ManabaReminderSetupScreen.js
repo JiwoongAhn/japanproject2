@@ -321,6 +321,30 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     });
   };
 
+  // 붙여넣기/저장 전에 확인 버튼을 눌러 오지 않는 코드를 하염없이 기다리다
+  // 타임아웃되는 혼란을 막는다(묶음5). 실제로 조작했는지 한 번 더 확인한 뒤 폴링 시작.
+  const confirmSaveThenPoll = () => {
+    Alert.alert(
+      'manabaで「保存」を押しましたか?',
+      'アドレスを「携帯メールアドレス」欄に貼り付けて、manaba画面の「保存」ボタンを押してから確認してください。',
+      [
+        { text: 'まだです', style: 'cancel' },
+        { text: '押しました', style: 'default', onPress: startCodePolling },
+      ],
+    );
+  };
+
+  const confirmEnteredThenVerify = () => {
+    Alert.alert(
+      'manabaでコードを入力しましたか?',
+      '認証コードをmanaba画面の認証欄に入力し、「認証」を押してから確認してください。',
+      [
+        { text: 'まだです', style: 'cancel' },
+        { text: '入力しました', style: 'default', onPress: startVerifyPolling },
+      ],
+    );
+  };
+
   const handleClose = () => navigation.goBack();
   const handleDone = () => navigation.goBack();
 
@@ -473,14 +497,14 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       <View style={styles.bottomArea}>
         {isCodeStep ? (
           <>
-            <Button title="入力しました（確認）" onPress={startVerifyPolling} />
+            <Button title="入力しました（確認）" onPress={confirmEnteredThenVerify} />
             <Text style={styles.bottomHint}>
               ※ manaba画面でコードを入力し「認証」を押してから、こちらをタップしてください。
             </Text>
           </>
         ) : (
           <>
-            <Button title="保存しました（確認する）" onPress={startCodePolling} />
+            <Button title="保存しました（確認する）" onPress={confirmSaveThenPoll} />
             <Text style={styles.bottomHint}>
               ※ manabaの「保存」ボタンを押してから、こちらをタップしてください。
             </Text>

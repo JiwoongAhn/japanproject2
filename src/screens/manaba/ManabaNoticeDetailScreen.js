@@ -42,24 +42,37 @@ export default function ManabaNoticeDetailScreen({ route, navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
-      {loading && (
-        <View style={styles.loadingBar}>
-          <LoadingDots size={7} />
+      {/* 원문 URL이 없는 공지(메일 본문만 있는 푸시 등) → 빈 WebView 대신 안내 */}
+      {url ? (
+        <>
+          {loading && (
+            <View style={styles.loadingBar}>
+              <LoadingDots size={7} />
+            </View>
+          )}
+          <WebView
+            source={{ uri: url }}
+            style={styles.webView}
+            applicationNameForUserAgent={UNIPAS_USER_AGENT}
+            injectedJavaScript={ENABLE_PINCH_ZOOM_JS}
+            scalesPageToFit={true}
+            onLoadEnd={() => setLoading(false)}
+            onError={() => setLoading(false)}
+            sharedCookiesEnabled
+            domStorageEnabled
+            javaScriptEnabled
+          />
+        </>
+      ) : (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>🔗</Text>
+          <Text style={styles.emptyText}>元のリンクがありません</Text>
+          <Text style={styles.emptySubText}>
+            この通知には開けるページがありません。{'\n'}
+            manabaのホームで直接ご確認ください。
+          </Text>
         </View>
       )}
-
-      <WebView
-        source={{ uri: url }}
-        style={styles.webView}
-        applicationNameForUserAgent={UNIPAS_USER_AGENT}
-        injectedJavaScript={ENABLE_PINCH_ZOOM_JS}
-        scalesPageToFit={true}
-        onLoadEnd={() => setLoading(false)}
-        onError={() => setLoading(false)}
-        sharedCookiesEnabled
-        domStorageEnabled
-        javaScriptEnabled
-      />
     </SafeAreaView>
   );
 }
@@ -105,5 +118,27 @@ const styles = StyleSheet.create({
   },
   webView: {
     flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 32,
+  },
+  emptyIcon: {
+    fontSize: 44,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  emptySubText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
