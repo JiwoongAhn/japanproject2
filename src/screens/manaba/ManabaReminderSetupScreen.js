@@ -439,7 +439,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
             <Text style={banner.bold}>「保存」</Text>を押してください。
           </Text>
           <Text style={banner.note}>
-            ※ 普段お使いのメールはそのまま。この欄に追加するだけです。
+            ※ 通知はアプリに届きます。メールと重複する場合は、manabaの「メールアドレス」欄を空にしてください。
           </Text>
           <View style={banner.addressRow}>
             <Text style={banner.address} numberOfLines={1} selectable>

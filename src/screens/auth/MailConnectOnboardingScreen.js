@@ -290,8 +290,8 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
             上のアドレスを<Text style={guide.strong}>「携帯メールアドレス」</Text>欄に貼り付けて、manabaの<Text style={guide.strong}>「保存」</Text>を押してください。
           </Text>
           <Text style={guide.noteBox}>
-            💡 普段お使いのメールアドレスはそのままでOK。{'\n'}
-            空いている「携帯メールアドレス」欄に追加するだけです。
+            💡 通知はこのアプリにまとめて届きます。{'\n'}
+            すでにmanabaに他のメールを登録していると、同じ通知がメールとアプリの両方に届くことがあります。アプリの通知だけにしたい場合は、manabaの「メールアドレス」欄を空にしてください。
           </Text>
 
           <View style={guide.hintRow}>
