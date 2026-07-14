@@ -31,11 +31,9 @@ export default function SavedPostsScreen({ navigation }) {
     useCallback(() => { fetchSaved(); }, [fetchSaved])
   );
 
+  // 마이페이지 스택 안에서 열어야 뒤로가기가 저장한 글 목록으로 돌아간다.
   const handlePress = (post) => {
-    navigation.navigate('Community', {
-      screen: 'PostDetail',
-      params: { postId: post.id },
-    });
+    navigation.navigate('PostDetail', { postId: post.id });
   };
 
   // 저장 해제 (길게 누르기)

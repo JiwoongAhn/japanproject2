@@ -92,21 +92,16 @@ export default function MyPostsScreen({ navigation }) {
     });
   };
 
+  // 마이페이지 스택 안에서 열어야 뒤로가기가 마이페이지(내 글 목록)로 돌아간다.
   const handlePressPost = (post) => {
-    navigation.navigate('Community', {
-      screen: 'PostDetail',
-      params: { postId: post.id },
-    });
+    navigation.navigate('PostDetail', { postId: post.id });
   };
 
   // ── 내 댓글 핸들러 ───────────────────────────────────────────────
 
   const handlePressComment = (comment) => {
-    // 댓글이 달린 원글로 이동
-    navigation.navigate('Community', {
-      screen: 'PostDetail',
-      params: { postId: comment.post_id },
-    });
+    // 댓글이 달린 원글로 이동 (마이페이지 스택 안에서 → 뒤로가기는 마이페이지로)
+    navigation.navigate('PostDetail', { postId: comment.post_id });
   };
 
   const handleDeleteComment = (comment) => {

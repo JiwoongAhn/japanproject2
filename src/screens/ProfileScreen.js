@@ -295,11 +295,9 @@ export default function ProfileScreen({ navigation }) {
   };
 
   // 게시글 탭 → 게시글 상세로 이동
+  // 마이페이지 스택 안에서 열어야 뒤로가기가 게시판이 아닌 마이페이지로 돌아간다.
   const handlePostPress = (post) => {
-    navigation.navigate('Community', {
-      screen: 'PostDetail',
-      params: { postId: post.id },
-    });
+    navigation.navigate('PostDetail', { postId: post.id });
   };
 
   if (loading) {
