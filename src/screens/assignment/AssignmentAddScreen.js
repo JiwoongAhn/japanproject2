@@ -20,6 +20,7 @@ import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
 import { supabase } from '../../lib/supabase';
+import { validateAssignmentForm } from '../../utils/assignmentForm';
 
 // ──────────────────────────────────────────────────
 // 인라인 달력 컴포넌트
@@ -238,10 +239,17 @@ export default function AssignmentAddScreen({ navigation }) {
   const [status, setStatus]         = useState('pending');
   const [saving, setSaving]         = useState(false);
 
-  const isFormValid = courseName.trim().length > 0 && title.trim().length > 0 && /^\d{4}-\d{2}-\d{2}$/.test(dueDate);
+  // 필수값 검증 (순수 함수) — 무엇이 빠졌는지 함께 반환
+  const validation = validateAssignmentForm({ courseName, title, dueDate });
 
   const handleSave = async () => {
-    if (!isFormValid || saving) return;
+    if (saving) return;
+    // 버튼은 항상 누를 수 있게 하고, 빠진 항목이 있으면 콕 집어 안내
+    // (예전엔 필수값이 비면 버튼이 조용히 비활성화돼 "등록이 안 된다"고 느껴졌음)
+    if (!validation.ok) {
+      Alert.alert('お知らせ', validation.message);
+      return;
+    }
     setSaving(true);
 
     try {
@@ -382,9 +390,9 @@ export default function AssignmentAddScreen({ navigation }) {
         {/* 저장 버튼 */}
         <View style={styles.saveButtonContainer}>
           <TouchableOpacity
-            style={[styles.saveButton, (!isFormValid || saving) && styles.saveButtonDisabled]}
+            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
             onPress={handleSave}
-            disabled={!isFormValid || saving}
+            disabled={saving}
             activeOpacity={0.85}
           >
             {saving
