@@ -415,15 +415,16 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.section}>
           {/* 섹션 타이틀 + 전체보기 버튼 */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>投稿した掲示物</Text>
-            {myPosts.length > 3 && (
-              <TouchableOpacity
-                onPress={() => navigation.navigate('MyPosts')}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.seeAllText}>すべて見る ›</Text>
-              </TouchableOpacity>
-            )}
+            <Text style={styles.sectionTitle}>投稿・講義評価</Text>
+            {/* #12: 게시글 수와 무관하게 항상 진입 가능 — 여기서 掲示板·コメント·講義評価를
+                한곳에서 관리한다(적은 게시글이어도 講義評価 탭에 접근되게 함) */}
+            <TouchableOpacity
+              onPress={() => navigation.navigate('MyPosts')}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.seeAllText}>すべて見る ›</Text>
+            </TouchableOpacity>
           </View>
 
           {postsLoading ? (

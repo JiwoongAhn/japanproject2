@@ -253,9 +253,12 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
     };
   };
 
-  // 두 데이터 소스 병합 — URL 기준 dedup + 既読(삭제) 제외 (순수함수, 테스트됨)
-  // push·web 모두 dismissedKeys로 걸러 "삭제 후 부활"을 막는다(버그 ①).
-  const merged = mergeNotices(dbNotices.map(normalizeDbNotice), notices, dismissedKeys);
+  // #9: 홈 お知らせ는 DB 리마인더 공지(manaba_notices)만 표시한다.
+  // 실시간 파싱(notices)은 마나바 홈의 이미 읽은 코스뉴스까지 전부 긁어와 노이즈가 되고,
+  // 읽음 추적이 안 돼(재설치 시 부활) "옛 데이터가 계속 뜬다"는 혼란을 줬다.
+  // WebView 파싱은 세션 만료 감지·캐시 갱신 용도로만 유지하고, 목록에는 넣지 않는다.
+  // (web 인자에 빈 배열 → merged = DB 공지만, dedup·既読 필터는 그대로 적용)
+  const merged = mergeNotices(dbNotices.map(normalizeDbNotice), [], dismissedKeys);
   // 배지 숫자는 merged의 push 개수 = 목록 화면 항목 수와 항상 일치(버그 ③)
   const unreadCount = countUnreadPush(merged);
 
