@@ -304,12 +304,20 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
 
         <View style={styles.bottomArea}>
           <Button title="manaba設定を開く" onPress={handleOpenReminderSetup} />
+          {/* #8: 설정을 마쳤거나 나중에 할 때 홈으로 바로 돌아가는 버튼 */}
           <TouchableOpacity
-            onPress={handleReplayIntro}
+            onPress={() => navigation.goBack()}
             style={styles.laterButton}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={styles.laterText}>使い方をもう一度見る</Text>
+            <Text style={styles.laterText}>ホームに戻る</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleReplayIntro}
+            style={styles.laterButtonTight}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.laterTextSub}>使い方をもう一度見る</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -457,6 +465,8 @@ const styles = StyleSheet.create({
 
   laterButton: { alignItems: 'center', paddingVertical: spacing.md },
   laterText: { ...typography.bodyStrong, color: colors.gray600 },
+  laterButtonTight: { alignItems: 'center', paddingVertical: spacing.xs },
+  laterTextSub: { ...typography.body2, color: colors.gray500 },
   footnote: {
     ...typography.caption,
     color: colors.gray500,

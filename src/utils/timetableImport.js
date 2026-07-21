@@ -12,8 +12,11 @@
 // loggedIn          : 로그인 페이지를 벗어났는지
 // currentUrl        : 현재 WebView가 보고 있는 URL
 
-export function shouldShowExtractButton({ forTimetableImport, loggedIn, currentUrl } = {}) {
+export function shouldShowExtractButton({ forTimetableImport, currentUrl } = {}) {
   if (!forTimetableImport) return false;
-  if (loggedIn) return true;
+  // #10: MY時間割(学習ナビ) 페이지에 있을 때만 노출한다.
+  // 이전엔 loggedIn이면 어디서든 띄웠지만, kaede 로그인 페이지/기타 페이지에서도
+  // 버튼이 떠서 혼란스러웠다. 시간표 페이지 URL(MyTimeTable) 일 때만 보이게 좁힌다.
+  // (자동이동 실패 시엔 사용자가 MY時間割를 직접 열면 버튼이 나타난다)
   return (currentUrl || '').toLowerCase().includes('mytimetable');
 }

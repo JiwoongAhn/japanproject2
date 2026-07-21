@@ -44,7 +44,10 @@ const AppTextInput = forwardRef(function AppTextInput(
       {...props}
       onFocus={handleFocus}
       style={[
-        { includeFontPadding: false, textAlignVertical: multiline ? 'top' : 'center' },
+        // letterSpacing: 앱 타이포(제목 −0.2~−0.5)와 달리 입력칸은 0이라 일본어
+        // placeholder가 상대적으로 벌어져 보였다(#5·11·15·16). 살짝 좁혀 통일한다.
+        // 개별 화면이 letterSpacing을 지정하면(OTP=12 등) 그 값이 우선한다.
+        { includeFontPadding: false, textAlignVertical: multiline ? 'top' : 'center', letterSpacing: -0.3 },
         style,
       ]}
     />

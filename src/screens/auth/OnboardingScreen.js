@@ -79,10 +79,11 @@ const ManabaPushMock = () => (
 const AssignmentMock = () => (
   <View style={mockStyles.container}>
     <Text style={mockStyles.header}>課題</Text>
+    {/* 실제 과제 탭의 상태 배지(未提出/提出済/期限超過)와 문구를 일치시킨다(#6) */}
     {[
-      { title: 'レポート提出', date: '明日 23:59', tag: '緊急', tagBg: '#FEE2E2', tagColor: '#DC2626' },
-      { title: '英語 単語テスト', date: '3日後', tag: 'もうすぐ', tagBg: '#FEF3C7', tagColor: '#D97706' },
-      { title: 'プログラミング課題', date: '1週間後', tag: '余裕', tagBg: '#D1FAE5', tagColor: '#059669' },
+      { title: 'レポート提出', date: '明日 23:59', tag: '未提出', tagBg: '#FEF3C7', tagColor: '#D97706' },
+      { title: '英語 単語テスト', date: '提出済み', tag: '提出済', tagBg: '#D1FAE5', tagColor: '#059669' },
+      { title: 'プログラミング課題', date: '昨日 23:59', tag: '期限超過', tagBg: '#FEE2E2', tagColor: '#DC2626' },
     ].map((item, i) => (
       <View key={i} style={mockStyles.assignmentCard}>
         <View style={mockStyles.assignmentRow}>
@@ -157,7 +158,7 @@ const OneTimeLoginMock = () => (
     </View>
     <View style={mockStyles.oneTimeRow}>
       <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-      <Text style={mockStyles.oneTimeRowText}>カエデアイ にログイン</Text>
+      <Text style={mockStyles.oneTimeRowText}>kaede-i にログイン</Text>
     </View>
     <View style={mockStyles.oneTimeAfter}>
       <Ionicons name="sync" size={14} color={colors.gray500} />
@@ -194,7 +195,7 @@ const SLIDES = [
   },
   {
     title: '最初の1回だけ、ログイン',
-    subtitle: 'manabaとカエデアイは、最初に一度ログインするだけ。\nあとは毎回ログインしなくても自動でつながります。',
+    subtitle: 'manabaとkaede-iは、最初に一度ログインするだけ。\nあとは毎回ログインしなくても自動でつながります。',
     Mock: OneTimeLoginMock,
   },
 ];

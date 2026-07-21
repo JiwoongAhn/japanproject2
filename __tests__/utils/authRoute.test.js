@@ -55,15 +55,19 @@ describe('resolveAuthGate — 신규 회원 흐름', () => {
   // 트리거로 갓 생성된 신규 프로필: 닉네임 null, onboarding_completed false
   const fresh = { nickname: null, onboarding_completed: false };
 
-  test('닉네임 없고 프리퍼미션 안 봤으면 pushPriming', () => {
-    expect(resolveAuthGate({ ...base, profile: fresh, pushPrimingDone: false })).toBe('pushPriming');
-  });
-  test('닉네임 없고 프리퍼미션은 봤으면 nickname', () => {
+  // #4: 닉네임이 통지 프리퍼미션보다 먼저 나온다
+  test('닉네임 없으면 프리퍼미션 여부와 무관하게 nickname 먼저', () => {
+    expect(resolveAuthGate({ ...base, profile: fresh, pushPrimingDone: false })).toBe('nickname');
     expect(resolveAuthGate({ ...base, profile: fresh, pushPrimingDone: true })).toBe('nickname');
   });
-  test('닉네임 설정 후 온보딩 미완료면 onboarding', () => {
+  test('닉네임 설정 직후, 프리퍼미션 미확인이면 pushPriming', () => {
     expect(
-      resolveAuthGate({ ...base, profile: { nickname: 'ゆうき', onboarding_completed: false } })
+      resolveAuthGate({ ...base, profile: { nickname: 'ゆうき', onboarding_completed: false }, pushPrimingDone: false })
+    ).toBe('pushPriming');
+  });
+  test('닉네임+프리퍼미션 완료, 온보딩 미완료면 onboarding', () => {
+    expect(
+      resolveAuthGate({ ...base, profile: { nickname: 'ゆうき', onboarding_completed: false }, pushPrimingDone: true })
     ).toBe('onboarding');
   });
   test('닉네임+온보딩 완료면 main', () => {

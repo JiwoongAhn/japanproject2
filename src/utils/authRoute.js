@@ -37,12 +37,13 @@ export function resolveAuthGate({
   if (!session) return 'auth';
   // 4) 로그인은 됐지만 프로필 로딩 전 → 스플래시 유지 (메인 조기 진입 방지)
   if (profile == null) return 'splash';
-  // 5) 닉네임 미설정(신규 회원): 통지 프리퍼미션 → 닉네임
+  // 5) 닉네임 미설정(신규 회원)이면 닉네임 먼저 (#4: 닉네임을 통지 온보딩보다 앞으로)
   const needsNickname = !profile.nickname;
-  if (needsNickname && !pushPrimingDone) return 'pushPriming';
   if (needsNickname) return 'nickname';
-  // 6) 온보딩 미완료(신규 회원 1회)
+  // 6) 닉네임 설정 직후 통지 프리퍼미션 (기기 1회) — 닉네임 바로 뒤, 홈 진입 전
+  if (!pushPrimingDone) return 'pushPriming';
+  // 7) 온보딩 미완료(신규 회원 1회)
   if (profile.onboarding_completed === false) return 'onboarding';
-  // 7) 정상 로그인 상태
+  // 8) 정상 로그인 상태
   return 'main';
 }
