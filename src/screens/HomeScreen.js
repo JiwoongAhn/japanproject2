@@ -23,7 +23,6 @@ import { getTodayStr } from '../utils/date';
 import { getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { universities } from '../constants/universities';
 import ManabaNoticePreview from '../components/ManabaNoticePreview';
-import { openManaba } from '../utils/mailOnboarding';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 export default function HomeScreen({ navigation }) {
@@ -285,9 +284,14 @@ export default function HomeScreen({ navigation }) {
               style={styles.heroTile}
               activeOpacity={0.7}
               onPress={() => {
-                // #14: manaba 홈이 아니라 "お知らせ" 페이지로 바로 진입
+                // お知らせ 목록은 저장된 알림(DB 리마인더)만 보여준다.
+                // 이전엔 마나바 홈을 실시간 파싱해 이미 읽은 코스 공지까지 떠서
+                // "옛 데이터가 남은 것처럼" 보였다(실기 피드백) → 파싱 경로 제거.
                 if (links.manabaUrl) {
-                  openManaba(navigation, { screen: 'ManabaLogin', params: { target: 'notices' } });
+                  navigation.navigate('Manaba', {
+                    screen: 'ManabaNoticeList',
+                    params: { notices: noticeCounts.notices ?? [] },
+                  });
                 }
               }}
             >

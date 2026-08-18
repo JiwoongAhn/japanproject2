@@ -265,7 +265,9 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   // 부모(HomeScreen 히어로 카드)에 카운트 보고 — 미리보기 배지와 숫자를 동일하게 맞춤
   //  unread: 안 읽은 푸시 수 / total: 현재 공지 전체(푸시+WebView 캐시, 중복 제거)
   useEffect(() => {
-    onCountsChange?.({ unread: unreadCount, total: merged.length });
+    // notices: 홈 お知らせ 타일이 탭 시 이 DB 목록을 그대로 열도록 함께 올려보낸다.
+    // (타일이 실시간 파싱 대신 저장된 알림만 보여주게 하기 위함)
+    onCountsChange?.({ unread: unreadCount, total: merged.length, notices: merged });
   }, [unreadCount, merged.length, onCountsChange]);
 
   const goToDetail = (item) => {

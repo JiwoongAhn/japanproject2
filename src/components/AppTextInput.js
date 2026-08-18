@@ -9,8 +9,28 @@
 //       스크롤해 준다. (컨테이너가 없으면 조용히 무시)
 // 화면 쪽 style을 배열 뒤에 두어, 필요하면 개별 화면이 덮어쓸 수 있게 한다.
 import { forwardRef, useCallback, useRef } from 'react';
-import { TextInput } from 'react-native';
+import { StyleSheet, TextInput } from 'react-native';
 import { useFocusScroll } from './KeyboardAwareScrollView';
+
+// 입력칸에 적용할 최종 style을 계산한다(순수 함수라 테스트로 검증 가능).
+//  - 기본값(includeFontPadding·textAlignVertical·letterSpacing)을 먼저 깔고
+//    화면 style을 뒤에 병합해 개별 화면이 덮어쓸 수 있게 한다.
+//  - ⚠️ 한 줄 입력칸은 lineHeight 키 자체를 삭제한다. 화면들이
+//    typography.body1/body2(lineHeight 22~24)를 그대로 쓰는데, iOS 단일 줄
+//    TextInput은 lineHeight가 있으면 g·p·「.jp」처럼 아래로 뻗는 글자의 아랫부분을
+//    잘라먹는다(실기 피드백: 이메일·닉네임·교원명 잘림). 키를 delete 하면 iOS가
+//    세로 가운데 정렬해 잘림이 사라진다. undefined 오버라이드가 아니라 키를 지워
+//    RN 버전과 무관하게 확실히 제거한다. 여러 줄(multiline)은 lineHeight를 유지한다.
+export function resolveInputStyle(style, multiline) {
+  const flat = StyleSheet.flatten([
+    { includeFontPadding: false, textAlignVertical: multiline ? 'top' : 'center', letterSpacing: -0.3 },
+    style,
+  ]) || {};
+  if (!multiline && flat.lineHeight != null) {
+    delete flat.lineHeight;
+  }
+  return flat;
+}
 
 const AppTextInput = forwardRef(function AppTextInput(
   { style, multiline = false, onFocus, ...props },
@@ -43,13 +63,7 @@ const AppTextInput = forwardRef(function AppTextInput(
       multiline={multiline}
       {...props}
       onFocus={handleFocus}
-      style={[
-        // letterSpacing: 앱 타이포(제목 −0.2~−0.5)와 달리 입력칸은 0이라 일본어
-        // placeholder가 상대적으로 벌어져 보였다(#5·11·15·16). 살짝 좁혀 통일한다.
-        // 개별 화면이 letterSpacing을 지정하면(OTP=12 등) 그 값이 우선한다.
-        { includeFontPadding: false, textAlignVertical: multiline ? 'top' : 'center', letterSpacing: -0.3 },
-        style,
-      ]}
+      style={resolveInputStyle(style, multiline)}
     />
   );
 });
