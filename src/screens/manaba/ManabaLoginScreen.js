@@ -192,14 +192,18 @@ export default function ManabaLoginScreen({ navigation, route }) {
     // (수동 로그인=값 저장 / 자동 채우기 제출=값 갱신. 훅은 __credHooked로 중복방지)
     // → 이게 있어야 manaba만 써도 kaede ID/PW가 저장돼 다음부터 자동 재로그인됨.
     if (loadedUrl.includes('kaedei.kokushikan.ac.jp')) {
+      // [진단] kaede 로그인 페이지 도달 = manaba 세션 만료됨
+      console.log('[MANABA-DIAG] kaede 로그인 페이지 감지(세션 만료) → 캡처 훅 주입');
       webViewRef.current?.injectJavaScript(CAPTURE_CREDENTIALS_JS);
     }
     if (loadedUrl.includes('kaedei.kokushikan.ac.jp') && !autoReloggedRef.current) {
       // 글로벌 정책 체크 — 누적 실패 + 쿨다운 (헬퍼가 판단)
       if (!canAttemptAutoRelogin()) {
+        // [진단] 경로 A-쿨다운: 이번 세션에 이미 2번 자동 실패 → 포기
+        console.log('[MANABA-DIAG] 쿨다운(이미 2회 실패) → 수동 로그인 유도');
         setAutoRelogging(false);
         Alert.alert(
-          '自動ログインに失敗しました',
+          '自動ログインに失敗しました', // [診断A] 2回失敗して手動へ
           'IDまたはパスワードが変わった可能性があります。手動でログインしてください。'
         );
         return;
@@ -214,27 +218,39 @@ export default function ManabaLoginScreen({ navigation, route }) {
         autoReloginTimerRef.current = null;
         recordAutoReloginFailure();
         setAutoRelogging(false);
+        // [진단] 경로 A-실패: 자동 입력·제출했지만 manaba 도달 실패 (비번틀림/폼불일치/네트워크)
+        console.log('[MANABA-DIAG] 자동입력 후 manaba 미도달(타임아웃) → 실패 기록');
         Alert.alert(
-          '自動ログインがタイムアウトしました',
+          '自動ログインがタイムアウトしました', // [診断A] 自動入力したが失敗
           'ネットワーク状態を確認して、もう一度お試しください。'
         );
       }, AUTO_RELOGIN_TIMEOUT_MS);
 
       getCredentials(kaedeCredKey).then((creds) => {
         if (creds?.id && creds?.pw && webViewRef.current) {
+          // [진단] 경로 A-시도: 저장된 ID/PW로 자동 입력·제출
+          console.log('[MANABA-DIAG] 저장된 ID/PW 있음 → 자동 입력 시도');
           webViewRef.current.injectJavaScript(buildAutoFillJS(creds.id, creds.pw));
         } else {
-          // 저장된 자격증명 없으면 오버레이/타이머 해제 (수동 로그인)
+          // [진단] 경로 B: 저장된 자격증명이 없음 → 애초에 자동 시도 불가
+          // (기존엔 조용히 넘어가 원인 파악 불가였음 → 안내 메시지 추가)
+          console.log('[MANABA-DIAG] 저장된 ID/PW 없음 → 수동 로그인 필요(캡처 실패 의심)');
           if (autoReloginTimerRef.current) {
             clearTimeout(autoReloginTimerRef.current);
             autoReloginTimerRef.current = null;
           }
           setAutoRelogging(false);
+          Alert.alert(
+            '自動ログイン情報が見つかりません', // [診断B] 保存された認証情報なし
+            '一度手動でログインすると、次回から自動でログインできます。'
+          );
         }
       });
     }
     // manaba 페이지 도달 = 자동 재로그인 성공 → 로컬+글로벌 모두 리셋
     if (loadedUrl.includes('kokushikan.manaba.jp')) {
+      // [진단] manaba 도달 = 로그인 유지/자동 재로그인 성공
+      console.log('[MANABA-DIAG] manaba 페이지 도달 → 성공(카운터 리셋)');
       recordAutoReloginSuccess();
       resetAutoReloginLocal();
     }
