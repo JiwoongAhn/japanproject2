@@ -3,7 +3,7 @@
     "name": "UniOne",
     "slug": "unipas",
     "scheme": "unione",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -22,6 +22,10 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.jiwoongahn.unione",
       "infoPlist": {
+        "CFBundleDevelopmentRegion": "ja",
+        "CFBundleLocalizations": [
+          "ja"
+        ],
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "投稿に画像を添付するために、写真ライブラリへのアクセスを許可してください。",
         "UIBackgroundModes": [
