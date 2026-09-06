@@ -6,7 +6,7 @@
 // 탭하면 해당 공지의 manaba 원본으로 바로 이동한다.
 //
 // 핵심 원칙: 비밀번호 서버 저장 ❌ — 기존 manaba 쿠키 영속 방식만 재사용.
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,7 +18,14 @@ import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { NOTICE_COACH_SHOWN_KEY } from '../constants/onboardingFlags';
 import { parseCoachFlag, shouldShowCoachOnTap } from '../utils/noticeCoach';
-import { MANABA_LOGIN_URL, MANABA_HOME_URL, PARSE_NOTICES_JS, UNIPAS_USER_AGENT } from '../constants/manaba';
+import {
+  DEFAULT_MANABA_ORIGIN,
+  manabaOriginFrom,
+  manabaUrlsFor,
+  PARSE_NOTICES_JS,
+  UNIPAS_USER_AGENT,
+} from '../constants/manaba';
+import { findUniversityByEmail, getUniversityLinks } from '../utils/university';
 import { getSavedCookieHeader, cookieKeyForUrl } from '../utils/schoolCookies';
 import { getCachedNotices, setCachedNotices, getDismissedKeys, addDismissedKey, noticeKey } from '../utils/manabaCache';
 import { mergeNotices, countUnreadPush } from '../utils/manabaMerge';
@@ -150,7 +157,15 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   // 숨은 WebView가 로그인 페이지로 튕긴 경우 = manaba 세션 만료 감지 플래그.
   // 만료 시에는 자동 재로그인을 하지 않고(봇 탐지 회피) "재로그인 필요" 안내만 표시.
   const [sessionExpired, setSessionExpired] = useState(false);
-  const cookieKey = useRef(cookieKeyForUrl(MANABA_LOGIN_URL)).current;
+  // 내 학교의 manaba 주소 (학교마다 서브도메인이 다름).
+  // 이걸 안 하면 大東文化大·亜細亜大 학생의 홈 위젯이 국사관 manaba에 접속한다.
+  const manabaUrls = useMemo(() => {
+    const universityId = findUniversityByEmail(user?.email)?.id;
+    const origin =
+      manabaOriginFrom(getUniversityLinks(universityId)?.manabaUrl) ?? DEFAULT_MANABA_ORIGIN;
+    return manabaUrlsFor(origin);
+  }, [user?.email]);
+  const cookieKey = useMemo(() => cookieKeyForUrl(manabaUrls.login), [manabaUrls.login]);
 
   // 첫 탭 사용법 코치 모달 상태.
   //  coachShown: null=플래그 로드 전 / false=아직 안 봄 / true=이미 봄
@@ -361,7 +376,7 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
     cookieHeader != null ? (
       <WebView
         key={reloadKey}
-        source={{ uri: MANABA_HOME_URL, headers: { Cookie: cookieHeader } }}
+        source={{ uri: manabaUrls.home, headers: { Cookie: cookieHeader } }}
         applicationNameForUserAgent={UNIPAS_USER_AGENT}
         injectedJavaScript={PARSE_NOTICES_JS}
         onMessage={handleMessage}

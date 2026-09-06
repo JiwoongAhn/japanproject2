@@ -23,7 +23,9 @@ import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { buildCourseRows } from '../../utils/timetable';
 import { COURSE_COLORS } from '../../constants/courseColors';
-import { SYLLABUS_URL, buildSyllabusFetchJS, matchRoom } from '../../utils/syllabusRoom';
+import { getSyllabusUrl, buildSyllabusFetchJS, matchRoom } from '../../utils/syllabusRoom';
+import { findUniversityByEmail } from '../../utils/university';
+import { useAuth } from '../../lib/AuthProvider';
 
 // ─────────────────────────────────────────────────────────────
 // [Step 3 목업 스위치]
@@ -78,7 +80,16 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
   const [colorPickerIdx, setColorPickerIdx] = useState(null);
 
   // ── 시라바스 교실 조회 (Step 3) ─────────────────────────────
-  // roomPhase: idle → loading → done | error
+  // 내 학교가 교실 자동 조회를 지원하는지 먼저 판정한다.
+  // 미지원 학교에서 조회를 돌리면 남의 대학(국사관) 시라바스 서버로 검색 요청이
+  // 나가므로, URL이 없으면(null) 조회 자체를 시작하지 않는다.
+  const { session } = useAuth();
+  const syllabusUrl = useMemo(
+    () => getSyllabusUrl(findUniversityByEmail(session?.user?.email)?.id),
+    [session?.user?.email]
+  );
+
+  // roomPhase: idle → loading → done | error  (skipped = 미지원 학교라 조회 안 함)
   const [roomPhase, setRoomPhase] = useState('idle');
   const [roomDone, setRoomDone] = useState(0);   // 조회 완료 과목 수
   const [roomTotal, setRoomTotal] = useState(0); // 조회 대상 과목 수
@@ -100,6 +111,13 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
   // 화면 진입 시 1회 교실 조회 시작
   useEffect(() => {
     if (roomStartedRef.current) return;
+    // 교실 조회를 지원하지 않는 학교는 조회를 건너뛴다.
+    // (기능 중단이 아니라 조용한 생략 — 교실 없이 시간표는 정상 추가된다)
+    if (!MOCK_ROOM_FETCH && !syllabusUrl) {
+      roomStartedRef.current = true;
+      setRoomPhase('skipped');
+      return;
+    }
     if (roomQueries.length === 0) {
       setRoomPhase('done');
       return;
@@ -130,7 +148,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
     }
     // 실동작(MOCK_ROOM_FETCH=false)은 숨은 WebView가 onLoadEnd에서 주입 → handleRoomMessage로 진행.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomQueries]);
+  }, [roomQueries, syllabusUrl]);
 
   // 숨은 WebView → RN 메시지: phase별로 진행률·교실 반영
   const handleRoomMessage = (event) => {
@@ -453,10 +471,11 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
 
       {/* ── 시라바스 교실 조회 (Step 3) ── */}
       {/* 숨은 WebView: 실동작 시에만. 화면 밖(1x1, 투명)에서 fetch로 조회만 수행 */}
-      {!MOCK_ROOM_FETCH && roomPhase === 'loading' ? (
+      {/* syllabusUrl이 없는 학교에서는 이 WebView가 아예 렌더되지 않는다 */}
+      {!MOCK_ROOM_FETCH && roomPhase === 'loading' && syllabusUrl ? (
         <WebView
           ref={roomWebRef}
-          source={{ uri: SYLLABUS_URL }}
+          source={{ uri: syllabusUrl }}
           style={styles.hiddenWeb}
           onMessage={handleRoomMessage}
           onLoadEnd={() => {

@@ -7,16 +7,46 @@
 // (학교가 트래픽 출처를 식별할 수 있게 하는 투명성/선의 장치 — 약관 컴플라이언스)
 export const UNIPAS_USER_AGENT = 'UniOne/1.0 (+https://unipas.app)';
 
-export const MANABA_LOGIN_URL = 'https://kokushikan.manaba.jp/ct/login';
+// manaba는 학교마다 서브도메인이 다르다 (kokushikan.manaba.jp / daito.manaba.jp / …).
+// 경로 규칙(/ct/login 등)은 manaba 제품이 공통이므로, origin만 학교별로 갈아끼우면 된다.
+export const DEFAULT_MANABA_ORIGIN = 'https://kokushikan.manaba.jp';
+
+// universityLinks의 manabaUrl에서 origin만 추출한다.
+// (등록값이 'https://daito.manaba.jp'일 수도, '.../ct/login'일 수도 있어서 앞부분만 취함)
+// manaba를 쓰지 않는 학교는 null.
+export function manabaOriginFrom(manabaUrl) {
+  const m = String(manabaUrl || '').match(/^(https?:\/\/[^/]+)/);
+  return m ? m[1] : null;
+}
+
+// 이 학교가 manaba를 쓰는가. manaba 관련 화면·메뉴는 반드시 이걸로 게이트해야 한다.
+// (게이트 없이 진입하면 폴백 때문에 남의 학교(국사관) manaba 서버에 접속하게 된다)
+export function supportsManaba(manabaUrl) {
+  return manabaOriginFrom(manabaUrl) !== null;
+}
+
+// 학교 origin → manaba 엔드포인트 묶음. origin이 없으면 null(호출부가 진입을 막아야 함).
+export function manabaUrlsFor(origin) {
+  if (!origin) return null;
+  return {
+    origin,
+    login: `${origin}/ct/login`,
+    home: `${origin}/ct/home`,
+    logout: `${origin}/ct/logout`,
+    reminder: `${origin}/ct/home_preferences_reminder`,
+  };
+}
+
+export const MANABA_LOGIN_URL = `${DEFAULT_MANABA_ORIGIN}/ct/login`;
 
 // 로그인 후 이동할 manaba 홈(공지가 모여 있는 페이지)
-export const MANABA_HOME_URL = 'https://kokushikan.manaba.jp/ct/home';
+export const MANABA_HOME_URL = `${DEFAULT_MANABA_ORIGIN}/ct/home`;
 
 // 로그아웃: 서버 세션을 끊는 manaba 로그아웃 엔드포인트
-export const MANABA_LOGOUT_URL = 'https://kokushikan.manaba.jp/ct/logout';
+export const MANABA_LOGOUT_URL = `${DEFAULT_MANABA_ORIGIN}/ct/logout`;
 
 // 리마인더 설정 페이지 — 알림 메일 주소를 등록하는 곳 (携帯メールアドレス 칸에 토큰주소 추가)
-export const MANABA_REMINDER_URL = 'https://kokushikan.manaba.jp/ct/home_preferences_reminder';
+export const MANABA_REMINDER_URL = `${DEFAULT_MANABA_ORIGIN}/ct/home_preferences_reminder`;
 
 // WebView에 주입하는 JS: 공지사항 리스트를 파싱해서 네이티브로 전달
 // 결과 메시지: { type:'notices', data:[{title,href,date,board}], pageTitle, currentUrl }

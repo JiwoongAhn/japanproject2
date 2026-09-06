@@ -18,7 +18,7 @@ import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
 import { useAuth } from '../../lib/AuthProvider';
-import { getUniversityInfo } from '../../utils/university';
+import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 import { parseTimetable } from '../../utils/timetableRouter';
 
 // 학기 선택 칩 옵션
@@ -32,6 +32,12 @@ export default function BulkAddInputScreen({ navigation, route }) {
   const { session } = useAuth();
   // 학교 id — 텍스트 경로는 학교 무관이지만 라우터 시그니처 일관성 위해 전달
   const universityId = getUniversityInfo(session?.user?.email)?.id;
+  // 안내 문구는 학교별로 다르게. timetableUrl이 있는 학교(=전용 시간표 페이지가 확인된 곳)만
+  // 그 포털명을 추천하고, 나머지 학교엔 국사관 전용 포털명(kaedei)을 노출하지 않는다.
+  const universityLinksForHint = getUniversityLinks(universityId);
+  const pasteHint = universityLinksForHint.timetableUrl
+    ? 'kaedei → 推奨 / 一度に貼れない場合は分けて貼り付けOK'
+    : `${universityLinksForHint.lmsLabel ?? '学校のシステム'}の時間割ページからコピー / 一度に貼れない場合は分けて貼り付けOK`;
 
   const [text, setText] = useState('');
   const [term, setTerm] = useState('spring');
@@ -90,9 +96,7 @@ export default function BulkAddInputScreen({ navigation, route }) {
             <Text style={styles.guideTitle}>
               🍁 学校のシステムから時間割をコピーして貼り付けてください
             </Text>
-            <Text style={styles.guideSub}>
-              kaedei → 推奨 / 一度に貼れない場合は分けて貼り付けOK
-            </Text>
+            <Text style={styles.guideSub}>{pasteHint}</Text>
           </Card>
 
           {/* ── 학기 선택 ── */}

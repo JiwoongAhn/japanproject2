@@ -4,6 +4,8 @@ import {
   parseResultRow,
   matchRoom,
   buildSyllabusFetchJS,
+  getSyllabusUrl,
+  supportsSyllabusRoom,
 } from '../../src/utils/syllabusRoom';
 
 // 결과표 컬럼순: 0 授業科目名 | 1 教員名 | 2 対象 | 3 期 | 4 曜日時限 | 5 キャンパス | 6 教室 | 7 詳細
@@ -149,5 +151,30 @@ describe('buildSyllabusFetchJS', () => {
     expect(js).toContain('param_KamokuName');
     expect(js).toContain('searchButton');
     expect(js.trim().endsWith('})();')).toBe(true);
+  });
+});
+
+// ── 학교별 게이트 ─────────────────────────────────────────────
+// [배경] 예전에는 SYLLABUS_URL(국사관 고정)을 학교 조건 없이 사용해서,
+//   어느 학교 학생이든 시간표를 붙여넣으면 국사관 시라바스 서버로
+//   검색 요청이 나갔다. 아래 테스트가 그 회귀를 막는다.
+describe('getSyllabusUrl / supportsSyllabusRoom', () => {
+  it('국사관은 시라바스 URL을 돌려준다', () => {
+    expect(getSyllabusUrl('kokushikan')).toContain('kaedei.kokushikan.ac.jp');
+    expect(supportsSyllabusRoom('kokushikan')).toBe(true);
+  });
+
+  it('파서를 검증하지 않은 학교는 null을 돌려준다 (조회 금지)', () => {
+    ['toyo', 'daito', 'asia-u', 'tokai', 'dendai', 'oiu', 'nihon-u'].forEach((id) => {
+      expect(getSyllabusUrl(id)).toBeNull();
+      expect(supportsSyllabusRoom(id)).toBe(false);
+    });
+  });
+
+  it('학교 id가 없거나 알 수 없어도 국사관으로 새지 않는다', () => {
+    [undefined, null, '', 'unknown-school'].forEach((id) => {
+      expect(getSyllabusUrl(id)).toBeNull();
+      expect(supportsSyllabusRoom(id)).toBe(false);
+    });
   });
 });

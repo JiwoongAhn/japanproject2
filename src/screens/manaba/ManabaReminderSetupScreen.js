@@ -17,10 +17,14 @@ import Button from '../../components/Button';
 import LoadingDots from '../../components/LoadingDots';
 import { supabase } from '../../lib/supabase';
 import {
-  MANABA_LOGIN_URL,
-  MANABA_REMINDER_URL,
+  DEFAULT_MANABA_ORIGIN,
+  manabaOriginFrom,
+  manabaUrlsFor,
+  supportsManaba,
   UNIPAS_USER_AGENT,
 } from '../../constants/manaba';
+import { findUniversityByEmail, getUniversityLinks } from '../../utils/university';
+import { useAuth } from '../../lib/AuthProvider';
 import {
   DISABLE_AUTOCAPS_JS,
   saveCookies,
@@ -107,7 +111,34 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
   const [status, setStatus] = useState('setup');
   const isCodeStep = status === 'code';
 
-  const cookieKey = useMemo(() => cookieKeyForUrl(MANABA_LOGIN_URL), []);
+  // 내 학교의 manaba 주소 (리마인더 설정 페이지도 학교별 서브도메인)
+  const { session } = useAuth();
+  const manabaUrls = useMemo(() => {
+    const universityId = findUniversityByEmail(session?.user?.email)?.id;
+    const origin =
+      manabaOriginFrom(getUniversityLinks(universityId)?.manabaUrl) ?? DEFAULT_MANABA_ORIGIN;
+    return manabaUrlsFor(origin);
+  }, [session?.user?.email]);
+  const cookieKey = useMemo(() => cookieKeyForUrl(manabaUrls.login), [manabaUrls.login]);
+
+  // 최후 방어선: manaba 미사용 학교에서 진입 시 되돌린다 (국사관 서버 접속 방지)
+  const universityUsesManaba = useMemo(
+    () =>
+      supportsManaba(
+        getUniversityLinks(findUniversityByEmail(session?.user?.email)?.id)?.manabaUrl
+      ),
+    [session?.user?.email]
+  );
+
+  useEffect(() => {
+    if (universityUsesManaba) return;
+    Alert.alert(
+      'ご利用の大学では未対応です',
+      'この機能はmanabaを利用している大学のみご利用いただけます。\n順次対応を進めています。',
+      [{ text: '閉じる', onPress: () => navigation.goBack() }],
+      { cancelable: false }
+    );
+  }, [universityUsesManaba, navigation]);
   const kaedeCredKey = useMemo(() => credKeyForUrl(KAEDE_URL), []);
 
   // 저장된 manaba 쿠키 헤더를 불러온 뒤 WebView 렌더 (이미 로그인된 세션 재사용)
@@ -209,7 +240,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
   // 페이지 로드 완료 → 쿠키 갱신 + (세션 만료 시)자동 재로그인 + 리마인더 페이지 유도·강조
   const handleLoadEnd = ({ nativeEvent }) => {
     setLoading(false);
-    saveCookies(MANABA_LOGIN_URL, cookieKey);
+    saveCookies(manabaUrls.login, cookieKey);
     const url = nativeEvent?.url || '';
 
     // ① 세션 만료 → kaede SSO 로그인 페이지로 튕김 → 저장된 자격증명으로 자동 재로그인
@@ -253,8 +284,8 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       return;
     }
 
-    // ② manaba 페이지 도달 (로그인 폼 제외)
-    if (url.includes('kokushikan.manaba.jp') && !url.includes('/ct/login')) {
+    // ② manaba 페이지 도달 (로그인 폼 제외) — 내 학교 manaba 호스트인지로 판정
+    if (manabaUrls?.origin && url.startsWith(manabaUrls.origin) && !url.includes('/ct/login')) {
       // 자동 재로그인이 진행 중이었다면 성공 처리 (로컬+글로벌 리셋)
       if (autoRelogging) recordAutoReloginSuccess();
       resetAutoReloginLocal();
@@ -266,7 +297,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
         // 로그인 후 manaba 홈 등 다른 페이지에 떨어졌으면 리마인더 페이지로 1회 유도
         redirectedToReminderRef.current = true;
         webViewRef.current?.injectJavaScript(
-          `window.location.href = '${MANABA_REMINDER_URL}';`
+          `window.location.href = '${manabaUrls.reminder}';`
         );
       }
     }
@@ -473,7 +504,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
         <WebView
           ref={webViewRef}
           source={{
-            uri: MANABA_REMINDER_URL,
+            uri: manabaUrls.reminder,
             headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
           }}
           style={styles.webView}

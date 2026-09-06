@@ -17,8 +17,26 @@ const WEEKDAY_TO_DAY = { 月: 0, 火: 1, 水: 2, 木: 3, 金: 4, 土: 5, 日: 6 
 // 0 授業科目名 | 1 教員名 | 2 対象 | 3 期 | 4 曜日時限 | 5 キャンパス | 6 教室 | 7 詳細
 const COL = { name: 0, professor: 1, term: 3, dayPeriod: 4, campus: 5, room: 6 };
 
+// 교실 조회를 지원하는 학교 → 그 학교의 시라바스 URL
+// ⚠️ 이 파서는 카에데(국사관) ASP.NET 폼 구조 전용이다. 폼 필드명·결과표 컬럼이
+//    아래 FIELD_*/COL 상수와 동일한 학교만 추가할 것. 다른 구조의 학교를 여기에
+//    넣으면 그 학교 서버에 무의미한 검색 요청을 보내게 된다.
+const SYLLABUS_URL_BY_UNIVERSITY = {
+  kokushikan: 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx',
+};
+
+// 학교 id → 시라바스 URL. 미지원 학교는 null (호출부가 조회를 건너뛰어야 함)
+export function getSyllabusUrl(universityId) {
+  return SYLLABUS_URL_BY_UNIVERSITY[universityId] ?? null;
+}
+
+// 이 학교가 교실 자동 조회를 지원하는가
+export function supportsSyllabusRoom(universityId) {
+  return getSyllabusUrl(universityId) !== null;
+}
+
 // ASP.NET 폼 필드 이름 (Step 0에서 실측 확정)
-export const SYLLABUS_URL = 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx';
+export const SYLLABUS_URL = SYLLABUS_URL_BY_UNIVERSITY.kokushikan;
 const FIELD_KAMOKU = 'ctl00$MainContent$param_KamokuName';
 const FIELD_SEARCH_BTN = 'ctl00$MainContent$searchButton';
 

@@ -25,8 +25,17 @@ import {
   CAPTURE_CREDENTIALS_JS,
 } from '../../utils/schoolCookies';
 
+// kaede-i는 국사관 전용 학내 포털. 자동 재로그인은 이 학교에서만 동작한다.
 const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
-import { MANABA_LOGIN_URL, MANABA_HOME_URL, MANABA_LOGOUT_URL, UNIPAS_USER_AGENT } from '../../constants/manaba';
+import {
+  DEFAULT_MANABA_ORIGIN,
+  manabaOriginFrom,
+  manabaUrlsFor,
+  supportsManaba,
+  UNIPAS_USER_AGENT,
+} from '../../constants/manaba';
+import { findUniversityByEmail, getUniversityLinks } from '../../utils/university';
+import { useAuth } from '../../lib/AuthProvider';
 
 // manaba는 PC용 레이아웃이라 viewport에 user-scalable=no / maximum-scale=1 이 설정되어 있음.
 // 페이지 로드 후 해당 제약을 제거해 핀치줌을 허용한다 (iOS + Android 공통).
@@ -50,10 +59,15 @@ import {
   recordAutoReloginFailure,
 } from '../../utils/manabaSession';
 
+// URL에서 호스트만 뽑는다 (학교별 manaba 판별용)
+const hostOf = (url) => (String(url || '').match(/^https?:\/\/([^/]+)/) || [])[1] || '';
+
 // 로그인 성공 여부 판단: /ct/login·/ct/logout 이외의 manaba 페이지면 로그인 완료
 // (/ct/logout을 제외하지 않으면 로그아웃 도중 다시 로그인 처리되어 홈으로 튕김)
-const isLoggedIn = (url) =>
-  url.includes('kokushikan.manaba.jp') &&
+// 학교마다 manaba 호스트가 다르므로 내 학교 origin과 비교한다.
+const isLoggedIn = (url, origin) =>
+  !!origin &&
+  hostOf(url) === hostOf(origin) &&
   !url.includes('/ct/login') &&
   !url.includes('/ct/logout');
 
@@ -69,8 +83,42 @@ export default function ManabaLoginScreen({ navigation, route }) {
   const autoReloggedRef = useRef(false);
   // 타임아웃 타이머 핸들 — 자동 재로그인 트리거 시 시작, manaba 도착/언마운트 시 해제.
   const autoReloginTimerRef = useRef(null);
-  const cookieKey = useMemo(() => cookieKeyForUrl(MANABA_LOGIN_URL), []);
+  // 내 학교의 manaba 주소를 결정한다.
+  // 우선순위: 화면 진입 시 넘겨받은 university → 로그인 이메일로 판정 → (없으면) 국사관.
+  // 학교마다 서브도메인이 다르므로(kokushikan/daito/asia-u …) 이걸 안 하면
+  // 타 학교 학생이 국사관 manaba 로그인 화면을 보게 된다.
+  const { session } = useAuth();
+  const manabaUrls = useMemo(() => {
+    const fromRoute = route?.params?.university;
+    const universityId =
+      fromRoute?.id ?? fromRoute ?? findUniversityByEmail(session?.user?.email)?.id;
+    const origin =
+      manabaOriginFrom(getUniversityLinks(universityId)?.manabaUrl) ?? DEFAULT_MANABA_ORIGIN;
+    return manabaUrlsFor(origin);
+  }, [route?.params?.university, session?.user?.email]);
+
+  const cookieKey = useMemo(() => cookieKeyForUrl(manabaUrls.login), [manabaUrls.login]);
   const kaedeCredKey = useMemo(() => credKeyForUrl(KAEDE_URL), []);
+
+  // 최후 방어선: manaba를 쓰지 않는 학교에서 이 화면에 들어오면 즉시 되돌린다.
+  // (위 manabaUrls는 크래시 방지용으로 국사관을 폴백하므로, 게이트가 없으면
+  //  타 학교 학생이 국사관 manaba 서버에 접속하게 된다)
+  const universityUsesManaba = useMemo(() => {
+    const fromRoute = route?.params?.university;
+    const universityId =
+      fromRoute?.id ?? fromRoute ?? findUniversityByEmail(session?.user?.email)?.id;
+    return supportsManaba(getUniversityLinks(universityId)?.manabaUrl);
+  }, [route?.params?.university, session?.user?.email]);
+
+  useEffect(() => {
+    if (universityUsesManaba) return;
+    Alert.alert(
+      'ご利用の大学では未対応です',
+      'この機能はmanabaを利用している大学のみご利用いただけます。\n順次対応を進めています。',
+      [{ text: '閉じる', onPress: () => navigation.goBack() }],
+      { cancelable: false }
+    );
+  }, [universityUsesManaba, navigation]);
 
   // 마운트 시 저장된 쿠키를 복원한 뒤 WebView 렌더
   // - restoreCookies: WKWebView 쿠키 저장소에 직접 주입 + 만료일 7일 부여
@@ -80,7 +128,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      await restoreCookies(MANABA_LOGIN_URL, cookieKey);
+      await restoreCookies(manabaUrls.login, cookieKey);
       const header = await getSavedCookieHeader(cookieKey);
       if (mounted) {
         setCookieHeader(header || null);
@@ -113,10 +161,10 @@ export default function ManabaLoginScreen({ navigation, route }) {
           // 1) 쿠키가 살아있는 상태에서 서버 로그아웃 URL로 이동 → 서버 세션 종료
           //    (manaba는 WebView 쿠키만 지워선 세션이 안 끊겨 다시 로그인 화면이 안 뜸)
           webViewRef.current?.injectJavaScript(
-            `window.location.href = '${MANABA_LOGOUT_URL}';`
+            `window.location.href = '${manabaUrls.logout}';`
           );
           // 2) 기기에 저장된 쿠키 삭제 → 다음 실행 때 자동 로그인 방지
-          await clearCookies(MANABA_LOGIN_URL, cookieKey);
+          await clearCookies(manabaUrls.login, cookieKey);
           // 3) 홈 화면 공지 캐시도 비워 로그아웃 상태로 되돌림
           await clearCachedNotices();
           setCookieHeader(null);
@@ -141,17 +189,17 @@ export default function ManabaLoginScreen({ navigation, route }) {
   const handleNavigationStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
     // 자동 재로그인 후 manaba로 돌아오면 로컬+글로벌 모두 성공 처리
-    if (autoRelogging && navState.url.includes('kokushikan.manaba.jp')) {
+    if (autoRelogging && hostOf(navState.url) === hostOf(manabaUrls.origin)) {
       recordAutoReloginSuccess();
       resetAutoReloginLocal();
     }
-    if (!loggedIn && isLoggedIn(navState.url)) {
+    if (!loggedIn && isLoggedIn(navState.url, manabaUrls.origin)) {
       setLoggedIn(true);
       // 로그인 직후 쿠키 저장 (다음 실행 때 자동 로그인)
-      saveCookies(MANABA_LOGIN_URL, cookieKey);
+      saveCookies(manabaUrls.login, cookieKey);
       // 로그인 성공 → manaba 홈으로 이동 (사용자가 manaba 기능을 그대로 사용)
       webViewRef.current?.injectJavaScript(
-        `window.location.href = '${MANABA_HOME_URL}';`
+        `window.location.href = '${manabaUrls.home}';`
       );
     }
   };
@@ -183,7 +231,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
   // 페이지 로드 완료 — 쿠키 저장 + kaede 로그인 페이지 감지 시 자동 재로그인
   const handleLoadEnd = ({ nativeEvent }) => {
     setLoading(false);
-    saveCookies(MANABA_LOGIN_URL, cookieKey);
+    saveCookies(manabaUrls.login, cookieKey);
 
     // manaba 쿠키 만료 시 kaede 로그인 페이지로 리디렉션됨 → 자동 재로그인
     const loadedUrl = nativeEvent?.url || '';
@@ -248,7 +296,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
       });
     }
     // manaba 페이지 도달 = 자동 재로그인 성공 → 로컬+글로벌 모두 리셋
-    if (loadedUrl.includes('kokushikan.manaba.jp')) {
+    if (hostOf(loadedUrl) === hostOf(manabaUrls.origin)) {
       // [진단] manaba 도달 = 로그인 유지/자동 재로그인 성공
       console.log('[MANABA-DIAG] manaba 페이지 도달 → 성공(카운터 리셋)');
       recordAutoReloginSuccess();
@@ -298,7 +346,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
         <WebView
           ref={webViewRef}
           source={{
-            uri: MANABA_LOGIN_URL,
+            uri: manabaUrls.login,
             headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
           }}
           style={styles.webView}

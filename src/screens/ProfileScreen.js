@@ -21,7 +21,8 @@ import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthProvider';
-import { getUniversityInfo } from '../utils/university';
+import { getUniversityInfo, findUniversityByEmail, getUniversityLinks } from '../utils/university';
+import { supportsManaba } from '../constants/manaba';
 import { clearCachedNotices } from '../utils/manabaCache';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
@@ -33,6 +34,11 @@ export default function ProfileScreen({ navigation }) {
   const [userEmail, setUserEmail]           = useState('');
   const [nickname, setNickname]             = useState('');
   const [universityName, setUniversityName] = useState('');
+  // 내 학교가 manaba를 쓰는가 — manaba 관련 메뉴 노출 여부를 가른다.
+  // ⚠️ getUniversityInfo는 모르는 도메인을 국사관으로 폴백하므로 여기선 쓰면 안 된다.
+  const usesManaba = supportsManaba(
+    getUniversityLinks(findUniversityByEmail(userEmail)?.id)?.manabaUrl
+  );
   const [loading, setLoading]               = useState(true);
   const [loggingOut, setLoggingOut]         = useState(false);
   const [myPosts, setMyPosts]               = useState([]);
@@ -510,6 +516,9 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
         {/* ── manaba 알림 메일전달 설정 ── */}
+        {/* manaba를 쓰지 않는 학교에는 이 메뉴 자체를 노출하지 않는다.
+            (누르면 국사관 manaba 설정 화면으로 이어져 혼란을 준다) */}
+        {usesManaba && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>manaba通知設定</Text>
           <View style={styles.infoCard}>
@@ -566,6 +575,7 @@ export default function ProfileScreen({ navigation }) {
             )}
           </View>
         </View>
+        )}
 
         {/* ── 앱 사용법 다시 보기 ── */}
         <View style={styles.section}>

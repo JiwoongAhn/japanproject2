@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,7 +21,7 @@ import { getCategoryInfo } from '../constants/boardCategories';
 import { supabase } from '../lib/supabase';
 import { getCourseStatus, getPeriodRanges } from '../utils/timetable';
 import { getTodayStr } from '../utils/date';
-import { getUniversityInfo, getUniversityLinks } from '../utils/university';
+import { getUniversityInfo, getUniversityLinks, findUniversityByEmail } from '../utils/university';
 import { universities } from '../constants/universities';
 import ManabaNoticePreview from '../components/ManabaNoticePreview';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
@@ -126,14 +127,22 @@ export default function HomeScreen({ navigation }) {
   // mode:'settings' → 온보딩에서 이미 마나바 안내를 봤으므로 중복 인트로 슬라이드를 건너뛰고
   // 곧바로 주소 발급 + 설정 가이드로 진입한다("온보딩 to 온보딩" 중복 제거 + 대기시간 단축).
   useEffect(() => {
+    // ⚠️ 학교 판정이 끝나기 전에는 실행하지 않는다.
+    //    universityInfo의 초기값이 국사관이라, 이메일을 받기 전에 판단하면
+    //    manaba를 쓰지 않는 학교 학생에게도 이 화면이 열려 버린다.
+    if (!userEmail) return;
+    const myLinks = getUniversityLinks(findUniversityByEmail(userEmail)?.id);
     let alive = true;
     AsyncStorage.getItem(OPEN_MAIL_CONNECT_KEY).then((v) => {
       if (!alive || !v) return;
       AsyncStorage.removeItem(OPEN_MAIL_CONNECT_KEY).catch(() => {});
+      // manaba를 쓰지 않는 학교에서는 열지 않는다.
+      // (열면 국사관 manaba 리마인더 설정으로 이어져, 그 학교 학생에게는 무의미하다)
+      if (!myLinks.manabaUrl) return;
       navigation.navigate('MailConnectOnboarding', { mode: 'settings' });
     });
     return () => { alive = false; };
-  }, [navigation]);
+  }, [navigation, userEmail]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -292,7 +301,23 @@ export default function HomeScreen({ navigation }) {
                     screen: 'ManabaNoticeList',
                     params: { notices: noticeCounts.notices ?? [] },
                   });
+                  return;
                 }
+                // manaba를 쓰지 않는 학교: 예전에는 눌러도 아무 반응이 없어
+                // 고장난 것처럼 보였다 → 상황을 알리고 학교 LMS로 안내한다.
+                Alert.alert(
+                  'お知らせの自動取得は準備中です',
+                  'ご利用の大学のシステムからの自動取得は、現在準備を進めています。\nお知らせは学校のサイトでご確認ください。',
+                  links.lmsUrl
+                    ? [
+                        { text: '閉じる', style: 'cancel' },
+                        {
+                          text: `${links.lmsLabel ?? 'LMS'}を開く`,
+                          onPress: () => WebBrowser.openBrowserAsync(links.lmsUrl),
+                        },
+                      ]
+                    : [{ text: '閉じる', style: 'cancel' }]
+                );
               }}
             >
               <View style={styles.heroLabelRow}>
