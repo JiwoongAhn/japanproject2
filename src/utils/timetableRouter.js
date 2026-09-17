@@ -30,7 +30,8 @@ export function parseTimetable({ universityId, payload } = {}) {
       return parseTimetableText(payload.data, { defaultTerm: payload.term });
     case 'html':
       // 출시 후: 실제 타교 LMS 분포를 보고 Edge Function(AI) 또는 자동생성 전용 파서로 구현
-      throw new Error('AI parser not implemented yet');
+      // (현재 호출부 없음 — 향후 연결 시 사용자에게 그대로 보일 수 있으므로 일본어 안내로)
+      throw new Error('この大学の時間割の自動取り込みはまだ対応していません。テキスト貼り付けで登録してください。');
     default:
       throw new Error('unknown payload kind: ' + payload?.kind);
   }

@@ -9,7 +9,8 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 // manaba 알림 메일 허용 발신자 도메인 (src/constants/universities.js 학교 추가 시 함께 추가)
 const ALLOWED_SENDERS = [
   'kokushikan.manaba.jp',
-  'manaba.jp',
+  'manaba.jp',        // daito.manaba.jp / asia-u.manaba.jp 등 manaba.jp 계열 전부
+  'ace.toyo.ac.jp',   // 東洋大 ToyoNet-ACE (manaba 자체 호스팅, www.ace.toyo.ac.jp) — 실제 발신 도메인은 재학생 확인 필요
 ];
 
 // ── manaba 시스템 메일(인증코드 / 인증완료) 판별 규칙 ──

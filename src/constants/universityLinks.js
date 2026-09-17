@@ -10,7 +10,7 @@ export const universityLinks = {
     kaedeUrl:    'https://kaedei.kokushikan.ac.jp',
     timetableUrl:'https://kaedei.kokushikan.ac.jp/Main/MyTimeTable.aspx', // 一括取り込み: 로그인 후 ReturnUrl로 자동 복귀
     syllabusUrl: 'https://kaedei.kokushikan.ac.jp/Syllabus/Top.aspx',
-    portalUrl:   'https://portal.kokushikan.ac.jp',
+    portalUrl:   '', // portal.kokushikan.ac.jp 는 DNS 소멸(2026-09 확인). 포털 역할은 kaede-i 가 대신함
   },
 
   // ── 배치 1 ────────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ export const universityLinks = {
   },
   toyo: {
     homepageUrl: 'https://www.toyo.ac.jp',
-    manabaUrl:   'https://ace.toyo.ac.jp', // ToyoNet-ACE (manaba 기반)
+    manabaUrl:   'https://www.ace.toyo.ac.jp/ct/login', // ToyoNet-ACE = manaba 2.98 (www. 필수, ace.toyo.ac.jp 는 DNS 없음). 로그인은 secioss SAML SSO 로 리다이렉트
     kaedeUrl:    '',
     syllabusUrl: 'https://g-sys.toyo.ac.jp/syllabus/',
     portalUrl:   '',
@@ -69,10 +69,10 @@ export const universityLinks = {
   tokai: {
     homepageUrl: 'https://www.u-tokai.ac.jp',
     manabaUrl:   '', // Open LMS 사용
-    lmsUrl:      'https://lms.u-tokai.ac.jp/',
+    lmsUrl:      'https://tlms.tsc.u-tokai.ac.jp/', // 2025-05 이전 주소(lms.u-tokai.ac.jp)에서 변경. Microsoft SSO
     lmsLabel:    'Open LMS',
     kaedeUrl:    '',
-    syllabusUrl: 'https://www24.tsc.u-tokai.ac.jp/syllabus/SYLSCHTOP',
+    syllabusUrl: '', // www24.tsc.u-tokai.ac.jp 사망(2026-09). 공개 시라바스 주소 미확인
     portalUrl:   '',
   },
   daito: {
@@ -86,7 +86,7 @@ export const universityLinks = {
     homepageUrl: 'https://www.asia-u.ac.jp',
     manabaUrl:   'https://asia-u.manaba.jp/ct/login', // manaba 사용 확인
     kaedeUrl:    '',
-    syllabusUrl: 'https://portal.asia-u.ac.jp/campusweb/slbssrch.do',
+    syllabusUrl: 'https://cx.asia-u.ac.jp/campusweb/slbssrch.do', // portal.asia-u.ac.jp → cx.asia-u.ac.jp 로 이전(2026-09 확인)
     portalUrl:   '',
   },
   'takushoku-u': {

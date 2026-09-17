@@ -62,13 +62,15 @@ import {
 // URL에서 호스트만 뽑는다 (학교별 manaba 판별용)
 const hostOf = (url) => (String(url || '').match(/^https?:\/\/([^/]+)/) || [])[1] || '';
 
-// 로그인 성공 여부 판단: /ct/login·/ct/logout 이외의 manaba 페이지면 로그인 완료
+// 로그인 성공 여부 판단: 로그인/로그아웃 페이지 이외의 manaba 페이지면 로그인 완료
 // (/ct/logout을 제외하지 않으면 로그아웃 도중 다시 로그인 처리되어 홈으로 튕김)
 // 학교마다 manaba 호스트가 다르므로 내 학교 origin과 비교한다.
+// SSO 학교(大東=Microsoft, 亜細亜·東洋=SAML IdP)는 다른 호스트로 갔다가 돌아오므로 호스트 비교로 자연히 대기.
+// 東洋 ToyoNet-ACE 는 같은 호스트에 /local/login 이 있어 '/ct/login' 만 제외하면 오판 → '/login' 전체 제외.
 const isLoggedIn = (url, origin) =>
   !!origin &&
   hostOf(url) === hostOf(origin) &&
-  !url.includes('/ct/login') &&
+  !/\/login(\b|[/?#])/.test(url) &&
   !url.includes('/ct/logout');
 
 export default function ManabaLoginScreen({ navigation, route }) {

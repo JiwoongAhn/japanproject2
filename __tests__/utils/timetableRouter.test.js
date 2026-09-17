@@ -43,7 +43,7 @@ describe('parseTimetable 라우팅', () => {
   test('R-03: html → 미구현 에러', () => {
     expect(() =>
       parseTimetable({ universityId: 'toyo', payload: { kind: 'html', data: '<table></table>' } })
-    ).toThrow('AI parser not implemented yet');
+    ).toThrow('まだ対応していません');
   });
 
   // R-04: 알 수 없는 kind → throw

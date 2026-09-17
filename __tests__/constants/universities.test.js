@@ -119,9 +119,16 @@ describe('헬퍼 함수 동작', () => {
     expect(getUniversityLinks('___nope___')).toEqual({});
   });
 
-  it('H-04: periodRanges 없는 학교(dendai)는 국사관 기본값으로 fallback된다', () => {
+  it('H-04: periodRanges 없는 학교(oiu)는 국사관 기본값으로 fallback된다', () => {
+    // dendai 는 2026년도 공식 시간표를 반영해 이제 자체 periodRanges 를 가진다
+    const oiu = universities.find((u) => u.id === 'oiu');
+    expect(oiu.periodRanges).toBeUndefined();
+    expect(getPeriodRanges(oiu)).toBe(PERIOD_RANGES);
+  });
+
+  it('H-05: dendai 는 2026년도 공식 시간표(1限 9:20〜, 5限 〜18:45)를 가진다', () => {
     const dendai = universities.find((u) => u.id === 'dendai');
-    expect(dendai.periodRanges).toBeUndefined();
-    expect(getPeriodRanges(dendai)).toBe(PERIOD_RANGES);
+    expect(getPeriodRanges(dendai)[1]).toEqual({ start: 9 * 60 + 20, end: 10 * 60 + 50 });
+    expect(getPeriodRanges(dendai)[5]).toEqual({ start: 17 * 60 + 15, end: 18 * 60 + 45 });
   });
 });

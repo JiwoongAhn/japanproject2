@@ -16,6 +16,9 @@
 cd /Users/jiwoong/claudeproject/japanproject
 npx expo start          # 모바일(Expo Go) + 웹 동시 지원 ← 권장
 npx expo start --web --port 8083   # 웹 브라우저만
+npm test                           # Jest (화면 수정 후 __tests__/screens.smoke.test.js 필수 확인)
+npm run e2e:layout                 # 온보딩 넘침 자동 판정 (5뷰포트, 웹 서버 자동 기동)
+scripts/shot-devices.sh            # 릴리스 전 시뮬레이터 4대 스크린샷 대조 시트 (--no-build 재사용)
 ```
 
 ---
@@ -73,6 +76,8 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 ---
 
 # 새 학교 추가 체크리스트
+
+> 17개교 LMS 조사 결과·개통 우선순위는 `docs/university-lms-profiles.md` 참조 (2026-09-18)
 
 **`src/constants/universities.js`**
 - [ ] `id`, `name`, `location`, `emailDomain`, `campuses`
