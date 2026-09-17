@@ -49,3 +49,6 @@ test_home.png
 
 # 로컬 백업 파일
 google-services.json.bak
+
+# 시뮬레이터 스크린샷 대조 시트 (scripts/shot-devices.sh)
+/shots

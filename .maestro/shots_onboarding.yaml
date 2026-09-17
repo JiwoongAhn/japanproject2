@@ -1,0 +1,93 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# shots_onboarding.yaml — 온보딩 슬라이드 스크린샷 순회 (scripts/shot-devices.sh 전용)
+#
+# 신규 설치 상태 → 환영 → 동의 → 딥링크로 세션 주입 → 통지 프리퍼미션 → 온보딩 6장+요약
+# 매 장 takeScreenshot 으로 저장. 파일은 실행 디렉터리(스크립트가 기기별 폴더로 cd) 에 떨어진다.
+#
+# 필요 env: DEEP_LINK (unione://auth/callback#access_token=...&refresh_token=...)
+#   → 테스트 유저의 onboarding_completed 가 false 여야 온보딩이 뜬다 (스크립트가 처리)
+# ─────────────────────────────────────────────────────────────────────────────
+appId: com.jiwoongahn.unione
+---
+- launchApp:
+    clearState: true
+
+# Debug 빌드(expo-dev-client)는 개발 서버 선택 화면이 먼저 뜬다 → Metro 항목을 탭 (Release 에선 없으므로 건너뜀)
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+# 개발 메뉴 첫 안내 팝업 ("This is the developer menu…") → Continue (Release 에선 없음)
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 20000
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+# Continue 뒤엔 개발 메뉴 시트가 열려 있음 → 시트 바깥(상단)을 탭해 닫는다
+- runFlow:
+    when:
+      visible: "Toggle element inspector"
+    commands:
+      - tapOn:
+          point: "50%,12%"
+
+# 1) 환영 화면
+- extendedWaitUntil:
+    visible: "始める"
+    timeout: 60000  # Debug 빌드는 Metro 번들 수신에 시간이 걸린다
+- takeScreenshot: 01_welcome
+- tapOn: "始める"
+
+# 2) 개인정보 동의 (본문 끝까지 스크롤해야 체크 가능)
+- extendedWaitUntil:
+    visible: "プライバシーポリシー・利用規約"
+    timeout: 15000
+- takeScreenshot: 02_consent
+# 바닥에 닿으면 힌트 문구가 사라진다 → 보이는 동안 계속 내린다
+- repeat:
+    while:
+      visible: "↓ 最後までスクロールしてください"
+    commands:
+      - scroll   # ⚠️ 'swipe: direction: UP' 은 iOS 26 시뮬레이터에서 스크롤이 안 돼 scroll 사용
+- tapOn: "上記のプライバシーポリシーおよび利用規約に同意します"
+- tapOn: "同意して始める"
+
+# 3) 학교 선택(로그인 전) 화면 → 딥링크로 세션 주입
+- extendedWaitUntil:
+    visible: "大学を選んでください"
+    timeout: 15000
+- takeScreenshot: 03_university_select
+- openLink: ${DEEP_LINK}
+# iOS 시스템 확인창("'UniOne'에서 열겠습니까?") — 시뮬레이터 언어에 따라 문구가 다르므로 둘 다 시도
+- tapOn:
+    text: "열기|開く|Open"
+    optional: true
+
+# 4) 통지 프리퍼미션 (기기 1회)
+- extendedWaitUntil:
+    visible: "あとで設定する"
+    timeout: 30000
+- takeScreenshot: 04_push_priming
+- tapOn: "あとで設定する"
+
+# 5) 온보딩 6장 + 요약
+- extendedWaitUntil:
+    visible: "次へ"
+    timeout: 20000
+- takeScreenshot: 05_onboarding_1
+- tapOn: "次へ"
+- takeScreenshot: 06_onboarding_2
+- tapOn: "次へ"
+- takeScreenshot: 07_onboarding_3
+- tapOn: "次へ"
+- takeScreenshot: 08_onboarding_4
+- tapOn: "次へ"
+- takeScreenshot: 09_onboarding_5
+- tapOn: "次へ"
+- takeScreenshot: 10_onboarding_6
+- tapOn: "次へ"
+- extendedWaitUntil:
+    visible: "準備はこれだけ！"
+    timeout: 10000
+- takeScreenshot: 11_onboarding_summary

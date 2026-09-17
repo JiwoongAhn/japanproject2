@@ -3,15 +3,23 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import { radius } from '../constants/spacing';
+import { MOCK_ASPECT, MOCK_WIDTH_MAX } from '../utils/layout';
 
 // 온보딩에서 보여주는 폰 프레임 목업
 // children: 폰 화면 안에 들어갈 콘텐츠
-export default function PhoneMockup({ children, width = 240 }) {
-  const height = width * 2.05;
+// width: 프레임 폭(px). 기본값은 큰 화면 기준 240. 작은 화면에서는 호출부가
+//        computeMockSize()로 가용 공간에 맞춘 폭을 넘긴다 (높이는 항상 폭 × MOCK_ASPECT).
+export default function PhoneMockup({ children, width = MOCK_WIDTH_MAX }) {
+  const height = width * MOCK_ASPECT;
   return (
     <View style={[styles.frame, { width, height, borderRadius: width * 0.13 }]}>
-      {/* 상단 노치 */}
-      <View style={styles.notch} />
+      {/* 상단 노치 — 프레임 폭에 비례(240px 기준 65×18). 고정 70px이면 작은 프레임에서 상태바 아이콘과 겹친다 */}
+      <View
+        style={[
+          styles.notch,
+          { width: Math.round(width * 0.27), height: Math.round(width * 0.075), top: Math.round(width * 0.042) },
+        ]}
+      />
       {/* 화면 영역 */}
       <View style={[styles.screen, { borderRadius: width * 0.11 }]}>
         {/* 상태바 (아이폰 기본 스타일) */}
@@ -42,10 +50,7 @@ const styles = StyleSheet.create({
   },
   notch: {
     position: 'absolute',
-    top: 10,
     alignSelf: 'center',
-    width: 70,
-    height: 18,
     borderRadius: radius.pill,
     backgroundColor: '#000',
     zIndex: 2,

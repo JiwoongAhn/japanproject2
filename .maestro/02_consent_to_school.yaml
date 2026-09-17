@@ -14,19 +14,20 @@ appId: com.jiwoongahn.unione
     clearState: true
 
 - extendedWaitUntil:
-    visible: "プライバシーポリシー"
+    visible: "プライバシーポリシー・利用規約"
     timeout: 20000
 
 # 정책 본문을 끝까지 스크롤(끝까지 내려야 동의 체크가 켜짐).
 # 여러 번 스와이프해서 바닥까지 도달시킨다.
+# 바닥에 닿으면 힌트 문구가 사라진다 → 보이는 동안 계속 내린다
 - repeat:
-    times: 6
+    while:
+      visible: "↓ 最後までスクロールしてください"
     commands:
-      - swipe:
-          direction: UP
+      - scroll   # ⚠️ 'swipe: direction: UP' 은 iOS 26 시뮬레이터에서 스크롤이 안 돼 scroll 사용
 
 # 동의 체크박스 켜기
-- tapOn: "上記のプライバシーポリシーに同意します"
+- tapOn: "上記のプライバシーポリシーおよび利用規約に同意します"
 
 # 시작 버튼 누르기
 - tapOn: "同意して始める"

@@ -20,6 +20,8 @@ describe('수정한 화면 모듈 로드 스모크', () => {
     ['HomeScreen', '../src/screens/HomeScreen'],
     ['ProfileScreen', '../src/screens/ProfileScreen'],
     ['MailConnectOnboardingScreen', '../src/screens/auth/MailConnectOnboardingScreen'],
+    ['OnboardingScreen', '../src/screens/auth/OnboardingScreen'],
+    ['PhoneMockup', '../src/components/PhoneMockup'],
   ])('%s 가 로드된다', (name, path) => {
     const mod = require(path);
     expect(typeof mod.default).toBe('function');

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,8 +19,7 @@ import Button from '../../components/Button';
 import PhoneMockup from '../../components/PhoneMockup';
 import LoadingDots from '../../components/LoadingDots';
 import { supabase } from '../../lib/supabase';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { computeMockSize } from '../../utils/layout';
 
 // ─────────────────────────────────────────────────────────────
 // 슬라이드 1 비주얼: 잠금화면에 푸시 알림이 뜬 모습 (왜 연결하는가)
@@ -111,11 +110,13 @@ const SLIDES = [
   {
     title: '新しいお知らせを、\n見逃さない',
     subtitle: 'メールを開かなくても大丈夫。\n新しいお知らせは、通知でお届けします。',
-    Visual: () => (
-      <PhoneMockup>
+    // mockWidth: 화면 컴포넌트가 가용 공간에서 역산한 목업 폭 (OnboardingScreen 과 동일 방식)
+    Visual: ({ mockWidth }) => (
+      <PhoneMockup width={mockWidth}>
         <PushNotificationMock />
       </PhoneMockup>
     ),
+    usesMockup: true,
   },
   {
     title: 'あなたのメールは、\n安全に',
@@ -145,6 +146,26 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
   // 사용자가 "使い方をもう一度見る"를 눌러 인트로를 다시 볼 때만 true (가이드 위에 인트로 표시)
   const [showIntro, setShowIntro] = useState(false);
   const scrollRef = useRef(null);
+  // 화면 폭은 모듈 로드 시점 고정값이 아니라 훅으로
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+
+  // 폰 목업 크기: "남는 공간에서 역산" (OnboardingScreen 과 동일 방식).
+  // 예전엔 240×492 고정이라 작은 iPhone 에서 제목·버튼을 덮었다.
+  // 높이가 확정된 페이저(ScrollView) 높이와 제목·부제 블록 높이만 측정한다.
+  const [pagerH, setPagerH] = useState(0);
+  const [textH, setTextH] = useState(0);
+  const onPagerLayout = (e) => {
+    const { height } = e.nativeEvent.layout;
+    setPagerH((prev) => (prev === height ? prev : height));
+  };
+  const onTextLayout = (e) => {
+    const { height } = e.nativeEvent.layout;
+    setTextH((prev) => (height > prev ? height : prev));
+  };
+  const mock = computeMockSize(
+    pagerH - textH - spacing.lg - spacing.xl, // visualArea 의 위·아래 패딩 제외
+    SCREEN_WIDTH - spacing.xl * 2
+  );
 
   const isLast = index === SLIDES.length - 1;
   const isFirst = index === 0;
@@ -357,18 +378,31 @@ export default function MailConnectOnboardingScreen({ navigation, route }) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScrollEnd}
+        onLayout={onPagerLayout}
         style={styles.scroll}
       >
         {SLIDES.map((slide, i) => {
           const Visual = slide.Visual;
+          // 목업 슬라이드는 측정 전(크기 0)이나 공간 부족 시 목업을 그리지 않는다
+          const hideVisual = slide.usesMockup && !mock.visible;
           return (
-            <View key={i} style={styles.slide}>
+            // 슬라이드 = 세로 ScrollView. 큰 화면은 내용이 페이저 높이(minHeight) 안에 들어와 스크롤이 없고,
+            // 작은 화면(SE·320)에서 카드 등이 넘치면 잘리는 대신 세로 스크롤로 볼 수 있다.
+            <ScrollView
+              key={i}
+              style={{ width: SCREEN_WIDTH, height: pagerH || undefined }}
+              contentContainerStyle={[styles.slide, { minHeight: pagerH || undefined }]}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
               <View style={styles.visualArea}>
-                <Visual />
+                {!hideVisual && <Visual mockWidth={mock.width} />}
               </View>
-              <Text style={styles.title}>{slide.title}</Text>
-              <Text style={styles.subtitle}>{slide.subtitle}</Text>
-            </View>
+              <View style={styles.textBlock} onLayout={onTextLayout}>
+                <Text style={styles.title}>{slide.title}</Text>
+                <Text style={styles.subtitle}>{slide.subtitle}</Text>
+              </View>
+            </ScrollView>
           );
         })}
       </ScrollView>
@@ -424,19 +458,22 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
   slide: {
-    width: SCREEN_WIDTH,
-    flex: 1,
+    // ScrollView 의 contentContainerStyle. width/minHeight 는 렌더 시 인라인 지정
+    flexGrow: 1,
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
   visualArea: {
-    flex: 1,
+    // 남는 공간은 차지하되(grow) 내용보다 작아지지는 않는다(shrink 0) → 넘치면 슬라이드가 스크롤된다
+    flexGrow: 1,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: spacing.lg,
     paddingBottom: spacing.xl,
     width: '100%',
   },
+  textBlock: { alignSelf: 'stretch' },
   title: {
     ...typography.title1,
     color: colors.gray900,

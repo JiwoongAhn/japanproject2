@@ -37,6 +37,9 @@ const RootStack = createNativeStackNavigator();
 // 실제 빌드: unione://...
 const linking = {
   prefixes: [Linking.createURL('/'), 'unione://'],
+  // 인증 콜백(unione://auth/callback#access_token=…)은 아래 handleDeepLink 가 직접 처리한다.
+  // React Navigation 이 이를 화면 경로로 해석하면 "NAVIGATE … not handled" 에러가 나므로 제외.
+  filter: (url) => !url.includes('auth/callback'),
 };
 
 export default function AppNavigator() {

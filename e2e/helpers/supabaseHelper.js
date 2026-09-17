@@ -108,8 +108,21 @@ async function cleanupUser(userId) {
   await admin.from('course_reviews').delete().eq('user_id', userId);
 }
 
+/**
+ * 테스트 유저 프로필 일부 필드 갱신 (예: onboarding_completed 를 false 로 되돌려 온보딩 화면 진입)
+ * @param {object} fields profiles 테이블 컬럼 값
+ */
+async function updateTestProfile(fields) {
+  const admin = getAdminClient();
+  const userId = await ensureTestUser();
+  const { error } = await admin.from('profiles').update(fields).eq('id', userId);
+  if (error) throw new Error(`profiles update 실패: ${error.message}`);
+  return userId;
+}
+
 module.exports = {
   getTestSession,
+  updateTestProfile,
   cleanupUser,
   TEST_USER_EMAIL,
   TEST_UNIVERSITY,

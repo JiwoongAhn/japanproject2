@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   StatusBar,
   ScrollView,
-  Dimensions,
+  useWindowDimensions,
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -20,8 +20,7 @@ import { useAuth } from '../../lib/AuthProvider';
 import Button from '../../components/Button';
 import PhoneMockup from '../../components/PhoneMockup';
 import { OPEN_MAIL_CONNECT_KEY } from '../../constants/onboardingFlags';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { computeMockSize } from '../../utils/layout';
 
 // === 슬라이드별 폰 화면 안에 들어갈 가짜 콘텐츠 ===
 
@@ -207,6 +206,27 @@ export default function OnboardingScreen({ navigation, route }) {
   const [index, setIndex] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const scrollRef = useRef(null);
+  // 화면 폭은 모듈 로드 시점 고정값(Dimensions.get)이 아니라 훅으로 — 회전·분할화면에도 정확
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
+
+  // 폰 목업 크기: "남는 공간에서 역산"한다.
+  // 예전엔 240×492 고정이라 iPhone SE(가용 ≈313px)에서 180px 넘쳐 제목·버튼을 덮었다.
+  // 큰 화면은 상한 240에 걸려 예전과 동일하게 그려진다.
+  //
+  // 측정 대상은 높이가 "확정된" 것만: 페이저(ScrollView, flex:1) 높이와 제목·부제 블록 높이.
+  // (목업 영역 자체를 재면 웹처럼 슬라이드가 내용 크기인 환경에서 0으로 측정돼 영원히 안 그려진다)
+  const [pagerH, setPagerH] = useState(0);
+  const [textH, setTextH] = useState(0); // 슬라이드들 중 가장 높은 제목+부제 블록
+  const onPagerLayout = (e) => {
+    const { height } = e.nativeEvent.layout;
+    setPagerH((prev) => (prev === height ? prev : height));
+  };
+  const onTextLayout = (e) => {
+    const { height } = e.nativeEvent.layout;
+    setTextH((prev) => (height > prev ? height : prev));
+  };
+  // 첫 렌더(측정 전)는 크기 0 → 목업을 안 그리고, 측정 직후 한 프레임 안에 맞는 크기로 그린다
+  const mock = computeMockSize(pagerH - textH - spacing.lg, SCREEN_WIDTH - spacing.xl * 2);
 
   // 마지막 요약 슬라이드는 SLIDES 다음의 가상 인덱스로 취급
   const summaryIndex = SLIDES.length;
@@ -304,25 +324,43 @@ export default function OnboardingScreen({ navigation, route }) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={handleScrollEnd}
+        onLayout={onPagerLayout}
         style={styles.scroll}
       >
         {SLIDES.map((slide, i) => {
           const Mock = slide.Mock;
           return (
-            <View key={i} style={styles.slide}>
+            // 슬라이드 = 세로 ScrollView. 큰 화면은 내용이 페이저 높이(minHeight) 안에 들어와 스크롤이 없고,
+            // 작은 화면에서 혹시 넘치면 잘리는 대신 세로 스크롤로 볼 수 있다.
+            <ScrollView
+              key={i}
+              style={{ width: SCREEN_WIDTH, height: pagerH || undefined }}
+              contentContainerStyle={[styles.slide, { minHeight: pagerH || undefined }]}
+              showsVerticalScrollIndicator={false}
+              nestedScrollEnabled
+            >
               <View style={styles.mockArea}>
-                <PhoneMockup>
-                  <Mock />
-                </PhoneMockup>
+                {mock.visible && (
+                  <PhoneMockup width={mock.width}>
+                    <Mock />
+                  </PhoneMockup>
+                )}
               </View>
-              <Text style={styles.title}>{slide.title}</Text>
-              <Text style={styles.subtitle}>{slide.subtitle}</Text>
-            </View>
+              <View style={styles.textBlock} onLayout={onTextLayout}>
+                <Text style={styles.title}>{slide.title}</Text>
+                <Text style={styles.subtitle}>{slide.subtitle}</Text>
+              </View>
+            </ScrollView>
           );
         })}
 
-        {/* 마지막 요약 페이지 */}
-        <View style={styles.slide}>
+        {/* 마지막 요약 페이지 — 작은 화면(320×568 등)에서 리스트가 접혀 넘칠 수 있어 세로 스크롤 허용 */}
+        <ScrollView
+          style={{ width: SCREEN_WIDTH, height: pagerH || undefined }}
+          contentContainerStyle={[styles.summaryScroll, { minHeight: pagerH || undefined }]}
+          showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
+        >
           <View style={styles.summaryArea}>
             <View style={styles.summaryBadge}>
               <Ionicons name="checkmark-done" size={40} color={colors.white} />
@@ -345,7 +383,7 @@ export default function OnboardingScreen({ navigation, route }) {
               ))}
             </View>
           </View>
-        </View>
+        </ScrollView>
       </ScrollView>
 
       {/* 하단 고정: 인디케이터 + 버튼 */}
@@ -406,16 +444,21 @@ const styles = StyleSheet.create({
 
   scroll: { flex: 1 },
   slide: {
-    width: SCREEN_WIDTH,
+    // ScrollView 의 contentContainerStyle. width/minHeight 는 렌더 시 인라인 지정
+    flexGrow: 1,
     alignItems: 'center',
     paddingHorizontal: spacing.xl,
   },
   mockArea: {
-    flex: 1,
+    // 남는 공간은 차지하되(grow) 내용보다 작아지지는 않는다(shrink 0) → 넘치면 슬라이드가 스크롤된다
+    flexGrow: 1,
+    flexShrink: 0,
+    alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
     paddingTop: spacing.lg,
   },
+  textBlock: { alignSelf: 'stretch' },
   title: {
     ...typography.title1,
     color: colors.gray900,
@@ -431,8 +474,14 @@ const styles = StyleSheet.create({
   },
 
   // 요약 페이지
+  // ScrollView 는 alignItems/padding 을 style 이 아니라 contentContainerStyle 로 받아야 한다(RN invariant)
+  summaryScroll: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
   summaryArea: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',

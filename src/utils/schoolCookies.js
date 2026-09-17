@@ -10,7 +10,7 @@
 //   보냄 → 서버가 바로 로그인 상태로 인식. (CookieManager.set 주입의 타이밍/HttpOnly
 //   문제를 회피)
 //   ※ 비밀번호는 저장하지 않음. 쿠키만 저장 (CLAUDE.md 원칙 준수)
-import CookieManager from '@react-native-cookies/cookies';
+import CookieManager from './cookieManager';
 import { LargeSecureStore } from '../lib/supabase';
 
 const store = new LargeSecureStore();
