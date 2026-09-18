@@ -456,6 +456,12 @@ export default function TimetableScreen({ navigation }) {
         onDelete={handleDeleteCourse}
         onEdit={(course) => navigation.navigate('CourseAdd', { course })}
         onAttendanceChange={handleAttendanceChange}
+        syllabusUrl={links.syllabusUrl || null}
+        // 과제 탭의 추가 화면으로 과목명을 미리 채워서 이동 (NoticePreviewModal 과 같은 경로)
+        onAddAssignment={(course) => navigation.navigate('Assignment', {
+          screen: 'AssignmentAdd',
+          params: { courseName: course.name },
+        })}
       />
     </SafeAreaView>
   );

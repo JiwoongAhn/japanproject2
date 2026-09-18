@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
+  ScrollView,
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -61,7 +63,11 @@ function AttendanceRow({ label, count, accent, onMinus, onPlus }) {
 //   onDelete(courseId) — 삭제 실행 함수
 //   onEdit(course)     — 편집 화면 열기 함수
 //   onAttendanceChange(course, field, delta) — 欠席/遅刻 카운터 증감 (field: 'absent_count' | 'late_count')
-export default function CourseDetailModal({ course, onClose, onDelete, onEdit, onAttendanceChange }) {
+//   syllabusUrl        — 학교 시라바스 URL (없으면 シラバス 버튼 숨김)
+//   onAddAssignment(course) — 이 수업 이름이 채워진 과제 추가 화면 열기
+export default function CourseDetailModal({
+  course, onClose, onDelete, onEdit, onAttendanceChange, syllabusUrl, onAddAssignment,
+}) {
   // 삭제 확인 단계 (true면 "정말 삭제?" UI 표시)
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -83,6 +89,18 @@ export default function CourseDetailModal({ course, onClose, onDelete, onEdit, o
     onEdit(course);   // 편집 화면으로 이동
   };
   const handleDeletePress = () => setConfirmDelete(true);
+  // 시라바스는 학교 Top 페이지만 열 수 있음(과목별 딥링크 없음) → 인앱 브라우저로
+  const handleSyllabusPress = () => {
+    if (!syllabusUrl) return;
+    WebBrowser.openBrowserAsync(syllabusUrl, {
+      toolbarColor: colors.primary,
+      controlsColor: '#FFFFFF',
+    });
+  };
+  const handleAddAssignmentPress = () => {
+    onClose();
+    onAddAssignment?.(course);
+  };
   const handleDeleteConfirm = () => {
     onDelete(course.id);
     setConfirmDelete(false);
@@ -107,6 +125,12 @@ export default function CourseDetailModal({ course, onClose, onDelete, onEdit, o
         {/* 드래그 핸들 바 */}
         <View style={styles.handle} />
 
+        {/* 작은 화면(SE 등)에서 시트가 화면보다 길어지면 안쪽만 스크롤 (핸들은 고정) */}
+        <ScrollView
+          contentContainerStyle={styles.sheetScroll}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
         {/* 과목명 + 교수명 */}
         <View style={styles.titleRow}>
           <View style={[styles.colorDot, { backgroundColor: color.accent }]} />
@@ -196,20 +220,42 @@ export default function CourseDetailModal({ course, onClose, onDelete, onEdit, o
           </>
         ) : (
           <>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary]}
-              onPress={handleEditPress}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.buttonPrimaryText}>✏️ 編集する</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonOutlineDanger]}
-              onPress={handleDeletePress}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.buttonOutlineDangerText}>削除する</Text>
-            </TouchableOpacity>
+            {/* 1줄: 주요 동작 — 編集 / シラバス(학교 URL 있을 때만) */}
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonPrimary, styles.buttonHalf]}
+                onPress={handleEditPress}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.buttonPrimaryText}>✏️ 編集する</Text>
+              </TouchableOpacity>
+              {syllabusUrl ? (
+                <TouchableOpacity
+                  style={[styles.button, styles.buttonSecondary, styles.buttonHalf]}
+                  onPress={handleSyllabusPress}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.buttonSecondaryText}>📖 シラバス</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            {/* 2줄: 보조 동작 — 課題追加 / 削除 */}
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonSecondary, styles.buttonHalf]}
+                onPress={handleAddAssignmentPress}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.buttonSecondaryText}>📝 課題を追加</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonOutlineDanger, styles.buttonHalf]}
+                onPress={handleDeletePress}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.buttonOutlineDangerText}>削除する</Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity
               style={[styles.button, styles.buttonGhost]}
               onPress={handleClose}
@@ -219,6 +265,7 @@ export default function CourseDetailModal({ course, onClose, onDelete, onEdit, o
             </TouchableOpacity>
           </>
         )}
+        </ScrollView>
       </View>
     </View>
   );
@@ -240,9 +287,12 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xxl,
     borderTopRightRadius: radius.xxl,
     paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxxl + spacing.xs,
     paddingTop: spacing.md,
+    maxHeight: '88%', // 세로가 짧은 기기에서 시트가 화면 위로 넘치지 않게
     ...shadow.card,
+  },
+  sheetScroll: {
+    paddingBottom: spacing.xxxl + spacing.xs,
   },
 
   handle: {
@@ -379,8 +429,25 @@ const styles = StyleSheet.create({
     height: 56,
     justifyContent: 'center',
   },
+  // 2열 배치 — 시트 폭을 반씩 나눠 쓴다 (gap 은 buttonRow 에서)
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  buttonHalf: {
+    flex: 1,
+  },
   buttonPrimary: {
     backgroundColor: colors.primary,
+  },
+  // 연한 파랑 배경의 보조 버튼 (シラバス·課題追加)
+  buttonSecondary: {
+    backgroundColor: colors.primaryLight,
+  },
+  buttonSecondaryText: {
+    ...typography.subtitle,
+    color: colors.primary,
+    fontWeight: '700',
   },
   buttonPrimaryText: {
     ...typography.subtitle,
