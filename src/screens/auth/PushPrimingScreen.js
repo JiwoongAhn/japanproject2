@@ -6,6 +6,7 @@ import {
   SafeAreaView,
   TouchableOpacity,
   StatusBar,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/colors';
@@ -59,7 +60,14 @@ export default function PushPrimingScreen({ onDone }) {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
 
-      <View style={styles.content}>
+      {/* 본문은 세로 ScrollView — 작은 화면(SE 등)에서 카드 3장이 다 안 들어가도
+          하단 고정 버튼과 겹치지 않고 스크롤된다. 큰 화면은 내용이 안에 들어와 스크롤 없음 */}
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentInner}
+        showsVerticalScrollIndicator={false}
+        bounces={false}
+      >
         {/* 히어로 아이콘 */}
         <View style={styles.hero}>
           <View style={styles.bellCircle}>
@@ -86,7 +94,7 @@ export default function PushPrimingScreen({ onDone }) {
             </View>
           ))}
         </View>
-      </View>
+      </ScrollView>
 
       {/* 하단 고정 버튼 */}
       <View style={styles.bottom}>
@@ -108,12 +116,14 @@ export default function PushPrimingScreen({ onDone }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
-  content: {
-    flex: 1,
+  content: { flex: 1 },
+  // ScrollView 는 padding 을 style 이 아니라 contentContainerStyle 로 받아야 한다(RN invariant)
+  contentInner: {
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxl,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.md,
   },
-  hero: { alignItems: 'center', marginBottom: spacing.xl },
+  hero: { alignItems: 'center', marginBottom: spacing.lg },
   bellCircle: {
     width: 88,
     height: 88,
