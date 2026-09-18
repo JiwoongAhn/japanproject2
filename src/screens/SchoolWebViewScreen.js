@@ -31,6 +31,7 @@ import { getUniversityInfo } from '../utils/university';
 import { parseTimetable } from '../utils/timetableRouter';
 import { getCurrentTerm, termLabel } from '../utils/timetable';
 import { shouldShowExtractButton } from '../utils/timetableImport';
+import { buildKaedeCellId, buildSyllabusClickJS } from '../utils/syllabusLink';
 
 // 카에데 MY時間割 셀 추출 스크립트
 // 각 수업 칸은 <td id="Cell{열}_{교시}_{Spring|Autumn}" class="cell"> 구조.
@@ -73,14 +74,25 @@ const PROBE_LOGIN_STATE_JS = `(function(){
 })();`;
 
 // 범용 학교 사이트 WebView 화면 (kaede-i, 포털 등 재사용)
-// route.params: { url, title, autoLogin? }
+// route.params: { url, title, autoLogin?, forTimetableImport?, syllabusTarget? }
+//
+// syllabusTarget={ day, period, term } 이면 과목별 시라바스 모드:
+//   MY時間割 페이지에 도착하는 즉시 해당 셀의 シラバス 링크(onclick=OpenSyllabusWindow(uid))에서
+//   uid를 읽어 같은 WebView 안에서 /Syllabus/SyllabusViewVer2.aspx?uid=… 로 1회 이동한다.
+//   (원래 링크는 window.open 새 창이라 WebView에서 그냥 클릭하면 안 열림 — utils/syllabusLink.js 참조)
 //
 // autoLogin=true 이면 A방식 자동 로그인 활성:
 //   - 저장된 ID/PW가 있으면 로그인 폼에 자동 입력 + 제출
 //   - 저장된 게 없으면 사용자가 직접 로그인 → 입력값을 캡처해 암호화 저장(다음부터 자동)
 //   ※ ID/PW는 기기 내 AES-256 저장, 서버 전송 없음
 export default function SchoolWebViewScreen({ navigation, route }) {
-  const { url, title, autoLogin = false, forTimetableImport = false } = route.params ?? {};
+  const {
+    url, title, autoLogin = false, forTimetableImport = false, syllabusTarget = null,
+  } = route.params ?? {};
+  // 과목별 시라바스 모드: 클릭할 kaede 셀 id (형식이 안 맞으면 null → 일반 모드처럼 동작)
+  const syllabusCellId = syllabusTarget ? buildKaedeCellId(syllabusTarget) : null;
+  // 로그인 후 MY時間割 페이지 도착을 감시해야 하는 경로인지(일괄취급 / 과목별 시라바스)
+  const wantsTimetablePage = forTimetableImport || !!syllabusCellId;
   const { session } = useAuth();
   // 시간표 파싱에 쓸 학교 id (카에데=국사관 → 전용 파서로 라우팅)
   const universityId = getUniversityInfo(session?.user?.email)?.id;
@@ -91,6 +103,7 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   // #3: 로그인 후 MY時間割 페이지로 자동 이동시키기 위한 상태
   const sawLoginPageRef = useRef(false);          // 비밀번호 칸이 있는 로그인 페이지를 본 적 있는지
   const redirectedToTimetableRef = useRef(false); // 시간표 페이지로 1회만 자동 이동
+  const syllabusClickedRef = useRef(false);       // 과목별 시라바스 링크 자동 클릭은 1회만
   const [loading, setLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(url ?? ''); // 현재 보고 있는 페이지 URL
@@ -155,6 +168,8 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         handleExtractedCells(msg);
       } else if (msg.type === 'pageProbe') {
         handlePageProbe(msg);
+      } else if (msg.type === 'syllabusClick') {
+        handleSyllabusClickResult(msg);
       }
     } catch (_) {}
   };
@@ -163,18 +178,39 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   //   - 비밀번호 칸이 있으면 로그인 페이지 → 아직 로그인 전(플래그만 기록)
   //   - 로그인 페이지를 거친 뒤, 비밀번호 칸 없는 페이지에 도착했는데 그게 시간표 페이지가
   //     아니라면 → 사용자가 직접 메뉴를 찾지 않아도 되게 MY時間割로 1회 자동 이동
+  //   - 과목별 시라바스 모드면 시간표 페이지 도착 즉시 해당 셀의 시라바스 uid로 1회 이동
+  //     (이동 후 시라바스 페이지에서는 더 이상 개입하지 않음)
   const handlePageProbe = (msg) => {
-    if (!forTimetableImport) return;
+    if (!wantsTimetablePage) return;
+    if (syllabusClickedRef.current) return; // 시라바스 클릭 이후 페이지들은 손대지 않음
     if (msg.hasPassword) {
       sawLoginPageRef.current = true; // 로그인 페이지 도착 (아직 로그인 전)
       return;
     }
     const here = (msg.url || '').toLowerCase();
-    if (here.includes('mytimetable')) return; // 이미 시간표 페이지 → 추출 버튼이 뜨므로 그대로 둠
+    if (here.includes('mytimetable')) {
+      // 시간표 페이지 도착. 일괄취급이면 추출 버튼이 뜨므로 그대로 두고,
+      // 과목별 시라바스면 해당 셀의 링크를 대신 눌러준다.
+      if (syllabusCellId) {
+        syllabusClickedRef.current = true;
+        webViewRef.current?.injectJavaScript(buildSyllabusClickJS(syllabusCellId));
+      }
+      return;
+    }
     if (sawLoginPageRef.current && !redirectedToTimetableRef.current) {
       redirectedToTimetableRef.current = true;
       webViewRef.current?.injectJavaScript(`location.href=${JSON.stringify(url)}; true;`);
     }
+  };
+
+  // 과목별 시라바스 자동 클릭 결과. 실패해도 시간표 페이지는 그대로 보이므로
+  // 사용자가 직접 シラバス를 누를 수 있게 안내만 한다.
+  const handleSyllabusClickResult = (msg) => {
+    if (msg.ok) return;
+    Alert.alert(
+      'お知らせ',
+      'この授業のシラバスリンクが見つかりませんでした。\n時間割の授業欄にある「シラバス」を直接タップしてください。'
+    );
   };
 
   // 추출된 셀 → 파서 라우터로 해석 → 확인 후 미리보기 화면으로
@@ -236,8 +272,8 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     if (!autoLogin) return;
     // 항상 캡처 hook 주입 (수동/재로그인 시 자격증명 갱신)
     webViewRef.current?.injectJavaScript(CAPTURE_CREDENTIALS_JS);
-    // #3: 시간표 일괄취급 경로에서만, 로그인 완료 후 MY時間割 자동 이동을 위해 로그인 상태 프로브 실행
-    if (forTimetableImport) {
+    // #3: 시간표 일괄취급/과목별 시라바스 경로에서만, 로그인 완료 후 MY時間割 자동 이동(및 시라바스 클릭)을 위해 로그인 상태 프로브 실행
+    if (wantsTimetablePage) {
       webViewRef.current?.injectJavaScript(PROBE_LOGIN_STATE_JS);
     }
     // 저장된 자격증명이 있으면 1회 자동 입력 + 제출

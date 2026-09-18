@@ -64,9 +64,11 @@ function AttendanceRow({ label, count, accent, onMinus, onPlus }) {
 //   onEdit(course)     — 편집 화면 열기 함수
 //   onAttendanceChange(course, field, delta) — 欠席/遅刻 카운터 증감 (field: 'absent_count' | 'late_count')
 //   syllabusUrl        — 학교 시라바스 URL (없으면 シラバス 버튼 숨김)
+//   onOpenSyllabus(course) — (선택) 과목별 시라바스를 여는 함수. 있으면 syllabusUrl 대신 이걸 호출
+//                            (kaede-i 학교: MY時間割 WebView에서 해당 과목 링크를 자동 클릭)
 //   onAddAssignment(course) — 이 수업 이름이 채워진 과제 추가 화면 열기
 export default function CourseDetailModal({
-  course, onClose, onDelete, onEdit, onAttendanceChange, syllabusUrl, onAddAssignment,
+  course, onClose, onDelete, onEdit, onAttendanceChange, syllabusUrl, onOpenSyllabus, onAddAssignment,
 }) {
   // 삭제 확인 단계 (true면 "정말 삭제?" UI 표시)
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -89,8 +91,13 @@ export default function CourseDetailModal({
     onEdit(course);   // 편집 화면으로 이동
   };
   const handleDeletePress = () => setConfirmDelete(true);
-  // 시라바스는 학교 Top 페이지만 열 수 있음(과목별 딥링크 없음) → 인앱 브라우저로
+  // 과목별 열기(onOpenSyllabus)가 있으면 모달을 닫고 그쪽으로. 없으면 학교 Top 페이지를 인앱 브라우저로
   const handleSyllabusPress = () => {
+    if (onOpenSyllabus) {
+      onClose();
+      onOpenSyllabus(course);
+      return;
+    }
     if (!syllabusUrl) return;
     WebBrowser.openBrowserAsync(syllabusUrl, {
       toolbarColor: colors.primary,
@@ -234,7 +241,7 @@ export default function CourseDetailModal({
               >
                 <Text style={styles.buttonPrimaryText}>✏️ 編集する</Text>
               </TouchableOpacity>
-              {syllabusUrl ? (
+              {syllabusUrl || onOpenSyllabus ? (
                 <TouchableOpacity
                   style={[styles.button, styles.buttonSecondary, styles.buttonHalf]}
                   onPress={handleSyllabusPress}

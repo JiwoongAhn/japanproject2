@@ -8,6 +8,7 @@
 - **UI 스타일:** 토스 스타일 (primary #3182F6, background #F2F4F6)
 - **하단 탭:** 홈 / 시간표 / 과제 / 게시판 / マイページ (5개)
 - **학기 구분:** `courses.term`(spring/fall). 기준=`getCurrentTerm()`(4~8월 春, 9~3월 秋). 시간표 헤더 라벨 탭으로 전환, kaede 추출 시 학기 선택 알림 (2026-09-18)
+- **과목별 시라바스(1.0.2):** kaede 학교는 수업 시트 シラバス → `SchoolWeb`을 `syllabusTarget:{day,period,term}`으로 열어 MY時間割 도착 시 `td#Cell{열}_{교시}_{Spring|Autumn}` 안 링크의 `onclick=OpenSyllabusWindow(uid)`에서 uid를 읽어 같은 WebView에서 `/Syllabus/SyllabusViewVer2.aspx?uid=…`로 이동(`utils/syllabusLink.js`, 2026-09-18 Chrome 실측 검증). 원 링크는 window.open 새창이라 클릭 방식 불가. 실패 시 알림만. 타학교는 Top URL 인앱 브라우저 유지
 
 ---
 

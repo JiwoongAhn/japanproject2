@@ -130,6 +130,22 @@ export default function TimetableScreen({ navigation }) {
     }
   };
 
+  // 과목별 시라바스: kaede-i(timetableUrl 있는 학교)만. MY時間割를 WebView로 열고
+  // 해당 셀(요일·교시·학기)의 シラバス 링크를 SchoolWebViewScreen이 자동 클릭한다.
+  // (kaede 시라바스 링크는 __doPostBack이라 URL 딥링크를 만들 수 없음)
+  const handleOpenCourseSyllabus = (course) => {
+    navigation.navigate('SchoolWeb', {
+      url: links.timetableUrl,
+      title: 'シラバス',
+      autoLogin: true,
+      syllabusTarget: {
+        day: course.day_of_week,
+        period: course.period,
+        term: course.term || selectedTerm,
+      },
+    });
+  };
+
   // 欠席/遅刻 카운터 증감 — 0 미만으로는 안 내려가며, 화면을 먼저 갱신(낙관적)한 뒤 DB 저장
   const handleAttendanceChange = async (course, field, delta) => {
     const current = course[field] ?? 0;
@@ -474,6 +490,7 @@ export default function TimetableScreen({ navigation }) {
         onEdit={(course) => navigation.navigate('CourseAdd', { course })}
         onAttendanceChange={handleAttendanceChange}
         syllabusUrl={links.syllabusUrl || null}
+        onOpenSyllabus={links.timetableUrl ? handleOpenCourseSyllabus : undefined}
         // 과제 탭의 추가 화면으로 과목명을 미리 채워서 이동 (NoticePreviewModal 과 같은 경로)
         onAddAssignment={(course) => navigation.navigate('Assignment', {
           screen: 'AssignmentAdd',
