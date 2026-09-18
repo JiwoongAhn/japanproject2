@@ -20,6 +20,7 @@ import { typography } from '../../constants/typography';
 import { COURSE_COLORS } from '../../constants/courseColors';
 import Card from '../../components/Card';
 import Button from '../../components/Button';
+import { getCurrentTerm } from '../../utils/timetable';
 
 // 요일 선택지 (0=월, 1=화, ..., 4=금)
 const DAYS = [
@@ -36,6 +37,9 @@ const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
 export default function CourseAddScreen({ route, navigation }) {
   // route.params.course 가 있으면 편집 모드 (없으면 신규 추가 모드)
   const editingCourse = route.params?.course ?? null;
+  // 신규 추가 시 학기 = 시간표 화면에서 보고 있던 학기(route.params.term), 없으면 오늘 기준.
+  // 편집 시에는 학기를 바꾸지 않는다(payload 에 넣지 않음)
+  const newCourseTerm = route.params?.term ?? getCurrentTerm();
   const isEditMode = !!editingCourse;
 
   // 빈 셀 탭 시 route.params로 요일/교시 pre-fill 지원
@@ -90,7 +94,7 @@ export default function CourseAddScreen({ route, navigation }) {
       // 신규 추가 모드
       ({ data, error } = await supabase
         .from('courses')
-        .insert({ ...payload, user_id: user.id })
+        .insert({ ...payload, user_id: user.id, term: newCourseTerm })
         .select());
     }
 

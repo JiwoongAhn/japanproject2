@@ -29,7 +29,7 @@ import {
 import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo } from '../utils/university';
 import { parseTimetable } from '../utils/timetableRouter';
-import { getCurrentTerm } from '../utils/timetable';
+import { getCurrentTerm, termLabel } from '../utils/timetable';
 import { shouldShowExtractButton } from '../utils/timetableImport';
 
 // 카에데 MY時間割 셀 추출 스크립트
@@ -183,11 +183,19 @@ export default function SchoolWebViewScreen({ navigation, route }) {
       Alert.alert('読み込みエラー', '時間割の読み込みに失敗しました。もう一度お試しください');
       return;
     }
-    const parseResult = parseTimetable({
+    // 학기 필터 없이 전부 해석 → 春期/秋期 건수를 세어 사용자가 고르게 한다
+    // (kaede-i MY時間割은 교시마다 春期/秋期 2행이라 한 페이지에 두 학기가 같이 있다)
+    const all = parseTimetable({
       universityId,
-      payload: { kind: 'kaedeCells', data: msg.cells, term: getCurrentTerm() },
+      payload: { kind: 'kaedeCells', data: msg.cells },
     });
-    const count = parseResult.parsed.length;
+    const byTerm = (term) => ({
+      parsed: all.parsed.filter((it) => it.term === term),
+      unparsed: all.unparsed,
+    });
+    const springCount = byTerm('spring').parsed.length;
+    const fallCount = byTerm('fall').parsed.length;
+    const count = all.parsed.length;
     if (count === 0) {
       // 추출 0건 → 시간표 페이지가 아닐 수 있으니 먼저 그 페이지를 열도록 유도.
       // (기기별 자동이동 실패로 다른 페이지에서 눌렀을 수 있음)
@@ -198,20 +206,25 @@ export default function SchoolWebViewScreen({ navigation, route }) {
       );
       return;
     }
+    // 옵션B: 모달을 닫으며 시간표 탭의 미리보기 화면으로 선택한 학기 결과만 전달
+    const goPreview = (term) =>
+      navigation.navigate('MainTab', {
+        screen: 'Timetable',
+        params: {
+          screen: 'BulkAddPreview',
+          params: { parseResult: byTerm(term), defaultTerm: term },
+        },
+      });
+    const current = getCurrentTerm();
+    const label = (term, n) =>
+      `${termLabel(term)} (${n}件)${term === current ? ' ・今学期' : ''}`;
     Alert.alert(
       '時間割の取り込み',
-      `${count}件の授業が見つかりました。\n確認画面で追加する授業を選べます。`,
+      `${count}件の授業が見つかりました。\nどの学期の時間割を取り込みますか？`,
       [
         { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '進む',
-          onPress: () =>
-            // 옵션B: 모달을 닫으며 시간표 탭의 미리보기 화면으로 결과 전달
-            navigation.navigate('MainTab', {
-              screen: 'Timetable',
-              params: { screen: 'BulkAddPreview', params: { parseResult } },
-            }),
-        },
+        { text: label('spring', springCount), onPress: () => goPreview('spring') },
+        { text: label('fall', fallCount), onPress: () => goPreview('fall') },
       ]
     );
   };

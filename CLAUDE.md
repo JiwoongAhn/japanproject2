@@ -7,6 +7,7 @@
 - **EAS slug:** `unipas` / projectId `1f321891…` (⚠️ slug는 EAS 식별자라 앱 이름 unione와 다름, 바꾸면 빌드 에러)
 - **UI 스타일:** 토스 스타일 (primary #3182F6, background #F2F4F6)
 - **하단 탭:** 홈 / 시간표 / 과제 / 게시판 / マイページ (5개)
+- **학기 구분:** `courses.term`(spring/fall). 기준=`getCurrentTerm()`(4~8월 春, 9~3월 秋). 시간표 헤더 라벨 탭으로 전환, kaede 추출 시 학기 선택 알림 (2026-09-18)
 
 ---
 

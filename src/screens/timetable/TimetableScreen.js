@@ -18,7 +18,7 @@ import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { getCourseColorFor } from '../../constants/courseColors';
 import CourseDetailModal from './CourseDetailModal';
-import { getPeriodStartTimeStr } from '../../utils/timetable';
+import { getPeriodStartTimeStr, getCurrentTerm, termLabel, semesterLabel } from '../../utils/timetable';
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 import { useTabBarScroll } from '../../navigation/TabBarScrollContext';
@@ -38,13 +38,6 @@ function getTodayCol() {
   return (jsDay >= 1 && jsDay <= 5) ? jsDay - 1 : -1;
 }
 
-// 일본 학기 라벨 — 5월이면 春学期, 11월이면 秋学期 등
-function getSemesterLabel() {
-  const m = new Date().getMonth() + 1; // 1~12
-  const y = new Date().getFullYear();
-  const semester = (m >= 4 && m <= 8) ? '春学期' : '秋学期';
-  return `${y}年 ${semester}`;
-}
 
 export default function TimetableScreen({ navigation }) {
   const { session } = useAuth();
@@ -54,6 +47,12 @@ export default function TimetableScreen({ navigation }) {
 
   // 렌더 시점에 JST 기준으로 오늘 열 계산 (날짜가 바뀌어도 다음 렌더에서 자동 갱신)
   const TODAY_COL = getTodayCol();
+
+  // 표시 중인 학기 — 기본은 오늘 기준(4~8월 春 / 9~3월 秋), 상단 라벨 탭으로 전환.
+  // 화면 state 만 유지(앱 재실행 시 자동 학기로 복귀)
+  const currentTerm = getCurrentTerm();
+  const [selectedTerm, setSelectedTerm] = useState(currentTerm);
+  const toggleTerm = () => setSelectedTerm((t) => (t === 'spring' ? 'fall' : 'spring'));
 
   // 학교별 교시 수
   const periodCount = universityInfo?.periodRanges ? Object.keys(universityInfo.periodRanges).length : 6;
@@ -78,6 +77,7 @@ export default function TimetableScreen({ navigation }) {
       .from('courses')
       .select('*')
       .eq('user_id', user.id)
+      .eq('term', selectedTerm)
       .order('day_of_week')
       .order('period');
 
@@ -88,7 +88,7 @@ export default function TimetableScreen({ navigation }) {
       setCourses(data || []);
     }
     setLoading(false);
-  }, []);
+  }, [selectedTerm]);
 
   useEffect(() => {
     fetchCourses();
@@ -172,8 +172,8 @@ export default function TimetableScreen({ navigation }) {
     if (courses.length === 0) return;
     // 1단계: 삭제 예고
     Alert.alert(
-      '時間割を全て削除',
-      `${courses.length}件の授業をすべて削除します。\nこの操作は元に戻せません。`,
+      `${termLabel(selectedTerm)}の時間割を全て削除`,
+      `${termLabel(selectedTerm)}の授業${courses.length}件をすべて削除します。\nこの操作は元に戻せません。`,
       [
         { text: 'キャンセル', style: 'cancel' },
         {
@@ -200,11 +200,12 @@ export default function TimetableScreen({ navigation }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // 본인 수업만 삭제 (user_id 기준)
+    // 본인 수업 중 표시 중인 학기만 삭제 (다른 학기 시간표는 남긴다)
     const { error } = await supabase
       .from('courses')
       .delete()
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .eq('term', selectedTerm);
 
     if (error) {
       Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
@@ -224,7 +225,23 @@ export default function TimetableScreen({ navigation }) {
       {/* ── 상단 헤더 (토스 스타일) ── */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.semesterLabel}>{getSemesterLabel()}</Text>
+          {/* 학기 라벨 탭 → 春学期 ⇄ 秋学期 전환. 오늘 기준 학기가 아니면 배지로 알려준다 */}
+          <TouchableOpacity
+            onPress={toggleTerm}
+            activeOpacity={0.6}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={styles.semesterRow}
+            accessibilityRole="button"
+            accessibilityLabel="学期を切り替える"
+          >
+            <Text style={styles.semesterLabel}>{semesterLabel(selectedTerm)}</Text>
+            <Ionicons name="swap-horizontal" size={14} color={colors.textSecondary} />
+            {selectedTerm !== currentTerm ? (
+              <View style={styles.termBadge}>
+                <Text style={styles.termBadgeText}>表示中</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>時間割</Text>
         </View>
         <View style={styles.headerActions}>
@@ -238,7 +255,7 @@ export default function TimetableScreen({ navigation }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() => navigation.navigate('CourseAdd')}
+            onPress={() => navigation.navigate('CourseAdd', { term: selectedTerm })}
             activeOpacity={0.8}
           >
             <Text style={styles.addButtonText}>＋ 追加</Text>
@@ -347,7 +364,7 @@ export default function TimetableScreen({ navigation }) {
                         if (course) {
                           setSelectedCourse(course);
                         } else {
-                          navigation.navigate('CourseAdd', { day: dayIndex, period });
+                          navigation.navigate('CourseAdd', { day: dayIndex, period, term: selectedTerm });
                         }
                       }}
                       activeOpacity={0.7}
@@ -483,10 +500,28 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     backgroundColor: colors.background, // 보더 제거, 배경 일체화
   },
+  semesterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: spacing.xs,
+  },
   semesterLabel: {
     ...typography.caption,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
+  },
+  termBadge: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    marginLeft: 2,
+  },
+  termBadgeText: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.primary,
+    fontWeight: '700',
   },
   headerTitle: {
     ...typography.title2,

@@ -21,6 +21,7 @@ import { typography } from '../../constants/typography';
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo } from '../../utils/university';
 import Card from '../../components/Card';
+import { getCurrentTerm } from '../../utils/timetable';
 
 const DAY_LABELS = ['月', '火', '水', '木', '金'];
 const PERIOD_COL_WIDTH = 36;
@@ -63,7 +64,7 @@ export default function FreeTimeScreen({ navigation }) {
 
       const [profileResult, coursesResult] = await Promise.all([
         supabase.from('profiles').select('nickname').eq('id', user.id).single(),
-        supabase.from('courses').select('day_of_week, period').eq('user_id', user.id),
+        supabase.from('courses').select('day_of_week, period').eq('user_id', user.id).eq('term', getCurrentTerm()),
       ]);
 
       setMyNickname(profileResult.data?.nickname ?? '');
@@ -158,7 +159,8 @@ export default function FreeTimeScreen({ navigation }) {
       const { data: friendCourses } = await supabase
         .from('courses')
         .select('day_of_week, period')
-        .eq('user_id', profile.id);
+        .eq('user_id', profile.id)
+        .eq('term', getCurrentTerm()); // 공강 비교는 지금 학기끼리
 
       const friendClassSet = new Set((friendCourses ?? []).map(c => `${c.day_of_week}-${c.period}`));
       const friendFreeSet = new Set();

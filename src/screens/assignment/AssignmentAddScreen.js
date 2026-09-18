@@ -21,6 +21,7 @@ import { typography } from '../../constants/typography';
 import Card from '../../components/Card';
 import { supabase } from '../../lib/supabase';
 import { validateAssignmentForm } from '../../utils/assignmentForm';
+import { getCurrentTerm } from '../../utils/timetable';
 
 // ──────────────────────────────────────────────────
 // 인라인 달력 컴포넌트
@@ -264,6 +265,7 @@ export default function AssignmentAddScreen({ navigation }) {
         .from('courses')
         .select('id')
         .eq('user_id', user.id)
+        .eq('term', getCurrentTerm()) // 같은 이름이 봄·가을 양쪽에 있으면 지금 학기 수업에 연결
         .ilike('name', courseName.trim())
         .maybeSingle();
 

@@ -65,10 +65,22 @@ export function getCourseStatus(period, nowMin, todayCoursesSorted, university) 
 }
 
 // 현재 날짜 기준 학기 판별 — 카에데 시간표는 春期(spring)/秋期(fall) 2개 행으로 나뉜다.
-// 4~9월 = 春期, 10~3월 = 秋期 (국사관 학사일정 기준)
+// 4~8월 = 春期, 9~3월 = 秋期 (일본 대학은 9월부터 秋学期 준비가 시작되므로 9월을 秋로 본다.
+// 시간표 화면·미리보기에 수동 전환이 있어 경계가 어긋나도 사용자가 바로잡을 수 있다)
 export function getCurrentTerm(date = new Date()) {
   const m = date.getMonth() + 1; // 1~12
-  return (m >= 4 && m <= 9) ? 'spring' : 'fall';
+  return (m >= 4 && m <= 8) ? 'spring' : 'fall';
+}
+
+// 학기 코드 → 화면 표시용 일본어 라벨
+export const TERM_LABELS = { spring: '春学期', fall: '秋学期' };
+export function termLabel(term) {
+  return TERM_LABELS[term] ?? '';
+}
+
+// 시간표 헤더용 "2026年 秋学期" 형식. 연도는 학기가 속한 학년도가 아니라 오늘 기준(단순 표기)
+export function semesterLabel(term, date = new Date()) {
+  return `${date.getFullYear()}年 ${termLabel(term)}`;
 }
 
 // 카에데 시간표 셀 id 해석
@@ -134,14 +146,21 @@ export function parseKaedeTimetable(cells, options = {}) {
 //   - day_of_week 는 0~4(월~금), period 는 1~8 만 허용 → 미상·토요일(5)은 'invalid'
 //   - 같은 요일+교시 칸이 이미 차 있으면 'occupied' 로 건너뜀(skip)
 //   - 입력 안에서 같은 칸이 중복되면 첫 항목만 남기고 나머지도 'occupied'
-//   - 学期(term)·학점·캠퍼스는 현재 스키마에 컬럼이 없어 저장하지 않음
-export function buildCourseRows(items, userId, existing = []) {
+//   - 学期(term): options.term('spring'|'fall', 기본 spring)으로 전부 통일 저장.
+//     '通年'(year)처럼 다른 값이 파서에서 와도 선택한 학기로 넣는다 (사용자가 미리보기에서 고른 학기가 우선)
+//   - 점유 검사는 같은 학기(term)의 기존 수업만 대상 — 봄·가을은 같은 칸을 따로 쓸 수 있다
+//   - 학점·캠퍼스는 현재 스키마에 컬럼이 없어 저장하지 않음
+export function buildCourseRows(items, userId, existing = [], options = {}) {
   const rows = [];
   const skipped = [];
+  const term = options.term === 'fall' ? 'fall' : 'spring';
 
   // 이미 점유된 칸 집합 ("요일-교시" 문자열). 이번에 추가되는 칸도 누적해 입력 내 중복까지 막는다.
+  // term 이 없는 옛 row(마이그레이션 전)는 안전하게 점유로 취급
   const occupied = new Set(
-    (existing || []).map(c => `${c.day_of_week}-${c.period}`)
+    (existing || [])
+      .filter(c => !c.term || c.term === term)
+      .map(c => `${c.day_of_week}-${c.period}`)
   );
 
   for (const item of (items || [])) {
@@ -173,6 +192,7 @@ export function buildCourseRows(items, userId, existing = []) {
       period: item.period,
       professor_name: item.professor ? String(item.professor).trim() : null,
       color_index: colorIndex,
+      term,
     };
     // 시라바스에서 채운 교실이 있을 때만 room 필드 포함(없으면 DB에 NULL)
     if (item.room && String(item.room).trim()) {

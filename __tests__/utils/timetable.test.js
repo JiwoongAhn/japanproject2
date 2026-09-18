@@ -6,6 +6,8 @@ import {
   parseKaedeCellId,
   parseKaedeTimetable,
   getCurrentTerm,
+  termLabel,
+  semesterLabel,
 } from '../../src/utils/timetable';
 
 describe('calculateFreePeriods', () => {
@@ -100,8 +102,34 @@ describe('buildCourseRows', () => {
     const { rows, skipped } = buildCourseRows(items, UID);
     expect(skipped).toHaveLength(0);
     expect(rows).toEqual([
-      { user_id: UID, name: '経営学概論', day_of_week: 0, period: 1, professor_name: '田中 一郎', color_index: null },
+      { user_id: UID, name: '経営学概論', day_of_week: 0, period: 1, professor_name: '田中 一郎', color_index: null, term: 'spring' },
     ]);
+  });
+
+  // B-01b: options.term 으로 학기 지정 — 항목의 term 값(通年 등)과 무관하게 선택한 학기로 통일
+  test('B-01b: term 옵션이 행에 반영되고 항목 term 을 덮어쓴다', () => {
+    const items = [{ name: '経営学', day: 0, period: 1, term: 'year' }];
+    const { rows } = buildCourseRows(items, UID, [], { term: 'fall' });
+    expect(rows[0].term).toBe('fall');
+    // 잘못된 값은 spring 으로 안전 처리
+    expect(buildCourseRows(items, UID, [], { term: 'x' }).rows[0].term).toBe('spring');
+  });
+
+  // B-01c: 점유 검사는 같은 학기만 — 봄 수업이 있는 칸에 가을 수업은 들어갈 수 있다
+  test('B-01c: 다른 학기의 기존 수업은 점유로 보지 않는다', () => {
+    const existing = [
+      { day_of_week: 0, period: 1, term: 'spring' },
+      { day_of_week: 0, period: 2 }, // term 없는 옛 row → 점유 취급
+    ];
+    const items = [
+      { name: '経営戦略', day: 0, period: 1 },
+      { name: '日本の経済', day: 0, period: 2 },
+    ];
+    const { rows, skipped } = buildCourseRows(items, UID, existing, { term: 'fall' });
+    expect(rows.map(r => r.name)).toEqual(['経営戦略']);
+    expect(skipped[0].reason).toBe('occupied');
+    // 같은 학기(spring)면 기존대로 막힌다
+    expect(buildCourseRows(items, UID, existing, { term: 'spring' }).rows).toHaveLength(0);
   });
 
   // B-02: 교수명 없으면 professor_name = null
@@ -210,6 +238,26 @@ describe('getCurrentTerm', () => {
   });
   test('1월 → fall (겨울)', () => {
     expect(getCurrentTerm(new Date('2026-01-15'))).toBe('fall');
+  });
+  // 경계: 3/31·8/31 까지가 각각 fall/spring, 4/1·9/1 부터 바뀜
+  test('경계 3/31 → fall, 4/1 → spring', () => {
+    expect(getCurrentTerm(new Date(2026, 2, 31))).toBe('fall');
+    expect(getCurrentTerm(new Date(2026, 3, 1))).toBe('spring');
+  });
+  test('경계 8/31 → spring, 9/1 → fall', () => {
+    expect(getCurrentTerm(new Date(2026, 7, 31))).toBe('spring');
+    expect(getCurrentTerm(new Date(2026, 8, 1))).toBe('fall');
+  });
+});
+
+describe('termLabel / semesterLabel', () => {
+  test('코드 → 일본어 라벨', () => {
+    expect(termLabel('spring')).toBe('春学期');
+    expect(termLabel('fall')).toBe('秋学期');
+    expect(termLabel('x')).toBe('');
+  });
+  test('헤더 라벨 형식', () => {
+    expect(semesterLabel('fall', new Date(2026, 8, 18))).toBe('2026年 秋学期');
   });
 });
 

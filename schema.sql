@@ -87,6 +87,8 @@ CREATE TABLE courses (
   -- 결석(欠席) 누적 횟수 — 사용자가 상세 모달에서 직접 증감
   late_count      SMALLINT NOT NULL DEFAULT 0 CHECK (late_count >= 0),
   -- 지각(遅刻) 누적 횟수 — 사용자가 상세 모달에서 직접 증감
+  term            TEXT NOT NULL DEFAULT 'spring' CHECK (term IN ('spring', 'fall')),
+  -- 학기: spring=春学期(4~8월) / fall=秋学期(9~3월). 같은 요일·교시 칸을 학기별로 따로 사용 (2026-09-18)
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -562,6 +564,7 @@ CREATE POLICY "같은 학교 강의평가만 조회" ON course_reviews
 
 -- 미인덱스 외래키 인덱스 (조인/삭제 성능)
 CREATE INDEX IF NOT EXISTS idx_assignments_course_id         ON assignments(course_id);
+CREATE INDEX IF NOT EXISTS idx_courses_user_term             ON courses(user_id, term);
 CREATE INDEX IF NOT EXISTS idx_assignments_user_id           ON assignments(user_id);
 CREATE INDEX IF NOT EXISTS idx_comment_likes_user_id         ON comment_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_comment_reports_user_id       ON comment_reports(user_id);

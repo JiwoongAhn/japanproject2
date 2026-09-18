@@ -20,6 +20,7 @@ import Card from '../../components/Card';
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 import { parseTimetable } from '../../utils/timetableRouter';
+import { getCurrentTerm } from '../../utils/timetable';
 
 // 학기 선택 칩 옵션
 const TERMS = [
@@ -40,7 +41,8 @@ export default function BulkAddInputScreen({ navigation, route }) {
     : `${universityLinksForHint.lmsLabel ?? '学校のシステム'}の時間割ページからコピー / 一度に貼れない場合は分けて貼り付けOK`;
 
   const [text, setText] = useState('');
-  const [term, setTerm] = useState('spring');
+  // 학기 기본값 = 오늘 날짜 기준 (4~8월 春, 9~3월 秋). 칩으로 바꿀 수 있다
+  const [term, setTerm] = useState(() => route?.params?.defaultTerm ?? getCurrentTerm());
   // 누적 모드를 위한 기존 결과 — 상위 화면에서 넘겨준 경우만 표시
   const existingResult = route?.params?.existingResult ?? null;
 

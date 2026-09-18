@@ -19,7 +19,7 @@ import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { supabase } from '../lib/supabase';
-import { getCourseStatus, getPeriodRanges } from '../utils/timetable';
+import { getCourseStatus, getPeriodRanges, getCurrentTerm } from '../utils/timetable';
 import { getTodayStr } from '../utils/date';
 import { getUniversityInfo, getUniversityLinks, findUniversityByEmail } from '../utils/university';
 import { universities } from '../constants/universities';
@@ -82,7 +82,7 @@ export default function HomeScreen({ navigation }) {
       const [coursesRes, assignmentsRes, postsRes] = await Promise.all([
         // 오늘 수업 (평일일 때만, 본인 수업만)
         dbDay >= 0 && dbDay <= 4 && user
-          ? supabase.from('courses').select('*').eq('user_id', user.id).eq('day_of_week', dbDay).order('period')
+          ? supabase.from('courses').select('*').eq('user_id', user.id).eq('term', getCurrentTerm()).eq('day_of_week', dbDay).order('period')
           : Promise.resolve({ data: [] }),
 
         // D-3 이내 미제출 과제

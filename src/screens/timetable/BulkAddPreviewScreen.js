@@ -21,7 +21,7 @@ import Card from '../../components/Card';
 import LoadingDots from '../../components/LoadingDots';
 import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
-import { buildCourseRows } from '../../utils/timetable';
+import { buildCourseRows, termLabel } from '../../utils/timetable';
 import { COURSE_COLORS } from '../../constants/courseColors';
 import { getSyllabusUrl, buildSyllabusFetchJS, matchRoom } from '../../utils/syllabusRoom';
 import { findUniversityByEmail } from '../../utils/university';
@@ -254,10 +254,12 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       const selectedItems = items.filter((_, idx) => selected.has(idx));
 
       // 기존 시간표를 불러와 중복 칸(같은 요일+교시) 검사에 사용
+      // 같은 학기의 기존 수업만 — 봄·가을은 같은 칸을 따로 쓸 수 있다
       const { data: existing, error: fetchError } = await supabase
         .from('courses')
-        .select('day_of_week, period')
-        .eq('user_id', user.id);
+        .select('day_of_week, period, term')
+        .eq('user_id', user.id)
+        .eq('term', defaultTerm);
 
       if (fetchError) {
         Alert.alert('お知らせ', '時間割の確認に失敗しました。もう一度お試しください');
@@ -266,7 +268,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       }
 
       // 파서 항목 → DB 행으로 변환 (불가·중복 항목은 skipped로 분리)
-      const { rows, skipped } = buildCourseRows(selectedItems, user.id, existing || []);
+      const { rows, skipped } = buildCourseRows(selectedItems, user.id, existing || [], { term: defaultTerm });
 
       if (rows.length === 0) {
         setSaving(false);
@@ -313,7 +315,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
         <TouchableOpacity onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.headerBack}>← 戻る</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>確認 ({selectedCount}件)</Text>
+        <Text style={styles.headerTitle}>{termLabel(defaultTerm)} 確認 ({selectedCount}件)</Text>
         <View style={styles.headerRight} />
       </View>
 
