@@ -125,9 +125,10 @@ export default function CourseDetailModal({
         {/* 드래그 핸들 바 */}
         <View style={styles.handle} />
 
-        {/* 작은 화면(SE 등)에서 시트가 화면보다 길어지면 안쪽만 스크롤 (핸들은 고정) */}
+        {/* 작은 화면(SE 등)에서 시트가 화면보다 길어지면 정보·출결 부분만 스크롤 (핸들·버튼은 고정) */}
         <ScrollView
-          contentContainerStyle={styles.sheetScroll}
+          style={styles.sheetScroll}
+          contentContainerStyle={styles.sheetScrollInner}
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
@@ -199,6 +200,10 @@ export default function CourseDetailModal({
           </View>
         ) : null}
 
+        </ScrollView>
+
+        {/* 버튼 블록 — 시트 하단 고정(스크롤 밖). 작은 화면에서도 항상 보인다 */}
+        <View style={styles.actions}>
         {/* 삭제 확인 단계 */}
         {confirmDelete ? (
           <>
@@ -265,7 +270,7 @@ export default function CourseDetailModal({
             </TouchableOpacity>
           </>
         )}
-        </ScrollView>
+        </View>
       </View>
     </View>
   );
@@ -292,7 +297,14 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   sheetScroll: {
-    paddingBottom: spacing.xxxl + spacing.xs,
+    flexShrink: 1, // maxHeight 안에서 버튼 블록 높이를 뺀 만큼만 차지
+  },
+  sheetScrollInner: {
+    paddingBottom: spacing.xs,
+  },
+  actions: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
   },
 
   handle: {

@@ -1,0 +1,105 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# shots_timetable.yaml — 시간표 학기 전환·수업 상세 시트 스크린샷 (2026-09-18 기능 확인용)
+#
+# 전제: 테스트 유저 onboarding_completed=true, courses 에 E2E_春の授業(spring)·E2E_秋の授業(fall) 존재
+# 필요 env: DEEP_LINK (shots_onboarding.yaml 과 동일)
+# 실행 예: maestro --device <UDID> test -e DEEP_LINK=... .maestro/shots_timetable.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+appId: com.jiwoongahn.unione
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 20000
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- runFlow:
+    when:
+      visible: "Toggle element inspector"
+    commands:
+      - tapOn:
+          point: "50%,12%"
+
+# 환영 → 동의 → 딥링크 로그인 (온보딩 플로우와 동일)
+- extendedWaitUntil:
+    visible: "始める"
+    timeout: 60000
+- tapOn: "始める"
+- extendedWaitUntil:
+    visible: "プライバシーポリシー・利用規約"
+    timeout: 15000
+- repeat:
+    while:
+      visible: "↓ 最後までスクロールしてください"
+    commands:
+      - scroll
+- tapOn: "上記のプライバシーポリシーおよび利用規約に同意します"
+- tapOn: "同意して始める"
+- extendedWaitUntil:
+    visible: "大学を選んでください"
+    timeout: 15000
+- openLink: ${DEEP_LINK}
+- tapOn:
+    text: "열기|開く|Open"
+    optional: true
+# 통지 프리퍼미션(기기 1회) → 나중에
+- extendedWaitUntil:
+    visible: "あとで設定する"
+    timeout: 30000
+- tapOn: "あとで設定する"
+
+# 1) 시간표 탭 — 9월이라 기본 秋学期, 가을 수업만 보여야 함
+- extendedWaitUntil:
+    visible: "ホーム"
+    timeout: 30000
+- tapOn: "時間割"
+- extendedWaitUntil:
+    visible: ".*E2E_秋の授業.*"
+    timeout: 20000
+- assertNotVisible: ".*E2E_春の授業.*"
+- takeScreenshot: 01_timetable_fall
+- extendedWaitUntil:
+    notVisible: "__never__"
+    timeout: 2000
+    optional: true
+
+# 2) 학기 라벨 탭 → 春学期 + 表示中 배지, 봄 수업만
+# ⚠️ 라벨은 accessibilityLabel 로 감싸져 있어 텍스트/라벨 탭이 안 먹는다(Maestro 특성) → 좌표 탭
+- tapOn:
+    point: "16%,6%"
+- extendedWaitUntil:
+    visible: ".*E2E_春の授業.*"
+    timeout: 20000
+- assertNotVisible: ".*E2E_秋の授業.*"
+- takeScreenshot: 02_timetable_spring
+
+# 3) 셀 탭 → 상세 시트 (2×2 버튼)
+- tapOn: ".*E2E_春の授業.*"
+- extendedWaitUntil:
+    visible: ".*課題を追加.*"
+    timeout: 10000
+- assertVisible: ".*編集する.*"
+- assertVisible: ".*シラバス.*"
+- assertVisible: "削除する"
+- takeScreenshot: 03_course_sheet
+- tapOn: "キャンセル"
+- extendedWaitUntil:
+    notVisible: ".*課題を追加.*"
+    timeout: 5000
+
+# 4) 一括 → 국사관은 kaede-i 접속 확인 알림 (붙여넣기 화면은 kaede 미지원 학교만)
+- tapOn: ".*一括.*"
+- extendedWaitUntil:
+    visible: "接続する"
+    timeout: 10000
+- takeScreenshot: 04_bulk_alert
+- tapOn: "キャンセル"
+- extendedWaitUntil:
+    notVisible: ".*課題を追加.*"
+    timeout: 5000
