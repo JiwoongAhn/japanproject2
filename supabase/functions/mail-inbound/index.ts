@@ -199,9 +199,9 @@ async function sendAuthCodePush(supabase: any, userId: string, code: string) {
   }
 }
 
-/** 본문 HTML에서 manaba 공지 URL 추출 */
+/** 본문 HTML에서 manaba 공지 URL 추출 (manaba.jp 계열 + 東洋 ToyoNet-ACE 자체 호스팅) */
 function extractManabaUrl(html: string): string | null {
-  const match = html.match(/https?:\/\/[a-zA-Z0-9.-]*manaba\.jp[^\s"'<>]*/);
+  const match = html.match(/https?:\/\/(?:[a-zA-Z0-9.-]*manaba\.jp|www\.ace\.toyo\.ac\.jp)[^\s"'<>]*/);
   return match ? match[0] : null;
 }
 
