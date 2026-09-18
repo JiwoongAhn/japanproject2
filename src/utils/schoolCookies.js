@@ -205,6 +205,7 @@ true;
 }
 
 // 사용자가 직접 로그인할 때 입력한 ID/PW를 캡처해 네이티브로 전달하는 JS
+// host: 어느 사이트 폼이었는지(manaba 자체 폼 / kaede 폼) — 저장 키를 호스트별로 나누기 위함
 export const CAPTURE_CREDENTIALS_JS = `
 (function(){
   var pwEl = document.querySelector('input[type=password]');
@@ -215,9 +216,26 @@ export const CAPTURE_CREDENTIALS_JS = `
     window.ReactNativeWebView.postMessage(JSON.stringify({
       type: 'credentials',
       id: texts[0] ? texts[0].value : '',
-      pw: pwEl.value
+      pw: pwEl.value,
+      host: location.host
     }));
   }, true);
+})();
+true;
+`;
+
+// 지금 페이지가 로그인 폼인지(비밀번호 칸 유무)를 알려주는 프로브.
+// manaba는 세션이 끊겨도 URL을 안 바꾸고(/ct/home 그대로) 그 자리에 자체 로그인 폼을 띄우므로
+// URL로는 만료를 알 수 없다 → DOM으로 판단한다. (2026-09-18 실측)
+export const PROBE_LOGIN_FORM_JS = `
+(function(){
+  try {
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'loginProbe',
+      hasPassword: !!document.querySelector('input[type=password]'),
+      url: location.href
+    }));
+  } catch (e) {}
 })();
 true;
 `;

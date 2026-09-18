@@ -49,7 +49,9 @@ export const MANABA_LOGOUT_URL = `${DEFAULT_MANABA_ORIGIN}/ct/logout`;
 export const MANABA_REMINDER_URL = `${DEFAULT_MANABA_ORIGIN}/ct/home_preferences_reminder`;
 
 // WebView에 주입하는 JS: 공지사항 리스트를 파싱해서 네이티브로 전달
-// 결과 메시지: { type:'notices', data:[{title,href,date,board}], pageTitle, currentUrl }
+// 결과 메시지: { type:'notices', data:[{title,href,date,board}], pageTitle, currentUrl, hasPassword }
+// hasPassword: 페이지에 비밀번호 칸이 있음 = 세션 만료로 로그인 폼이 뜬 상태.
+//   (국사관 manaba는 만료돼도 /ct/home URL 그대로 폼을 띄우므로 URL로는 알 수 없음 — 2026-09-18 실측)
 export const PARSE_NOTICES_JS = `
 (function() {
   try {
@@ -99,6 +101,7 @@ export const PARSE_NOTICES_JS = `
       data: notices,
       pageTitle: document.title,
       currentUrl: window.location.href,
+      hasPassword: !!document.querySelector('input[type=password]'),
     }));
   } catch(e) {
     window.ReactNativeWebView.postMessage(JSON.stringify({

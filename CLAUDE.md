@@ -118,7 +118,7 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 | Phase | 내용 | 상태 |
 |---|---|---|
 | Phase 1 | WebView + manaba 파싱 (국사관) | ✅ manaba 공지/원본 분리 + kaede 자동로그인 완료 (2026-05-21) |
-| Phase 2 | 세션 유지 | ✅ manaba=쿠키 영속 / kaede=ID·PW 자동로그인 (2026-05-21) |
+| Phase 2 | 세션 유지 | ✅ manaba=쿠키 영속 + 로그인 폼 감지는 URL 아닌 **비밀번호 칸 유무(프로브)** — 국사관 manaba는 만료돼도 /ct/home URL 그대로 자체 ID/PW 폼을 띄움(2026-09-18 실측). manaba 폼·kaede 폼 모두 ID/PW 기기 저장(호스트별 키)+자동입력. 홈 미리보기도 hasPassword로 만료 판정(캐시 오삭제 방지). 로그아웃은 /ct/logout 도착을 프로브로 확인한 뒤 정리(state 변경으로 WebView source 재로드→로그아웃 요청 취소되던 경합 수정). 시뮬 실기 검증 완료, **1.0.2 빌드에 포함 예정** |
 | Phase 3 | 푸시 알림 인프라 (배치잡·재시도) | ✅ 완료 |
 | Phase 4 | 새 공지 자동 감지 → 자동 푸시 | 🔄 인프라 배포·완주 (2026-07-04). 인증=**6자리 코드방식** 실측. E-분기(학생용 코드표시)+시스템메일 필터 ✅완료·배포·커밋(2026-07-07 `7ad53e2`). 남은=실기기 1회 검증(인증완료 메일 제목·코드추출) + 실제 공지 푸시 확인. 상세=memory `project_unipas_manaba_reminder_push` |
 

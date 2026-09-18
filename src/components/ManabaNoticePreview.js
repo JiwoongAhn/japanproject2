@@ -221,9 +221,11 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
       if (msg.type !== 'notices') return;
-      // 쿠키가 만료돼 로그인 페이지로 튕긴 경우 → 만료 플래그 set + 캐시 유지.
+      // 쿠키가 만료돼 로그인 폼이 뜬 경우 → 만료 플래그 set + 캐시 유지.
+      // URL(/ct/login)뿐 아니라 비밀번호 칸 유무(hasPassword)로도 판단 — 국사관 manaba는
+      // 만료돼도 /ct/home URL 그대로 폼을 띄워서, 이걸 안 보면 "공지 0건"으로 오판해 캐시를 지운다.
       // 자동 재로그인은 manaba 탭에서 사용자 행동으로 트리거 (봇 탐지 회피)
-      if (msg.currentUrl && msg.currentUrl.includes('/ct/login')) {
+      if (msg.hasPassword || (msg.currentUrl && msg.currentUrl.includes('/ct/login'))) {
         setSessionExpired(true);
         return;
       }
