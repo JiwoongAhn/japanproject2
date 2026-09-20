@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import Button from '../../components/Button';
 import PhoneMockup from '../../components/PhoneMockup';
 import { OPEN_MAIL_CONNECT_KEY } from '../../constants/onboardingFlags';
 import { computeMockSize } from '../../utils/layout';
+import { buildOnboardingCopy } from '../../utils/onboardingCopy';
+import { findUniversityByEmail, getUniversityLinks } from '../../utils/university';
 
 // === 슬라이드별 폰 화면 안에 들어갈 가짜 콘텐츠 ===
 
@@ -145,64 +147,46 @@ const CommunityMock = () => (
 );
 
 // 슬라이드 6: 최초 1회 로그인 안내 (매번 로그인해야 하나? 불안 해소)
-const OneTimeLoginMock = () => (
+// targets = 그 학교의 로그인 대상 라벨(예: manaba / kaede-i / WebClass), afterText = 결과 문구
+const OneTimeLoginMock = ({ targets = [], afterText = '' }) => (
   <View style={mockStyles.oneTimeWrap}>
     <View style={mockStyles.oneTimeBadge}>
       <Ionicons name="lock-open" size={30} color={colors.white} />
     </View>
     <Text style={mockStyles.oneTimeStep}>最初の1回だけ</Text>
-    <View style={mockStyles.oneTimeRow}>
-      <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-      <Text style={mockStyles.oneTimeRowText}>manaba にログイン</Text>
-    </View>
-    <View style={mockStyles.oneTimeRow}>
-      <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
-      <Text style={mockStyles.oneTimeRowText}>kaede-i にログイン</Text>
-    </View>
+    {targets.map((t) => (
+      <View key={t} style={mockStyles.oneTimeRow}>
+        <Ionicons name="checkmark-circle" size={16} color={colors.primary} />
+        <Text style={mockStyles.oneTimeRowText}>{t} にログイン</Text>
+      </View>
+    ))}
     <View style={mockStyles.oneTimeAfter}>
       <Ionicons name="sync" size={14} color={colors.gray500} />
-      <Text style={mockStyles.oneTimeAfterText}>あとは自動でつながります</Text>
+      <Text style={mockStyles.oneTimeAfterText}>{afterText}</Text>
     </View>
   </View>
 );
 
-const SLIDES = [
-  {
-    title: '時間割は、コピペで一括登録',
-    subtitle: '学校のシステムからコピーして貼り付けるだけ。\n1つずつ入力しなくても、まとめて取り込めます。',
-    Mock: TimetableMock,
-  },
-  {
-    title: 'manabaのお知らせを、\nスマホの通知に',
-    subtitle: '休講・課題・重要連絡を見逃さない。\nメールを開かなくても、通知で届きます。',
-    Mock: ManabaPushMock,
-  },
-  {
-    title: '課題の締切、もう忘れない',
-    subtitle: '提出期限が近い課題を一覧でお知らせ。\nうっかり忘れを防ぎます。',
-    Mock: AssignmentMock,
-  },
-  {
-    title: '授業のリアルな評判をチェック',
-    subtitle: '履修する前に、先輩たちの授業評価を確認。\n自分でも評価を投稿できます。',
-    Mock: ReviewMock,
-  },
-  {
-    title: '匿名で、気軽につながる',
-    subtitle: '同じ大学の仲間と、匿名の掲示板でおしゃべり。\n質問も雑談も気軽にどうぞ。',
-    Mock: CommunityMock,
-  },
-  {
-    title: '最初の1回だけ、ログイン',
-    subtitle: 'manabaとkaede-iは、最初に一度ログインするだけ。\nあとは毎回ログインしなくても自動でつながります。',
-    Mock: OneTimeLoginMock,
-  },
-];
+// 슬라이드 key → 폰 목업 컴포넌트. 문구·구성은 utils/onboardingCopy 가 학교 링크로 결정한다.
+const MOCK_BY_KEY = {
+  timetable: TimetableMock,
+  manabaPush: ManabaPushMock,
+  assignment: AssignmentMock,
+  review: ReviewMock,
+  community: CommunityMock,
+  oneTimeLogin: OneTimeLoginMock,
+};
 
 export default function OnboardingScreen({ navigation, route }) {
   const { session, refreshProfile } = useAuth();
   // 마이페이지 "使い方をもう一度見る"로 열면 review=true → DB 안 건드리고 닫기만 한다.
   const isReview = route?.params?.review === true;
+  // 내 학교에 실제로 있는 기능만 소개한다 (manaba/一括/포털 유무로 슬라이드·문구 분기)
+  const copy = useMemo(
+    () => buildOnboardingCopy(getUniversityLinks(findUniversityByEmail(session?.user?.email)?.id)),
+    [session?.user?.email]
+  );
+  const SLIDES = copy.slides;
   const [index, setIndex] = useState(0);
   const [finishing, setFinishing] = useState(false);
   const scrollRef = useRef(null);
@@ -328,7 +312,7 @@ export default function OnboardingScreen({ navigation, route }) {
         style={styles.scroll}
       >
         {SLIDES.map((slide, i) => {
-          const Mock = slide.Mock;
+          const Mock = MOCK_BY_KEY[slide.key];
           return (
             // 슬라이드 = 세로 ScrollView. 큰 화면은 내용이 페이저 높이(minHeight) 안에 들어와 스크롤이 없고,
             // 작은 화면에서 혹시 넘치면 잘리는 대신 세로 스크롤로 볼 수 있다.
@@ -342,7 +326,7 @@ export default function OnboardingScreen({ navigation, route }) {
               <View style={styles.mockArea}>
                 {mock.visible && (
                   <PhoneMockup width={mock.width}>
-                    <Mock />
+                    <Mock targets={slide.targets} afterText={slide.afterText} />
                   </PhoneMockup>
                 )}
               </View>
@@ -366,16 +350,9 @@ export default function OnboardingScreen({ navigation, route }) {
               <Ionicons name="checkmark-done" size={40} color={colors.white} />
             </View>
             <Text style={styles.summaryTitle}>準備はこれだけ！</Text>
-            <Text style={styles.summaryLead}>
-              最初のログイン1回で、あとはおまかせ。{'\n'}
-              時間割・課題・お知らせが自動でそろいます。
-            </Text>
+            <Text style={styles.summaryLead}>{copy.summaryLead}</Text>
             <View style={styles.summaryList}>
-              {[
-                'コピペで時間割を一括登録',
-                'manaba連携でお知らせをスマホ通知',
-                '授業評価と匿名掲示板も使える',
-              ].map((t) => (
+              {copy.summaryItems.map((t) => (
                 <View key={t} style={styles.summaryRow}>
                   <Ionicons name="checkmark-circle" size={18} color={colors.primary} />
                   <Text style={styles.summaryRowText}>{t}</Text>
@@ -397,6 +374,9 @@ export default function OnboardingScreen({ navigation, route }) {
         {isSummary ? (
           isReview ? (
             <Button title="閉じる" onPress={() => navigation?.goBack()} />
+          ) : !copy.showMailConnectCta ? (
+            // manaba 미사용 학교: 설정할 통지가 없으므로 단일 버튼으로 시작
+            <Button title="始める" onPress={() => handleFinish(false)} loading={finishing} />
           ) : (
             <>
               <Button

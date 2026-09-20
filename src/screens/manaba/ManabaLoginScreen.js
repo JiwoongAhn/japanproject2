@@ -18,21 +18,12 @@ import {
   restoreCookies,
   clearCookies,
   cookieKeyForUrl,
-  credKeyForUrl,
-  getCredentials,
-  saveCredentials,
-  buildAutoFillJS,
-  CAPTURE_CREDENTIALS_JS,
   PROBE_LOGIN_FORM_JS,
 } from '../../utils/schoolCookies';
-
-// 자동 재로그인(ID/PW 기기 저장 + 자동 입력)을 허용하는 로그인 폼 호스트.
-// - 내 학교 manaba 자체 폼 (국사관 manaba는 세션이 끊기면 같은 URL에 자체 ID/PW 폼을 띄움 — 2026-09-18 실측)
-// - kaede-i (국사관 학내 포털, 예전엔 manaba 만료 시 여기로 튕긴다고 가정했었음)
-// SSO 학교(Microsoft/SAML IdP)는 다단계 폼이라 자동 입력 대상에서 제외한다.
-const KAEDE_HOST = 'kaedei.kokushikan.ac.jp';
+// 자동 재로그인(ID/PW 기기 저장 + 자동 입력)은 공용 훅. 허용 호스트는 universityLinks.autoLoginHosts.
+import { useAutoRelogin } from '../../hooks/useAutoRelogin';
+import { hostOf } from '../../utils/autoLoginPolicy';
 import {
-  DEFAULT_MANABA_ORIGIN,
   manabaOriginFrom,
   manabaUrlsFor,
   supportsManaba,
@@ -56,15 +47,6 @@ const ENABLE_PINCH_ZOOM_JS = `
 true;
 `;
 import { clearCachedNotices } from '../../utils/manabaCache';
-import {
-  AUTO_RELOGIN_TIMEOUT_MS,
-  canAttemptAutoRelogin,
-  recordAutoReloginSuccess,
-  recordAutoReloginFailure,
-} from '../../utils/manabaSession';
-
-// URL에서 호스트만 뽑는다 (학교별 manaba 판별용)
-const hostOf = (url) => (String(url || '').match(/^https?:\/\/([^/]+)/) || [])[1] || '';
 
 // 로그인 성공 여부 판단: 로그인/로그아웃 페이지 이외의 manaba 페이지면 로그인 완료
 // (/ct/logout을 제외하지 않으면 로그아웃 도중 다시 로그인 처리되어 홈으로 튕김)
@@ -84,45 +66,31 @@ export default function ManabaLoginScreen({ navigation, route }) {
   const [ready, setReady] = useState(false);
   const [cookieHeader, setCookieHeader] = useState(null);
   const [canGoBack, setCanGoBack] = useState(false);
-  const [autoRelogging, setAutoRelogging] = useState(false);
-  // 현재 페이지 로드 사이클 내에서 한 번만 트리거하기 위한 가드 (연속 onLoadEnd 방지)
-  const autoReloggedRef = useRef(false);
-  // 타임아웃 타이머 핸들 — 자동 재로그인 트리거 시 시작, manaba 도착/언마운트 시 해제.
-  const autoReloginTimerRef = useRef(null);
-  // 사용자가 ログアウト를 직접 눌렀으면 이 화면에 있는 동안은 자동 입력을 하지 않는다.
-  // (로그인 폼을 인식하는 순간 다시 로그인해 버리면 로그아웃이 불가능해짐)
-  // 화면을 닫았다 다시 열면 ref가 초기화되므로 그때는 자동 로그인 대상.
-  const manualLogoutRef = useRef(false);
   // 내 학교의 manaba 주소를 결정한다.
-  // 우선순위: 화면 진입 시 넘겨받은 university → 로그인 이메일로 판정 → (없으면) 국사관.
+  // 우선순위: 화면 진입 시 넘겨받은 university → 로그인 이메일로 판정.
   // 학교마다 서브도메인이 다르므로(kokushikan/daito/asia-u …) 이걸 안 하면
-  // 타 학교 학생이 국사관 manaba 로그인 화면을 보게 된다.
+  // 타 학교 학생이 국사관 manaba 로그인 화면을 보게 된다. manaba 미사용 학교는 null(WebView 미렌더).
   const { session } = useAuth();
-  const manabaUrls = useMemo(() => {
+  const links = useMemo(() => {
     const fromRoute = route?.params?.university;
     const universityId =
       fromRoute?.id ?? fromRoute ?? findUniversityByEmail(session?.user?.email)?.id;
-    const origin =
-      manabaOriginFrom(getUniversityLinks(universityId)?.manabaUrl) ?? DEFAULT_MANABA_ORIGIN;
-    return manabaUrlsFor(origin);
+    return getUniversityLinks(universityId);
   }, [route?.params?.university, session?.user?.email]);
+  const manabaUrls = useMemo(() => {
+    const origin = manabaOriginFrom(links?.manabaUrl);
+    return origin ? manabaUrlsFor(origin) : null;
+  }, [links]);
 
-  const cookieKey = useMemo(() => cookieKeyForUrl(manabaUrls.login), [manabaUrls.login]);
-  // 자동 입력을 시도할 호스트 목록 (저장 키는 credKeyForUrl로 호스트별 분리)
-  const isAutoLoginHost = (url) => {
-    const h = hostOf(url);
-    return !!h && (h === hostOf(manabaUrls.origin) || h === KAEDE_HOST);
-  };
+  const cookieKey = useMemo(
+    () => (manabaUrls ? cookieKeyForUrl(manabaUrls.login) : ''),
+    [manabaUrls]
+  );
+  // 자동 재로그인 공용 훅 (허용 호스트 = links.autoLoginHosts: manaba 자체 폼 / kaede-i / SSO IdP)
+  const relogin = useAutoRelogin({ webViewRef, links });
 
   // 최후 방어선: manaba를 쓰지 않는 학교에서 이 화면에 들어오면 즉시 되돌린다.
-  // (위 manabaUrls는 크래시 방지용으로 국사관을 폴백하므로, 게이트가 없으면
-  //  타 학교 학생이 국사관 manaba 서버에 접속하게 된다)
-  const universityUsesManaba = useMemo(() => {
-    const fromRoute = route?.params?.university;
-    const universityId =
-      fromRoute?.id ?? fromRoute ?? findUniversityByEmail(session?.user?.email)?.id;
-    return supportsManaba(getUniversityLinks(universityId)?.manabaUrl);
-  }, [route?.params?.university, session?.user?.email]);
+  const universityUsesManaba = supportsManaba(links?.manabaUrl);
 
   useEffect(() => {
     if (universityUsesManaba) return;
@@ -140,6 +108,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
   // - getSavedCookieHeader: 첫 요청 headers.Cookie 보조용
   // 쿠키가 있으면 /ct/login 진입 시 서버가 /ct/home으로 보내 자동 파싱됨
   useEffect(() => {
+    if (!manabaUrls) return undefined;
     let mounted = true;
     (async () => {
       await restoreCookies(manabaUrls.login, cookieKey);
@@ -152,17 +121,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
     return () => {
       mounted = false;
     };
-  }, [cookieKey]);
-
-  // 언마운트 시 자동 재로그인 타이머가 떠 있다면 정리 (메모리 누수 방지)
-  useEffect(() => {
-    return () => {
-      if (autoReloginTimerRef.current) {
-        clearTimeout(autoReloginTimerRef.current);
-        autoReloginTimerRef.current = null;
-      }
-    };
-  }, []);
+  }, [manabaUrls, cookieKey]);
 
   // 로그아웃: 쿠키 제거 후 로그인 페이지로
   const handleLogout = () => {
@@ -172,7 +131,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
         text: 'ログアウト',
         style: 'destructive',
         onPress: () => {
-          manualLogoutRef.current = true;
+          relogin.markManualLogout();
           // 쿠키가 살아있는 상태에서 서버 로그아웃 URL로 이동 → 서버 세션 종료.
           // (manaba는 WebView 쿠키만 지워선 세션이 안 끊겨 다시 로그인 화면이 안 뜸)
           // 나머지 정리(쿠키·캐시 삭제)는 /ct/logout 도착을 프로브로 확인한 뒤 finishLogout에서.
@@ -198,17 +157,6 @@ export default function ManabaLoginScreen({ navigation, route }) {
     webViewRef.current?.injectJavaScript(`window.location.href = '${manabaUrls.login}';`);
   };
 
-  // 자동 재로그인 로컬 상태 리셋 (오버레이, 사이클 ref, 타이머).
-  // 글로벌 카운터는 별도로 헬퍼의 recordSuccess/Failure로 갱신.
-  const resetAutoReloginLocal = () => {
-    setAutoRelogging(false);
-    autoReloggedRef.current = false;
-    if (autoReloginTimerRef.current) {
-      clearTimeout(autoReloginTimerRef.current);
-      autoReloginTimerRef.current = null;
-    }
-  };
-
   // 페이지 이동 감지 — 뒤로가기 버튼 표시용.
   // 로그인 성공/실패 판정은 URL이 아니라 페이지 로드 후 프로브(비밀번호 칸 유무)로 한다.
   // (manaba는 세션이 끊겨도 /ct/home URL 그대로 로그인 폼을 띄우므로 URL만으론 오판)
@@ -226,19 +174,12 @@ export default function ManabaLoginScreen({ navigation, route }) {
     navigation.goBack();
   };
 
-  // WebView에서 파싱 결과를 수신
+  // WebView 메시지 수신 — 자격증명 캡처 / 로그인 폼 프로브
   const handleMessage = (event) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
-
-      // 사용자가 kaede 로그인 폼에 입력·제출한 ID/PW를 캡처해 암호화 저장.
-      // → 다음 세션 만료 시 자동 재로그인(buildAutoFillJS)에 사용. 서버 전송 없음.
-      if (msg.type === 'credentials' && msg.pw) {
-        const formUrl = msg.host ? `https://${msg.host}` : '';
-        if (isAutoLoginHost(formUrl)) {
-          console.log('[MANABA-DIAG] 로그인 폼 제출 감지 → ID/PW 저장:', msg.host);
-          saveCredentials(credKeyForUrl(formUrl), msg.id, msg.pw);
-        }
+      if (msg.type === 'credentials') {
+        relogin.handleCredentials(msg); // 허용 호스트의 폼이면 ID/PW 암호화 저장
         return;
       }
       if (msg.type === 'loginProbe') {
@@ -255,110 +196,25 @@ export default function ManabaLoginScreen({ navigation, route }) {
   };
 
   // 프로브 결과 처리 — 두 갈래
-  //   (1) 비밀번호 칸 있음 = 로그인 폼 (manaba 자체 폼 / kaede 폼)
-  //       → 캡처 훅 주입(수동 로그인 시 ID/PW 저장) + 저장된 ID/PW가 있으면 자동 입력·제출
+  //   (1) 비밀번호 칸 있음 = 로그인 폼 → 훅이 캡처 훅 주입 + 저장된 ID/PW 자동 입력·제출
   //   (2) 비밀번호 칸 없음 + 내 학교 manaba 호스트 = 로그인된 상태
-  //       → 성공 처리(카운터 리셋), 쿠키 저장, /login에 머물러 있으면 홈으로
+  //       → 성공 처리(카운터 리셋), 쿠키 저장
   const handleLoginProbe = (msg) => {
     const loadedUrl = msg.url || '';
 
     // 로그아웃 페이지 도착 = 서버 세션 종료 완료 → 정리 후 로그인 폼으로
-    if (manualLogoutRef.current && loadedUrl.includes('/ct/logout')) {
+    if (relogin.isManualLogout() && loadedUrl.includes('/ct/logout')) {
       console.log('[MANABA-DIAG] /ct/logout 도착 → 쿠키·캐시 정리 후 로그인 폼으로');
       finishLogout();
       return;
     }
 
-    if (msg.hasPassword) {
-      if (!isAutoLoginHost(loadedUrl)) {
-        // SSO IdP 등 자동 입력 대상이 아닌 로그인 폼 → 사용자가 직접 로그인
-        console.log('[MANABA-DIAG] 자동입력 비대상 로그인 폼:', hostOf(loadedUrl));
-        return;
-      }
-      const credKey = credKeyForUrl(loadedUrl);
-      // 로그인 폼이면 항상 자격증명 캡처 훅을 주입.
-      // (수동 로그인=값 저장 / 자동 채우기 제출=값 갱신. 훅은 __credHooked로 중복방지)
-      console.log('[MANABA-DIAG] 로그인 폼 감지(세션 만료):', hostOf(loadedUrl), '→ 캡처 훅 주입');
-      webViewRef.current?.injectJavaScript(CAPTURE_CREDENTIALS_JS);
-
-      if (manualLogoutRef.current) {
-        console.log('[MANABA-DIAG] 사용자 로그아웃 직후 → 자동 입력 생략');
-        return;
-      }
-      if (autoReloggedRef.current) {
-        // 자동 제출했는데 로그인 폼이 다시 떴다 = 서버가 거부(비밀번호 변경 등).
-        // 15초 타임아웃을 기다리지 않고 즉시 실패 처리해 오버레이를 걷고 수동 로그인으로 넘긴다.
-        console.log('[MANABA-DIAG] 자동 제출 후 로그인 폼 재출현 → 즉시 실패 처리');
-        if (autoReloginTimerRef.current) {
-          clearTimeout(autoReloginTimerRef.current);
-          autoReloginTimerRef.current = null;
-        }
-        recordAutoReloginFailure();
-        setAutoRelogging(false);
-        Alert.alert(
-          '自動ログインに失敗しました',
-          'IDまたはパスワードが変わった可能性があります。手動でログインしてください。'
-        );
-        return;
-      }
-
-      // 글로벌 정책 체크 — 누적 실패 + 쿨다운 (헬퍼가 판단)
-      if (!canAttemptAutoRelogin()) {
-        // [진단] 경로 A-쿨다운: 이번 세션에 이미 2번 자동 실패 → 포기
-        console.log('[MANABA-DIAG] 쿨다운(이미 2회 실패) → 수동 로그인 유도');
-        setAutoRelogging(false);
-        Alert.alert(
-          '自動ログインに失敗しました', // [診断A] 2回失敗して手動へ
-          'IDまたはパスワードが変わった可能性があります。手動でログインしてください。'
-        );
-        return;
-      }
-      autoReloggedRef.current = true;
-      setAutoRelogging(true);
-
-      // 타임아웃 가드 — 자동 제출 후 manaba 로그인 상태에 도달하지 않으면 실패로 기록
-      // (네트워크 멈춤/학교 서버 장애로 무한 대기 방지)
-      if (autoReloginTimerRef.current) clearTimeout(autoReloginTimerRef.current);
-      autoReloginTimerRef.current = setTimeout(() => {
-        autoReloginTimerRef.current = null;
-        recordAutoReloginFailure();
-        setAutoRelogging(false);
-        // [진단] 경로 A-실패: 자동 입력·제출했지만 manaba 도달 실패 (비번틀림/폼불일치/네트워크)
-        console.log('[MANABA-DIAG] 자동입력 후 manaba 미도달(타임아웃) → 실패 기록');
-        Alert.alert(
-          '自動ログインがタイムアウトしました', // [診断A] 自動入力したが失敗
-          'ネットワーク状態を確認して、もう一度お試しください。'
-        );
-      }, AUTO_RELOGIN_TIMEOUT_MS);
-
-      getCredentials(credKey).then((creds) => {
-        if (creds?.id && creds?.pw && webViewRef.current) {
-          // [진단] 경로 A-시도: 저장된 ID/PW로 자동 입력·제출
-          console.log('[MANABA-DIAG] 저장된 ID/PW 있음 → 자동 입력 시도');
-          webViewRef.current.injectJavaScript(buildAutoFillJS(creds.id, creds.pw));
-        } else {
-          // [진단] 경로 B: 저장된 자격증명이 없음 → 애초에 자동 시도 불가 (첫 로그인이면 정상)
-          console.log('[MANABA-DIAG] 저장된 ID/PW 없음 → 수동 로그인 필요');
-          if (autoReloginTimerRef.current) {
-            clearTimeout(autoReloginTimerRef.current);
-            autoReloginTimerRef.current = null;
-          }
-          setAutoRelogging(false);
-          Alert.alert(
-            '自動ログイン情報が見つかりません', // [診断B] 保存された認証情報なし
-            '一度手動でログインすると、次回から自動でログインできます。'
-          );
-        }
-      });
-      return;
-    }
+    if (relogin.handleProbe(msg)) return; // 로그인 폼이었음 (훅이 처리)
 
     // 비밀번호 칸 없음 → 내 학교 manaba 페이지면 로그인된 상태
     if (isLoggedIn(loadedUrl, manabaUrls.origin)) {
-      // [진단] manaba 도달 = 로그인 유지/자동 재로그인 성공
       console.log('[MANABA-DIAG] manaba 로그인 상태 확인 → 성공(카운터 리셋)');
-      recordAutoReloginSuccess();
-      resetAutoReloginLocal();
+      relogin.notifySuccess();
       // 로그인 직후 쿠키 저장 (다음 실행 때 자동 로그인)
       saveCookies(manabaUrls.login, cookieKey);
       if (!loggedIn) setLoggedIn(true); // 면책 고지 숨김 (단방향)
@@ -388,7 +244,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
       </View>
 
       {/* 쿠키 만료 시 자동 재로그인 오버레이 */}
-      {autoRelogging && (
+      {relogin.autoRelogging && (
         <View style={styles.parsingOverlay}>
           <LoadingDots />
           <Text style={styles.parsingText}>自動ログイン中…</Text>
@@ -403,7 +259,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
       )}
 
       {/* 쿠키 헤더 준비 후에만 WebView 렌더 (세션 쿠키가 첫 요청에 실리도록) */}
-      {ready && (
+      {ready && manabaUrls && (
         <WebView
           ref={webViewRef}
           source={{

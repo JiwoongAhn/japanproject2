@@ -37,7 +37,7 @@ export default function BulkAddInputScreen({ navigation, route }) {
   // 그 포털명을 추천하고, 나머지 학교엔 국사관 전용 포털명(kaedei)을 노출하지 않는다.
   const universityLinksForHint = getUniversityLinks(universityId);
   const pasteHint = universityLinksForHint.timetableUrl
-    ? 'kaedei → 推奨 / 一度に貼れない場合は分けて貼り付けOK'
+    ? `${universityLinksForHint.portalLabel ?? '学校のシステム'} → 推奨 / 一度に貼れない場合は分けて貼り付けOK`
     : `${universityLinksForHint.lmsLabel ?? '学校のシステム'}の時間割ページからコピー / 一度に貼れない場合は分けて貼り付けOK`;
 
   const [text, setText] = useState('');

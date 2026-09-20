@@ -8,6 +8,7 @@
 - **UI 스타일:** 토스 스타일 (primary #3182F6, background #F2F4F6)
 - **하단 탭:** 홈 / 시간표 / 과제 / 게시판 / マイページ (5개)
 - **학기 구분:** `courses.term`(spring/fall). 기준=`getCurrentTerm()`(4~8월 春, 9~3월 秋). 시간표 헤더 라벨 탭으로 전환, kaede 추출 시 학기 선택 알림 (2026-09-18)
+- **타 대학 "재로그인 0회" 일반화(2026-09-20):** 자동입력 허용 판정은 `universityLinks[id].autoLoginHosts` 단일 소스(`utils/autoLoginPolicy.js`), 자동 재로그인 로직은 `hooks/useAutoRelogin.js`를 manaba/리마인더/SchoolWeb 3화면이 공유. LMS(`lmsUrl`)는 외부 브라우저가 아니라 `SchoolWeb` 인앱(쿠키 영속)으로 연다. 一括取り込み는 `timetableUrl` 있는 학교만 노출. 온보딩 문구는 `utils/onboardingCopy.js`가 학교 링크로 분기. 게시판은 RLS(`profiles.university`)로 이미 전 대학 분리
 - **과목별 시라바스(1.0.2):** kaede 학교는 수업 시트 シラバス → `SchoolWeb`을 `syllabusTarget:{day,period,term}`으로 열어 MY時間割 도착 시 `td#Cell{열}_{교시}_{Spring|Autumn}` 안 링크의 `onclick=OpenSyllabusWindow(uid)`에서 uid를 읽어 같은 WebView에서 `/Syllabus/SyllabusViewVer2.aspx?uid=…`로 이동(`utils/syllabusLink.js`, 2026-09-18 Chrome 실측 검증). 원 링크는 window.open 새창이라 클릭 방식 불가. 실패 시 알림만. 타학교는 Top URL 인앱 브라우저 유지
 
 ---
@@ -19,6 +20,7 @@ cd /Users/jiwoong/claudeproject/japanproject
 npx expo start          # 모바일(Expo Go) + 웹 동시 지원 ← 권장
 npx expo start --web --port 8083   # 웹 브라우저만
 npm test                           # Jest (화면 수정 후 __tests__/screens.smoke.test.js 필수 확인)
+npm run check:bundle               # 화면/훅 수정 후 필수: Metro 번들+Hermes 컴파일로 import·문법 오류 검출 (Jest가 못 잡는 것)
 npm run e2e:layout                 # 온보딩 넘침 자동 판정 (5뷰포트, 웹 서버 자동 기동)
 scripts/shot-devices.sh            # 릴리스 전 시뮬레이터 4대 스크린샷 대조 시트 (--no-build 재사용)
 ```
@@ -85,11 +87,15 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - [ ] `id`, `name`, `location`, `emailDomain`, `campuses`
 - [ ] `periodRanges`: 학교 공식 홈페이지에서 "時限 時間割" 검색 → 없으면 생략 (국사관 기본값 자동 사용)
 
-**`src/constants/universityLinks.js`**
+**`src/constants/universityLinks.js`** (필드 설명은 파일 헤더 주석)
 - [ ] `homepageUrl`: 필수
-- [ ] `manabaUrl`: manaba.jp 도메인 확인된 경우에만
-- [ ] `lmsUrl` + `lmsLabel`: manaba 미사용 시 (WebClass, Blackboard, UNIPA 등)
+- [ ] `manabaUrl`: manaba.jp 도메인 확인된 경우에만 → お知らせ/리마인더 기능 자동 활성
+- [ ] `lmsUrl` + `lmsLabel`: manaba 미사용 시 (WebClass, UNIPA 등). 앱 내 브라우저(쿠키 유지)로 열림
+- [ ] `portalUrl` + `portalLabel`: 학사 포털이 LMS와 별도일 때 (국사관 kaede-i)
+- [ ] `autoLoginHosts`: ID/PW 자동입력을 허용할 로그인 폼 호스트(SSO IdP 포함). **공개 로그인 페이지 폼 구조를 `__tests__/utils/loginFormScripts.test.js`에 넣어 검증 후에만** 추가. 없으면 쿠키 유지만(안전)
+- [ ] `timetableUrl`: 一括取り込み 전용 파서가 있을 때만 (없으면 一括 버튼 자동 숨김)
 - [ ] `syllabusUrl`: 외부 공개 URL만 (로그인 필요 URL 생략)
+- [ ] manaba 학교면 `supabase/functions/mail-inbound` `ALLOWED_SENDERS`에 발신 도메인 추가
 
 ---
 

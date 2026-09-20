@@ -22,8 +22,16 @@ describe('수정한 화면 모듈 로드 스모크', () => {
     ['MailConnectOnboardingScreen', '../src/screens/auth/MailConnectOnboardingScreen'],
     ['OnboardingScreen', '../src/screens/auth/OnboardingScreen'],
     ['PhoneMockup', '../src/components/PhoneMockup'],
+    ['SchoolWebViewScreen', '../src/screens/SchoolWebViewScreen'],
+    ['TimetableScreen', '../src/screens/timetable/TimetableScreen'],
   ])('%s 가 로드된다', (name, path) => {
     const mod = require(path);
     expect(typeof mod.default).toBe('function');
+  });
+
+  // 화면들이 공유하는 훅 (named export)
+  it('useAutoRelogin 훅이 로드된다', () => {
+    const mod = require('../src/hooks/useAutoRelogin');
+    expect(typeof mod.useAutoRelogin).toBe('function');
   });
 });

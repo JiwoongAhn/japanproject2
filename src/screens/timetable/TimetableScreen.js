@@ -104,30 +104,29 @@ export default function TimetableScreen({ navigation }) {
     [courses]
   );
 
-  // 一括取り込み: kaede 시간표 URL이 있으면 학교사이트 자동접속, 없으면 텍스트 붙여넣기로 폴백
+  // 一括取り込み: 전용 파서가 있는 학교(timetableUrl, 현재 국사관 kaede-i)만.
+  // 그 외 학교는 버튼 자체를 숨긴다 (텍스트 붙여넣기 폴백은 기대와 달라 노출하지 않음 — 2026-09-20 결정).
+  const canBulkImport = !!links.timetableUrl;
+  const portalLabel = links.portalLabel ?? '学校のシステム';
   const handleBulkImport = () => {
-    if (links.timetableUrl) {
-      Alert.alert(
-        '時間割の一括取り込み',
-        'kaede-i にログインして時間割を自動で取り込みます。よろしいですか?',
-        [
-          { text: 'キャンセル', style: 'cancel' },
-          {
-            text: '接続する',
-            onPress: () =>
-              navigation.navigate('SchoolWeb', {
-                url: links.timetableUrl,
-                title: '時間割の取り込み',
-                autoLogin: true,
-                forTimetableImport: true, // 이 경로(일괄추가)에서만 '時間割を取り込む' 버튼 노출
-              }),
-          },
-        ]
-      );
-    } else {
-      // kaede 미지원 학교 → 텍스트 붙여넣기 폴백
-      navigation.navigate('BulkAddInput');
-    }
+    if (!canBulkImport) return;
+    Alert.alert(
+      '時間割の一括取り込み',
+      `${portalLabel} にログインして時間割を自動で取り込みます。よろしいですか?`,
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: '接続する',
+          onPress: () =>
+            navigation.navigate('SchoolWeb', {
+              url: links.timetableUrl,
+              title: '時間割の取り込み',
+              autoLogin: true,
+              forTimetableImport: true, // 이 경로(일괄추가)에서만 '時間割を取り込む' 버튼 노출
+            }),
+        },
+      ]
+    );
   };
 
   // 과목별 시라바스: kaede-i(timetableUrl 있는 학교)만. MY時間割를 WebView로 열고
@@ -261,14 +260,16 @@ export default function TimetableScreen({ navigation }) {
           <Text style={styles.headerTitle}>時間割</Text>
         </View>
         <View style={styles.headerActions}>
-          <TouchableOpacity
-            style={styles.bulkButton}
-            onPress={handleBulkImport}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="clipboard-outline" size={15} color={colors.primary} />
-            <Text style={styles.bulkButtonText}>一括</Text>
-          </TouchableOpacity>
+          {canBulkImport && (
+            <TouchableOpacity
+              style={styles.bulkButton}
+              onPress={handleBulkImport}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="clipboard-outline" size={15} color={colors.primary} />
+              <Text style={styles.bulkButtonText}>一括</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => navigation.navigate('CourseAdd', { term: selectedTerm })}
@@ -315,15 +316,19 @@ export default function TimetableScreen({ navigation }) {
               <Text style={styles.emptyEmoji}>📅</Text>
               <Text style={styles.emptyText}>時間割がまだありません</Text>
               <Text style={styles.emptySubText}>
-                授業を追加するか、一括取り込みで{'\n'}かんたんに始めましょう
+                {canBulkImport
+                  ? '授業を追加するか、一括取り込みで\nかんたんに始めましょう'
+                  : '右上の＋から授業を追加して\n今週の予定をひと目で確認しましょう'}
               </Text>
-              <TouchableOpacity
-                style={styles.emptyButton}
-                onPress={handleBulkImport}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.emptyButtonText}>📋 時間割を一括取り込み</Text>
-              </TouchableOpacity>
+              {canBulkImport && (
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={handleBulkImport}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.emptyButtonText}>📋 時間割を一括取り込み</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 

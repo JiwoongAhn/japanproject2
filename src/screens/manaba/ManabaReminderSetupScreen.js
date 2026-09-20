@@ -17,7 +17,6 @@ import Button from '../../components/Button';
 import LoadingDots from '../../components/LoadingDots';
 import { supabase } from '../../lib/supabase';
 import {
-  DEFAULT_MANABA_ORIGIN,
   manabaOriginFrom,
   manabaUrlsFor,
   supportsManaba,
@@ -30,19 +29,10 @@ import {
   saveCookies,
   getSavedCookieHeader,
   cookieKeyForUrl,
-  credKeyForUrl,
-  getCredentials,
-  buildAutoFillJS,
+  PROBE_LOGIN_FORM_JS,
 } from '../../utils/schoolCookies';
-import {
-  AUTO_RELOGIN_TIMEOUT_MS,
-  canAttemptAutoRelogin,
-  recordAutoReloginSuccess,
-  recordAutoReloginFailure,
-} from '../../utils/manabaSession';
-
-// 세션 만료 시 manaba가 리디렉션하는 학교 SSO(kaede) 주소 — ManabaLoginScreen과 동일
-const KAEDE_URL = 'https://kaedei.kokushikan.ac.jp';
+// 세션 만료 시 자동 재로그인 — ManabaLoginScreen과 같은 공용 훅 (프로브: 비밀번호 칸 유무로 판정)
+import { useAutoRelogin } from '../../hooks/useAutoRelogin';
 
 // 폴링 설정: 3초 간격으로 최대 6분(120회)까지 인증 여부 확인.
 // manaba 인증코드 메일이 서버 도착까지 3~5분 걸리는 사례를 실측(2026-07-09)했기에
@@ -92,17 +82,13 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
 
   const webViewRef = useRef(null);
   const pollTimerRef = useRef(null);
-  // 자동 재로그인용: 사이클 내 1회 트리거 가드 / 타임아웃 타이머 / 리마인더 유도 1회 가드
-  const autoReloggedRef = useRef(false);
-  const autoReloginTimerRef = useRef(null);
+  // 리마인더 페이지 유도 1회 가드
   const redirectedToReminderRef = useRef(false);
 
   const [ready, setReady] = useState(false);
   const [cookieHeader, setCookieHeader] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  // 세션 만료로 kaede 자동 재로그인 진행 중 (오버레이 표시용)
-  const [autoRelogging, setAutoRelogging] = useState(false);
   // manaba가 보낸 6자리 인증코드 (서버 폴링으로 수신)
   const [pendingCode, setPendingCode] = useState(null);
   // 화면 상태:
@@ -113,22 +99,23 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
 
   // 내 학교의 manaba 주소 (리마인더 설정 페이지도 학교별 서브도메인)
   const { session } = useAuth();
-  const manabaUrls = useMemo(() => {
-    const universityId = findUniversityByEmail(session?.user?.email)?.id;
-    const origin =
-      manabaOriginFrom(getUniversityLinks(universityId)?.manabaUrl) ?? DEFAULT_MANABA_ORIGIN;
-    return manabaUrlsFor(origin);
-  }, [session?.user?.email]);
-  const cookieKey = useMemo(() => cookieKeyForUrl(manabaUrls.login), [manabaUrls.login]);
-
-  // 최후 방어선: manaba 미사용 학교에서 진입 시 되돌린다 (국사관 서버 접속 방지)
-  const universityUsesManaba = useMemo(
-    () =>
-      supportsManaba(
-        getUniversityLinks(findUniversityByEmail(session?.user?.email)?.id)?.manabaUrl
-      ),
+  const links = useMemo(
+    () => getUniversityLinks(findUniversityByEmail(session?.user?.email)?.id),
     [session?.user?.email]
   );
+  // manaba 미사용 학교는 null (WebView 미렌더 + 아래 게이트가 되돌림)
+  const manabaUrls = useMemo(() => {
+    const origin = manabaOriginFrom(links?.manabaUrl);
+    return origin ? manabaUrlsFor(origin) : null;
+  }, [links]);
+  const cookieKey = useMemo(
+    () => (manabaUrls ? cookieKeyForUrl(manabaUrls.login) : ''),
+    [manabaUrls]
+  );
+  const relogin = useAutoRelogin({ webViewRef, links });
+
+  // 최후 방어선: manaba 미사용 학교에서 진입 시 되돌린다 (국사관 서버 접속 방지)
+  const universityUsesManaba = supportsManaba(links?.manabaUrl);
 
   useEffect(() => {
     if (universityUsesManaba) return;
@@ -139,10 +126,10 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       { cancelable: false }
     );
   }, [universityUsesManaba, navigation]);
-  const kaedeCredKey = useMemo(() => credKeyForUrl(KAEDE_URL), []);
 
   // 저장된 manaba 쿠키 헤더를 불러온 뒤 WebView 렌더 (이미 로그인된 세션 재사용)
   useEffect(() => {
+    if (!manabaUrls) return undefined;
     let mounted = true;
     getSavedCookieHeader(cookieKey).then((header) => {
       if (mounted) {
@@ -153,13 +140,12 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     return () => {
       mounted = false;
     };
-  }, [cookieKey]);
+  }, [manabaUrls, cookieKey]);
 
-  // 언마운트 시 폴링·재로그인 타이머 정리
+  // 언마운트 시 폴링 타이머 정리 (재로그인 타이머는 훅이 정리)
   useEffect(() => {
     return () => {
       if (pollTimerRef.current) clearTimeout(pollTimerRef.current);
-      if (autoReloginTimerRef.current) clearTimeout(autoReloginTimerRef.current);
     };
   }, []);
 
@@ -218,16 +204,6 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     };
   }, [ready, status]);
 
-  // 자동 재로그인 로컬 상태 리셋 (오버레이·사이클 ref·타이머). 글로벌 카운터는 헬퍼로 별도 갱신.
-  const resetAutoReloginLocal = () => {
-    setAutoRelogging(false);
-    autoReloggedRef.current = false;
-    if (autoReloginTimerRef.current) {
-      clearTimeout(autoReloginTimerRef.current);
-      autoReloginTimerRef.current = null;
-    }
-  };
-
   const handleCopy = async () => {
     // 코드 단계에서는 인증코드를, 그 전에는 전달주소를 복사
     const value = isCodeStep ? pendingCode : address;
@@ -237,58 +213,29 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  // 페이지 로드 완료 → 쿠키 갱신 + (세션 만료 시)자동 재로그인 + 리마인더 페이지 유도·강조
-  const handleLoadEnd = ({ nativeEvent }) => {
+  // 페이지 로드 완료 → 쿠키 갱신 + 로그인 폼 프로브 (결과는 handleLoginProbe)
+  const handleLoadEnd = () => {
     setLoading(false);
     saveCookies(manabaUrls.login, cookieKey);
-    const url = nativeEvent?.url || '';
+    webViewRef.current?.injectJavaScript(PROBE_LOGIN_FORM_JS);
+  };
 
-    // ① 세션 만료 → kaede SSO 로그인 페이지로 튕김 → 저장된 자격증명으로 자동 재로그인
-    if (url.includes('kaedei.kokushikan.ac.jp') && !autoReloggedRef.current) {
-      // 글로벌 정책(누적 실패 2회 + 5분 쿨다운) 위반이면 자동 시도 중단 → 수동 로그인 폼 노출
-      if (!canAttemptAutoRelogin()) {
-        setAutoRelogging(false);
-        Alert.alert(
-          '自動ログインに失敗しました',
-          'IDまたはパスワードが変わった可能性があります。\n画面のフォームから手動でログインしてください。'
-        );
-        return;
-      }
-      autoReloggedRef.current = true;
-      setAutoRelogging(true);
+  // WebView 메시지 — 자격증명 캡처 / 로그인 폼 프로브
+  const handleMessage = (event) => {
+    try {
+      const msg = JSON.parse(event.nativeEvent.data);
+      if (msg.type === 'credentials') relogin.handleCredentials(msg);
+      else if (msg.type === 'loginProbe') handleLoginProbe(msg);
+    } catch (_) {}
+  };
 
-      // 타임아웃 가드 — 자동 제출 후 manaba로 돌아오지 않으면 실패로 기록 (무한 대기 방지)
-      if (autoReloginTimerRef.current) clearTimeout(autoReloginTimerRef.current);
-      autoReloginTimerRef.current = setTimeout(() => {
-        autoReloginTimerRef.current = null;
-        recordAutoReloginFailure();
-        setAutoRelogging(false);
-        Alert.alert(
-          '自動ログインがタイムアウトしました',
-          'ネットワーク状態を確認して、もう一度お試しください。'
-        );
-      }, AUTO_RELOGIN_TIMEOUT_MS);
-
-      getCredentials(kaedeCredKey).then((creds) => {
-        if (creds?.id && creds?.pw && webViewRef.current) {
-          webViewRef.current.injectJavaScript(buildAutoFillJS(creds.id, creds.pw));
-        } else {
-          // 저장된 자격증명 없음 → 오버레이·타이머 해제하고 수동 로그인에 맡김
-          if (autoReloginTimerRef.current) {
-            clearTimeout(autoReloginTimerRef.current);
-            autoReloginTimerRef.current = null;
-          }
-          setAutoRelogging(false);
-        }
-      });
-      return;
-    }
-
-    // ② manaba 페이지 도달 (로그인 폼 제외) — 내 학교 manaba 호스트인지로 판정
+  // ① 비밀번호 칸 있음 = 세션 만료(manaba 자체 폼 / kaede 등) → 훅이 자동 재로그인
+  // ② 비밀번호 칸 없음 + 내 학교 manaba 페이지 = 로그인 상태 → 리마인더 페이지 유도·강조
+  const handleLoginProbe = (msg) => {
+    if (relogin.handleProbe(msg)) return;
+    const url = msg.url || '';
     if (manabaUrls?.origin && url.startsWith(manabaUrls.origin) && !url.includes('/ct/login')) {
-      // 자동 재로그인이 진행 중이었다면 성공 처리 (로컬+글로벌 리셋)
-      if (autoRelogging) recordAutoReloginSuccess();
-      resetAutoReloginLocal();
+      relogin.notifySuccess(); // 자동 재로그인 중이었다면 성공 처리(글로벌·로컬 리셋)
 
       if (url.includes('home_preferences_reminder')) {
         // 리마인더 페이지 도착 → 携帯칸 강조
@@ -500,7 +447,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       )}
 
       {/* manaba 리마인더 페이지 WebView (저장된 쿠키로 자동 로그인 상태) */}
-      {ready && (
+      {ready && manabaUrls && (
         <WebView
           ref={webViewRef}
           source={{
@@ -511,6 +458,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
           applicationNameForUserAgent={UNIPAS_USER_AGENT}
           injectedJavaScriptBeforeContentLoaded={DISABLE_AUTOCAPS_JS}
           onLoadEnd={handleLoadEnd}
+          onMessage={handleMessage}
           onError={() => {
             setLoading(false);
             Alert.alert(
@@ -561,7 +509,7 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
       )}
 
       {/* 세션 만료 자동 재로그인 오버레이 */}
-      {autoRelogging && (
+      {relogin.autoRelogging && (
         <View style={styles.overlay}>
           <LoadingDots />
           <Text style={styles.overlayText}>自動ログイン中…</Text>

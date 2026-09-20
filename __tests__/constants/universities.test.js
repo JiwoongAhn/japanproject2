@@ -6,6 +6,11 @@ import { universities } from '../../src/constants/universities';
 import { universityLinks } from '../../src/constants/universityLinks';
 import { getUniversityInfo, getUniversityLinks } from '../../src/utils/university';
 import { getPeriodRanges, PERIOD_RANGES } from '../../src/utils/timetable';
+import { hostOf } from '../../src/utils/autoLoginPolicy';
+
+// autoLoginHosts에 넣을 수 있는 외부 SSO IdP (학교 자체 호스트가 아닌 것).
+// Microsoft(login.microsoftonline.com)는 2단계 폼이라 자동입력 미지원 → 일부러 넣지 않는다.
+const ALLOWED_IDP_SUFFIXES = ['.ex-tic.com', '.secioss.com'];
 
 // 도메인 형식: 소문자/숫자/하이픈 라벨을 점으로 연결, @·공백·프로토콜 없음
 const DOMAIN_RE = /^(?!-)[a-z0-9-]+(\.[a-z0-9-]+)+$/;
@@ -93,7 +98,7 @@ describe('universities ↔ universityLinks 교차 정합', () => {
     });
 
     it('값이 있는 URL 필드는 모두 https 형식이다 (빈 문자열은 허용)', () => {
-      const urlFields = ['manabaUrl', 'kaedeUrl', 'lmsUrl', 'syllabusUrl', 'portalUrl', 'timetableUrl'];
+      const urlFields = ['manabaUrl', 'lmsUrl', 'syllabusUrl', 'portalUrl', 'timetableUrl'];
       urlFields.forEach((f) => {
         if (link[f]) expect(isHttpsUrl(link[f])).toBe(true);
       });
@@ -102,6 +107,34 @@ describe('universities ↔ universityLinks 교차 정합', () => {
     it('lmsUrl과 lmsLabel은 함께 있거나 함께 없어야 한다', () => {
       expect(Boolean(link.lmsUrl)).toBe(Boolean(link.lmsLabel));
     });
+
+    it('portalUrl과 portalLabel은 함께 있거나 함께 없어야 한다', () => {
+      expect(Boolean(link.portalUrl)).toBe(Boolean(link.portalLabel));
+    });
+
+    it('kaedeUrl(구 필드)은 더 이상 쓰지 않는다 → portalUrl/portalLabel 로', () => {
+      expect(link.kaedeUrl).toBeUndefined();
+    });
+
+    it('autoLoginHosts가 있으면 호스트명 배열이고, 이 학교의 URL 호스트이거나 허용된 SSO IdP 다', () => {
+      // 오타로 엉뚱한 사이트의 로그인 폼에 비밀번호를 넣는 사고를 막는 안전망.
+      if (link.autoLoginHosts === undefined) return;
+      expect(Array.isArray(link.autoLoginHosts)).toBe(true);
+      const ownHosts = ['manabaUrl', 'lmsUrl', 'portalUrl', 'timetableUrl']
+        .map((f) => hostOf(link[f]))
+        .filter(Boolean);
+      link.autoLoginHosts.forEach((h) => {
+        expect(h).toMatch(/^[a-z0-9.-]+$/); // 프로토콜·경로 없음, 소문자
+        const ok = ownHosts.includes(h) || ALLOWED_IDP_SUFFIXES.some((sfx) => h.endsWith(sfx));
+        expect(ok).toBe(true);
+      });
+    });
+  });
+
+  it('L-03: 국사관은 manaba 자체 폼과 kaede-i 둘 다 자동입력 대상이다 (회귀 방지)', () => {
+    expect(universityLinks.kokushikan.autoLoginHosts).toEqual(
+      expect.arrayContaining(['kokushikan.manaba.jp', 'kaedei.kokushikan.ac.jp'])
+    );
   });
 });
 

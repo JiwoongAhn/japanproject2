@@ -1,4 +1,4 @@
-// 학교 사이트 WebView 공통 유틸 (kaede-i / manaba 공용)
+// 학교 사이트 WebView 공통 유틸 (manaba / kaede-i / 타교 LMS 공용, 호스트별 키로 분리)
 //
 // [자동 대문자 끄기]
 //   injectedJavaScriptBeforeContentLoaded용 스크립트. input이 DOM에 생기는
@@ -12,14 +12,9 @@
 //   ※ 비밀번호는 저장하지 않음. 쿠키만 저장 (CLAUDE.md 원칙 준수)
 import CookieManager from './cookieManager';
 import { LargeSecureStore } from '../lib/supabase';
+import { hostOf } from './autoLoginPolicy'; // URL → 호스트 (저장 키·도메인 매칭 공용)
 
 const store = new LargeSecureStore();
-
-// URL에서 호스트 추출 ('https://kaedei.kokushikan.ac.jp/x' → 'kaedei.kokushikan.ac.jp')
-function hostOf(url) {
-  const m = (url || '').match(/^https?:\/\/([^/]+)/);
-  return m ? m[1] : '';
-}
 
 // 입력칸 자동 대문자/자동수정 끄기 (injectedJavaScriptBeforeContentLoaded용)
 // 학교 ID는 보통 소문자라 첫 글자 자동 대문자를 막는다.

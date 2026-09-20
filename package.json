@@ -12,7 +12,8 @@
     "e2e": "playwright test --config=e2e/playwright.config.js",
     "e2e:ui": "playwright test --config=e2e/playwright.config.js --ui",
     "e2e:report": "playwright show-report playwright-report",
-    "e2e:layout": "playwright test --config=e2e/layout.config.js"
+    "e2e:layout": "playwright test --config=e2e/layout.config.js",
+    "check:bundle": "expo export --platform ios --output-dir /tmp/unione-bundle-check && echo '✅ bundle OK'"
   },
   "jest": {
     "preset": "jest-expo",

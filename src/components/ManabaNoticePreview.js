@@ -19,7 +19,6 @@ import { spacing, radius, shadow } from '../constants/spacing';
 import { NOTICE_COACH_SHOWN_KEY } from '../constants/onboardingFlags';
 import { parseCoachFlag, shouldShowCoachOnTap } from '../utils/noticeCoach';
 import {
-  DEFAULT_MANABA_ORIGIN,
   manabaOriginFrom,
   manabaUrlsFor,
   PARSE_NOTICES_JS,
@@ -159,13 +158,16 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
   const [sessionExpired, setSessionExpired] = useState(false);
   // 내 학교의 manaba 주소 (학교마다 서브도메인이 다름).
   // 이걸 안 하면 大東文化大·亜細亜大 학생의 홈 위젯이 국사관 manaba에 접속한다.
+  // manaba 미사용 학교면 null — HomeScreen이 manabaUrl로 게이트하지만 폴백으로 국사관 서버에 붙지 않도록 이중 방어
   const manabaUrls = useMemo(() => {
     const universityId = findUniversityByEmail(user?.email)?.id;
-    const origin =
-      manabaOriginFrom(getUniversityLinks(universityId)?.manabaUrl) ?? DEFAULT_MANABA_ORIGIN;
-    return manabaUrlsFor(origin);
+    const origin = manabaOriginFrom(getUniversityLinks(universityId)?.manabaUrl);
+    return origin ? manabaUrlsFor(origin) : null;
   }, [user?.email]);
-  const cookieKey = useMemo(() => cookieKeyForUrl(manabaUrls.login), [manabaUrls.login]);
+  const cookieKey = useMemo(
+    () => (manabaUrls ? cookieKeyForUrl(manabaUrls.login) : ''),
+    [manabaUrls]
+  );
 
   // 첫 탭 사용법 코치 모달 상태.
   //  coachShown: null=플래그 로드 전 / false=아직 안 봄 / true=이미 봄
@@ -375,7 +377,7 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
 
   // 숨은 WebView (쿠키 있을 때만): 화면 밖에서 manaba 홈을 파싱
   const hiddenWebView =
-    cookieHeader != null ? (
+    cookieHeader != null && manabaUrls ? (
       <WebView
         key={reloadKey}
         source={{ uri: manabaUrls.home, headers: { Cookie: cookieHeader } }}

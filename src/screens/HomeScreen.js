@@ -313,7 +313,13 @@ export default function HomeScreen({ navigation }) {
                         { text: '閉じる', style: 'cancel' },
                         {
                           text: `${links.lmsLabel ?? 'LMS'}を開く`,
-                          onPress: () => WebBrowser.openBrowserAsync(links.lmsUrl),
+                          // 앱 내 브라우저(쿠키 유지·자동입력)로 — 외부 브라우저면 매번 재로그인
+                          onPress: () =>
+                            navigation.navigate('SchoolWeb', {
+                              url: links.lmsUrl,
+                              title: links.lmsLabel ?? 'LMS',
+                              autoLogin: true,
+                            }),
                         },
                       ]
                     : [{ text: '閉じる', style: 'cancel' }]
@@ -387,15 +393,16 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.schoolGrid}>
             {[
               // manaba는 앱 내부 WebView 화면(쿠키 저장+공지 파싱)으로 진입
-              // manaba 없으면 lmsUrl(WebClass 등)을 외부 링크로 대체
+              // manaba 없으면 lmsUrl(WebClass/UNIPA 등)을 앱 내 브라우저(쿠키 유지+자동입력)로 대체
+              // — 외부 브라우저로 열면 세션이 공유되지 않아 매번 재로그인이 필요했음(2026-09-20 일반화)
               ...(links.manabaUrl
                 ? [{ icon: 'book', label: 'manaba', internal: 'Manaba', tint: colors.primary }]
                 : links.lmsUrl
-                  ? [{ icon: 'book', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, tint: colors.primary }]
+                  ? [{ icon: 'book', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, webview: true, autoLogin: true, tint: colors.primary }]
                   : []
               ),
-              // kaede-i는 앱 내부 WebView로 진입 (autoLogin: ID/PW 자동 로그인)
-              { icon: 'calendar', label: 'kaede-i',      url: links.kaedeUrl,    webview: true, autoLogin: true, tint: colors.success },
+              // 학사 포털(국사관 kaede-i 등)은 앱 내부 WebView로 진입 (autoLogin: ID/PW 자동 로그인)
+              { icon: 'calendar', label: links.portalLabel ?? 'ポータル', url: links.portalUrl, webview: true, autoLogin: true, tint: colors.success },
               { icon: 'school', label: 'ホームページ', url: links.homepageUrl, tint: colors.warning },
             ].filter(item => item.url || item.internal).map((item) => (
               <TouchableOpacity

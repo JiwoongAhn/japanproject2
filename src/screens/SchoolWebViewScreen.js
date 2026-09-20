@@ -20,14 +20,15 @@ import {
   clearCookies,
   cookieKeyForUrl,
   credKeyForUrl,
-  getCredentials,
-  saveCredentials,
   clearCredentials,
-  buildAutoFillJS,
-  CAPTURE_CREDENTIALS_JS,
+  PROBE_LOGIN_FORM_JS,
 } from '../utils/schoolCookies';
+// 자동 재로그인(ID/PW 기기 저장 + 자동 입력)은 manaba 화면과 같은 공용 훅.
+// 허용 호스트는 universityLinks[id].autoLoginHosts — 목록에 없는 사이트의 폼은 캡처·자동입력하지 않는다.
+import { useAutoRelogin } from '../hooks/useAutoRelogin';
+import { autoLoginHostsFor, hostOf } from '../utils/autoLoginPolicy';
 import { useAuth } from '../lib/AuthProvider';
-import { getUniversityInfo } from '../utils/university';
+import { findUniversityByEmail, getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { parseTimetable } from '../utils/timetableRouter';
 import { getCurrentTerm, termLabel } from '../utils/timetable';
 import { shouldShowExtractButton } from '../utils/timetableImport';
@@ -62,18 +63,7 @@ const KAEDE_EXTRACT_JS = `(function(){
   true;
 })();`;
 
-// #3: 현재 페이지가 로그인 페이지인지(비밀번호 입력칸 유무)만 알려주는 프로브.
-// 로그인 페이지를 거친 뒤 비밀번호 칸이 없는 페이지에 도착하면 = 로그인 완료로 보고
-// MY時間割 페이지로 자동 이동시키는 판단에 쓴다. (URL 형태에 의존하지 않아 견고)
-const PROBE_LOGIN_STATE_JS = `(function(){
-  try {
-    var hasPw = !!document.querySelector('input[type=password]');
-    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pageProbe', hasPassword: hasPw, url: location.href }));
-  } catch (e) {}
-  true;
-})();`;
-
-// 범용 학교 사이트 WebView 화면 (kaede-i, 포털 등 재사용)
+// 범용 학교 사이트 WebView 화면 (kaede-i, 타교 LMS/포털 등 재사용)
 // route.params: { url, title, autoLogin?, forTimetableImport?, syllabusTarget? }
 //
 // syllabusTarget={ day, period, term } 이면 과목별 시라바스 모드:
@@ -81,10 +71,12 @@ const PROBE_LOGIN_STATE_JS = `(function(){
 //   uid를 읽어 같은 WebView 안에서 /Syllabus/SyllabusViewVer2.aspx?uid=… 로 1회 이동한다.
 //   (원래 링크는 window.open 새 창이라 WebView에서 그냥 클릭하면 안 열림 — utils/syllabusLink.js 참조)
 //
-// autoLogin=true 이면 A방식 자동 로그인 활성:
+// autoLogin=true 이면 A방식 자동 로그인 활성 (useAutoRelogin):
 //   - 저장된 ID/PW가 있으면 로그인 폼에 자동 입력 + 제출
 //   - 저장된 게 없으면 사용자가 직접 로그인 → 입력값을 캡처해 암호화 저장(다음부터 자동)
+//   - 단, 그 학교의 autoLoginHosts 에 있는 호스트의 폼만 대상 (그 외는 쿠키 영속만)
 //   ※ ID/PW는 기기 내 AES-256 저장, 서버 전송 없음
+// 로그인 여부는 URL이 아니라 페이지 로드 후 프로브(비밀번호 칸 유무)로 판정한다.
 export default function SchoolWebViewScreen({ navigation, route }) {
   const {
     url, title, autoLogin = false, forTimetableImport = false, syllabusTarget = null,
@@ -94,12 +86,16 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   // 로그인 후 MY時間割 페이지 도착을 감시해야 하는 경로인지(일괄취급 / 과목별 시라바스)
   const wantsTimetablePage = forTimetableImport || !!syllabusCellId;
   const { session } = useAuth();
-  // 시간표 파싱에 쓸 학교 id (카에데=국사관 → 전용 파서로 라우팅)
+  // 시간표 파싱에 쓸 학교 id (카에데=국사관 → 전용 파서로 라우팅. 표시용 폴백 있음)
   const universityId = getUniversityInfo(session?.user?.email)?.id;
+  // 자동 로그인 정책용 학교 링크 (폴백 없음 — 모르는 학교면 {} → 자동입력 미지원으로 안전하게 강등)
+  const links = useMemo(
+    () => getUniversityLinks(findUniversityByEmail(session?.user?.email)?.id),
+    [session?.user?.email]
+  );
   const cookieKey = useMemo(() => cookieKeyForUrl(url), [url]);
-  const credKey = useMemo(() => credKeyForUrl(url), [url]);
   const webViewRef = useRef(null);
-  const autoFilledRef = useRef(false); // 자동 입력 1회만 시도
+  const relogin = useAutoRelogin({ webViewRef, links, enabled: autoLogin });
   // #3: 로그인 후 MY時間割 페이지로 자동 이동시키기 위한 상태
   const sawLoginPageRef = useRef(false);          // 비밀번호 칸이 있는 로그인 페이지를 본 적 있는지
   const redirectedToTimetableRef = useRef(false); // 시간표 페이지로 1회만 자동 이동
@@ -108,37 +104,30 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   const [canGoBack, setCanGoBack] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(url ?? ''); // 현재 보고 있는 페이지 URL
   const [ready, setReady] = useState(false);
-  // 로그인 상태 추적: 초기 URL(로그인 페이지)에서 다른 URL로 이동하면 로그인 완료로 판단
-  // 한 번 true가 되면 되돌아오지 않음 (면책 고지 재표시 방지)
+  // 로그인 상태: 프로브에서 "비밀번호 칸 없는 페이지"를 보면 true (단방향 — 면책 고지 재표시 방지).
+  // SSO IdP로 튕긴 순간을 로그인 완료로 오판하지 않도록 URL 변화가 아니라 DOM으로 판정한다.
   const [loggedIn, setLoggedIn] = useState(false);
   const [cookieHeader, setCookieHeader] = useState(null);
-  const [creds, setCreds] = useState(null);
 
-  // 마운트 시: 쿠키 복원(보조) + 저장된 자격증명 로드 → 그 후 WebView 렌더
+  // 마운트 시: 쿠키 복원(보조) → 그 후 WebView 렌더. (저장된 ID/PW는 훅이 로그인 폼을 볼 때 로드)
   useEffect(() => {
     let mounted = true;
     (async () => {
       await restoreCookies(url, cookieKey);
       const header = await getSavedCookieHeader(cookieKey);
-      const c = autoLogin ? await getCredentials(credKey) : null;
       if (mounted) {
         setCookieHeader(header || null);
-        setCreds(c);
         setReady(true);
       }
     })();
     return () => {
       mounted = false;
     };
-  }, [url, cookieKey, credKey, autoLogin]);
+  }, [url, cookieKey]);
 
   const handleNavStateChange = (navState) => {
     setCanGoBack(navState.canGoBack);
     setCurrentUrl(navState.url || '');
-    // 초기 URL과 다른 URL로 이동하면 로그인 완료로 판단 (단방향)
-    if (!loggedIn && navState.url && navState.url !== url) {
-      setLoggedIn(true);
-    }
   };
 
   // 추출 버튼 노출 여부 — 시간표 임포트 경로 + (로그인됨 또는 시간표 페이지).
@@ -156,37 +145,54 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     navigation.goBack();
   };
 
-  // 사용자가 직접 로그인할 때 입력한 ID/PW 캡처 → 암호화 저장
-  // + 카에데 시간표 셀 추출 결과 수신 → 파싱 → 확인 → 미리보기 화면으로 이동
-  const handleMessage = async (event) => {
+  // WebView 메시지 수신
+  //   credentials  사용자가 직접 로그인할 때 입력한 ID/PW → 허용 호스트면 암호화 저장 (훅)
+  //   loginProbe   로그인 폼 여부 → 자동 재로그인 / 로그인 완료 판정 / 시간표 페이지 유도
+  //   kaedeCells   카에데 시간표 셀 추출 결과 → 파싱 → 확인 → 미리보기 화면으로 이동
+  const handleMessage = (event) => {
     try {
       const msg = JSON.parse(event.nativeEvent.data);
-      if (msg.type === 'credentials' && msg.pw) {
-        await saveCredentials(credKey, msg.id, msg.pw);
-        setCreds({ id: msg.id, pw: msg.pw });
+      if (msg.type === 'credentials') {
+        relogin.handleCredentials(msg);
+      } else if (msg.type === 'loginProbe') {
+        handleLoginProbe(msg);
       } else if (msg.type === 'kaedeCells') {
         handleExtractedCells(msg);
-      } else if (msg.type === 'pageProbe') {
-        handlePageProbe(msg);
       } else if (msg.type === 'syllabusClick') {
         handleSyllabusClickResult(msg);
       }
     } catch (_) {}
   };
 
-  // #3: 로그인 완료를 감지해 MY時間割 페이지로 자동 이동
-  //   - 비밀번호 칸이 있으면 로그인 페이지 → 아직 로그인 전(플래그만 기록)
+  // 프로브 결과 처리
+  //   (1) 비밀번호 칸 있음 = 로그인 폼 → 훅이 캡처 훅 주입 + 저장된 ID/PW 자동 입력 (허용 호스트만)
+  //   (2) 비밀번호 칸 없음 = 로그인된 페이지 → 성공 처리 + 쿠키 저장
+  //       + (시간표 임포트/시라바스 모드) MY時間割 자동 이동·시라바스 클릭
+  const handleLoginProbe = (msg) => {
+    if (msg.hasPassword) {
+      sawLoginPageRef.current = true; // 로그인 페이지 도착 (아직 로그인 전)
+      relogin.handleProbe(msg);
+      return;
+    }
+    // 비밀번호 칸 없음. 처음 연 사이트와 같은 호스트이거나 로그인 폼을 거친 뒤라면 로그인 상태.
+    // (nbu 처럼 안내 페이지로 시작하는 학교는 같은 호스트라 바로 true — 면책 고지만 숨김되므로 무해)
+    const sameHost = hostOf(msg.url) === hostOf(url);
+    if (sameHost || sawLoginPageRef.current) {
+      relogin.notifySuccess(); // 자동 재로그인 중이었다면 성공(카운터 리셋·오버레이 해제)
+      saveCookies(url, cookieKey); // 로그인 직후 쿠키 저장 (다음 실행 때 자동 로그인)
+      if (!loggedIn) setLoggedIn(true);
+    }
+    handleTimetableRedirect(msg);
+  };
+
+  // #3: 로그인 완료 후 MY時間割 페이지로 자동 이동 (시간표 임포트/과목별 시라바스 모드만)
   //   - 로그인 페이지를 거친 뒤, 비밀번호 칸 없는 페이지에 도착했는데 그게 시간표 페이지가
   //     아니라면 → 사용자가 직접 메뉴를 찾지 않아도 되게 MY時間割로 1회 자동 이동
   //   - 과목별 시라바스 모드면 시간표 페이지 도착 즉시 해당 셀의 시라바스 uid로 1회 이동
   //     (이동 후 시라바스 페이지에서는 더 이상 개입하지 않음)
-  const handlePageProbe = (msg) => {
+  const handleTimetableRedirect = (msg) => {
     if (!wantsTimetablePage) return;
     if (syllabusClickedRef.current) return; // 시라바스 클릭 이후 페이지들은 손대지 않음
-    if (msg.hasPassword) {
-      sawLoginPageRef.current = true; // 로그인 페이지 도착 (아직 로그인 전)
-      return;
-    }
     const here = (msg.url || '').toLowerCase();
     if (here.includes('mytimetable')) {
       // 시간표 페이지 도착. 일괄취급이면 추출 버튼이 뜨므로 그대로 두고,
@@ -265,25 +271,15 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     );
   };
 
-  // 페이지 로드 완료: 쿠키 저장 + (autoLogin이면) 캡처 hook + 자동 입력
+  // 페이지 로드 완료: 쿠키 저장 + 로그인 폼 프로브 (결과는 handleLoginProbe)
   const handleLoadEnd = async () => {
     setLoading(false);
     await saveCookies(url, cookieKey);
-    if (!autoLogin) return;
-    // 항상 캡처 hook 주입 (수동/재로그인 시 자격증명 갱신)
-    webViewRef.current?.injectJavaScript(CAPTURE_CREDENTIALS_JS);
-    // #3: 시간표 일괄취급/과목별 시라바스 경로에서만, 로그인 완료 후 MY時間割 자동 이동(및 시라바스 클릭)을 위해 로그인 상태 프로브 실행
-    if (wantsTimetablePage) {
-      webViewRef.current?.injectJavaScript(PROBE_LOGIN_STATE_JS);
-    }
-    // 저장된 자격증명이 있으면 1회 자동 입력 + 제출
-    if (creds && creds.pw && !autoFilledRef.current) {
-      autoFilledRef.current = true;
-      webViewRef.current?.injectJavaScript(buildAutoFillJS(creds.id, creds.pw));
-    }
+    webViewRef.current?.injectJavaScript(PROBE_LOGIN_FORM_JS);
   };
 
-  // 로그아웃: 쿠키 + 저장된 자격증명 삭제 후 로그인 페이지로
+  // 로그아웃: 쿠키 + 이 학교의 자동입력 허용 호스트 전부의 저장 ID/PW 삭제 후 재로드.
+  // (SSO 학교는 IdP 호스트 키에 저장돼 있으므로 초기 URL 하나만 지우면 남는다)
   const handleLogout = () => {
     Alert.alert(
       'ログアウト',
@@ -294,11 +290,15 @@ export default function SchoolWebViewScreen({ navigation, route }) {
           text: 'ログアウト',
           style: 'destructive',
           onPress: async () => {
+            relogin.markManualLogout(); // 이 화면에 있는 동안은 자동 입력하지 않음
             await clearCookies(url, cookieKey);
-            if (autoLogin) await clearCredentials(credKey);
-            setCreds(null);
+            if (autoLogin) {
+              const hosts = new Set([hostOf(url), ...autoLoginHostsFor(links)]);
+              for (const h of hosts) {
+                if (h) await clearCredentials(credKeyForUrl(`https://${h}`));
+              }
+            }
             setCookieHeader(null);
-            autoFilledRef.current = false;
             webViewRef.current?.reload();
           },
         },
@@ -329,6 +329,14 @@ export default function SchoolWebViewScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* 세션 만료 시 자동 재로그인 오버레이 */}
+      {relogin.autoRelogging && (
+        <View style={styles.reloginOverlay}>
+          <LoadingDots />
+          <Text style={styles.reloginText}>自動ログイン中…</Text>
+        </View>
+      )}
 
       {/* 로딩 인디케이터 */}
       {(loading || !ready) && (
@@ -385,6 +393,22 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  reloginOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  reloginText: {
+    fontSize: 15,
+    color: colors.textSecondary,
   },
   header: {
     flexDirection: 'row',
