@@ -17,17 +17,25 @@ describe('buildOnboardingCopy', () => {
     expect(c.summaryLead).toContain('最初のログイン1回');
   });
 
-  it('O-02: WebClass 학교(kanagawa-u, autoLoginHosts 없음) = manaba 슬라이드 없음, 一括 대신 수동, 쿠키유지 문구', () => {
-    const c = buildOnboardingCopy(universityLinks['kanagawa-u']);
+  it('O-02: 쿠키유지만 되는 학교(nbu, autoLoginHosts 없음) = manaba 슬라이드 없음, 一括 대신 수동, "자동" 약속 안 함', () => {
+    const c = buildOnboardingCopy(universityLinks.nbu);
     expect(keys(c)).toEqual(['timetable', 'assignment', 'review', 'community', 'oneTimeLogin']);
     expect(c.slides[0].title).not.toContain('一括');
     const last = c.slides[c.slides.length - 1];
-    expect(last.targets).toEqual(['WebClass']);
-    expect(last.subtitle).toContain('WebClass');
+    expect(last.targets).toEqual(['UNIPA']);
+    expect(last.subtitle).toContain('UNIPA');
     expect(last.subtitle).not.toContain('自動');
     expect(c.showMailConnectCta).toBe(false);
-    expect(c.summaryItems).toContain('WebClassにアプリ内でアクセス');
+    expect(c.summaryItems).toContain('UNIPAにアプリ内でアクセス');
     expect(c.summaryItems.join()).not.toContain('manaba');
+  });
+
+  it('O-02b: WebClass 학교(kanagawa-u, autoLoginHosts 있음) = "최초 1회 로그인" 문구', () => {
+    const c = buildOnboardingCopy(universityLinks['kanagawa-u']);
+    const last = c.slides[c.slides.length - 1];
+    expect(last.title).toBe('最初の1回だけ、ログイン');
+    expect(last.subtitle).toContain('WebClassは');
+    expect(c.showMailConnectCta).toBe(false);
   });
 
   it('O-03: autoLoginHosts 있는 비-manaba 학교 = "자동으로 이어짐" 문구', () => {

@@ -176,45 +176,106 @@ export async function clearCredentials(key) {
   } catch (_) {}
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 로그인 폼 공통 헬퍼 (자동입력·캡처 두 스크립트가 같은 규칙을 쓰도록 한 곳에)
+// 2026-09-20 17개교 공개 로그인 페이지 실측(curl)으로 확인한 제품별 차이:
+//   - WebClass / UNIPA / Blackboard / manaba / kaede : text + password + submit 버튼
+//   - KONECO(Drupal)                                 : 제출 버튼이 input[type=image]
+//   - CampusSquare(拓殖)                              : input[type=button] + onclick=exec('login') → JS가 hidden 값 세팅 후 form.submit()
+//   - 専修 教務Web                                    : 버튼이 폼 "밖"의 <a onclick=goLogin()>
+//   → 제출 버튼 탐색 순서: 폼 안 submit/image → 폼 안 "ログイン" 라벨 버튼/링크 → 문서 전체 → form.submit()
+//   → JS 제출은 submit 이벤트가 안 나므로 캡처는 버튼 click / Enter 키에도 건다
+// ─────────────────────────────────────────────────────────────────────────────
+const LOGIN_FORM_HELPERS_JS = `
+  var LOGIN_RE = /ログイン|log\\s*in|サインイン|sign\\s*in/i;
+  function pwField(){ return document.querySelector('input[type=password]'); }
+  // ID 칸 = 폼 안에서 비밀번호 칸 "바로 앞"의 텍스트 계열 input (type 생략도 text 취급).
+  // "첫 텍스트칸"이 아닌 이유: 東洋 secioss 는 맨 앞에 display:none 인 dummy 텍스트칸(자동입력 함정)을 둔다.
+  function idField(form){
+    var els = form ? form.querySelectorAll('input') : [];
+    var last = null;
+    for (var i = 0; i < els.length; i++) {
+      var t = (els[i].getAttribute('type') || 'text').toLowerCase();
+      if (t === 'password') return last;
+      if (t === 'text' || t === 'email' || t === 'tel') last = els[i];
+    }
+    return last;
+  }
+  function labelOf(el){
+    return ((el.value || '') + ' ' + (el.textContent || '') + ' ' + (el.getAttribute('alt') || '') + ' ' + (el.title || '')).trim();
+  }
+  // 제출 컨트롤 탐색 (없으면 null → 호출측이 form.submit() 폴백)
+  function submitControl(form){
+    if (form) {
+      var b = form.querySelector('input[type=submit], button[type=submit], input[type=image]');
+      if (b) return b;
+    }
+    var scopes = [form, document];
+    for (var s = 0; s < scopes.length; s++) {
+      if (!scopes[s]) continue;
+      var cands = scopes[s].querySelectorAll('button, input[type=button], a[onclick], a[href^="javascript"], [role=button]');
+      for (var i = 0; i < cands.length; i++) {
+        if (LOGIN_RE.test(labelOf(cands[i]))) return cands[i];
+      }
+    }
+    return null;
+  }
+`;
+
 // 로그인 폼에 저장된 ID/PW를 채우고 제출하는 JS (JSON.stringify로 특수문자 안전 처리)
 export function buildAutoFillJS(id, pwVal) {
   return `
 (function(){
-  var pwEl = document.querySelector('input[type=password]');
+  ${LOGIN_FORM_HELPERS_JS}
+  var pwEl = pwField();
   if (!pwEl) return;
   var form = pwEl.form;
-  var texts = form ? form.querySelectorAll('input[type=text]') : [];
   function setVal(el, v){
     if (!el) return;
     el.value = v;
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  setVal(texts[0], ${JSON.stringify(id)});
+  setVal(idField(form), ${JSON.stringify(id)});
   setVal(pwEl, ${JSON.stringify(pwVal)});
-  var btn = form ? form.querySelector('input[type=submit], button[type=submit]') : null;
-  if (btn) { btn.click(); } else if (form) { form.submit(); }
+  var btn = submitControl(form);
+  if (btn) { btn.click(); }
+  else if (form) { if (form.requestSubmit) form.requestSubmit(); else form.submit(); }
 })();
 true;
 `;
 }
 
 // 사용자가 직접 로그인할 때 입력한 ID/PW를 캡처해 네이티브로 전달하는 JS
-// host: 어느 사이트 폼이었는지(manaba 자체 폼 / kaede 폼) — 저장 키를 호스트별로 나누기 위함
+// host: 어느 사이트 폼이었는지 — 저장 키를 호스트별로 나누기 위함
+// submit 이벤트 + 제출 버튼 click + 비밀번호 칸 Enter 를 모두 잡되 500ms 내 중복 전송은 1회로.
 export const CAPTURE_CREDENTIALS_JS = `
 (function(){
-  var pwEl = document.querySelector('input[type=password]');
-  if (!pwEl || !pwEl.form || pwEl.form.__credHooked) return;
-  pwEl.form.__credHooked = true;
-  pwEl.form.addEventListener('submit', function(){
-    var texts = pwEl.form.querySelectorAll('input[type=text]');
+  ${LOGIN_FORM_HELPERS_JS}
+  var pwEl = pwField();
+  if (!pwEl) return;
+  var form = pwEl.form;
+  var anchor = form || pwEl;
+  if (anchor.__credHooked) return;
+  anchor.__credHooked = true;
+  var last = 0;
+  function send(){
+    var now = Date.now();
+    if (now - last < 500) return;
+    var idEl = idField(form);
+    if (!pwEl.value) return;
+    last = now;
     window.ReactNativeWebView.postMessage(JSON.stringify({
       type: 'credentials',
-      id: texts[0] ? texts[0].value : '',
+      id: idEl ? idEl.value : '',
       pw: pwEl.value,
       host: location.host
     }));
-  }, true);
+  }
+  if (form) form.addEventListener('submit', send, true);
+  var btn = submitControl(form);
+  if (btn && !btn.__credHooked) { btn.__credHooked = true; btn.addEventListener('click', send, true); }
+  pwEl.addEventListener('keydown', function(e){ if (e.key === 'Enter') send(); }, true);
 })();
 true;
 `;

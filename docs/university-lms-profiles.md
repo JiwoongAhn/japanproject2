@@ -1,4 +1,4 @@
-# 17개교 LMS 프로필 — 전 대학 지원 설계도
+# 18개교 LMS 프로필 — 전 대학 지원 설계도
 
 작성: 2026-09-18 (품질 트랙 Phase 3). 조사 방법 = **계정 없이** 공개 로그인 페이지·공식 사이트·`scripts/check-links.sh`(HTTP 생존)·`curl` 리다이렉트 추적. 실제 로그인·시간표 페이지 구조는 **그 학교 재학생 테스터가 생기면** 확인한다.
 
@@ -64,6 +64,38 @@ UNIPA는 `/uprx/up/pk/pky501/…` 경로 체계가 제품 공통. 시간표(`時
 | **帝京** `teikyo-u` | `lms2017.teikyo-u.ac.jp`(ID/PW 폼) 🔎 / 시라바스 `activeacademy.ita.teikyo-u.ac.jp`(板橋) | 시라바스 호스트가 **해외 IP 무응답**(DNS 있음) — 일본 내 재확인 |
 | **東海** `tokai` | Open LMS `tlms.tsc.u-tokai.ac.jp` 🔎 → **Microsoft SSO** | URL 교정 완료(구 `lms.u-tokai.ac.jp` DNS 소멸). 시라바스 구주소 사망 → 빈값 |
 | **拓殖** `takushoku-u` | CampusSquare `portal.takushoku-u.ac.jp/campusweb`(폼) 🔎 | 시라바스 공개 ✅ |
+
+### 1-5. 同志社大学 `doshisha` (2026-09-20 추가, 배치 5)
+
+| 항목 | 값 | 검증 |
+|---|---|---|
+| 이메일 | `@mail.doshisha.ac.jp` | 🔎 ITサポートオフィス 공표 |
+| LMS | e-class = **WebClass** `eclass.doshisha.ac.jp` → SSO 진입 `/webclass/singlesignon.php?auth_mode=SHIB&auth_only=1` | 🔎 curl: `doshisha.ex-tic.com/auth/session` 도착 |
+| 포털 | DUET `duet.doshisha.ac.jp` (JS 리다이렉트 → SSO) | 🔎 |
+| 시라바스 | `syllabus.doshisha.ac.jp` 공개 | 🔎 200 |
+| 교시 | 공식 授業時間等 페이지: 1限9:00 … 7限20:10-21:40 (90분, 전 캠퍼스 공통) | 🔎 |
+| 자동입력 | `doshisha.ex-tic.com` (亜細亜와 같은 ex-tic 폼) | 🔎 폼 스냅샷 테스트 |
+
+## 1-6. 로그인 폼 자동입력 호환성 — 2026-09-20 공개 페이지 실측 (계정 없이 curl/Chrome)
+
+`autoLoginHosts` 는 여기서 ✅인 호스트만 넣는다. 폼 골격은 `__tests__/utils/loginFormScripts.test.js` 에 스냅샷으로 보존.
+
+| 제품 | 학교 | 폼 구조 | 스크립트 대응 | autoLoginHosts |
+|---|---|---|---|---|
+| WebClass | 神奈川 / 農業 / 都市 / **同志社(SSO 경유)** | text+password+`input[type=submit]`. 루트는 `callWebClass()` 새창 런처 → `lmsUrl`을 `/webclass/login.php` 직행으로 교정 | ✅ | 3교 LMS 호스트 |
+| UNIPA(PrimeFaces) | 電機 / 玉川 | text+password+`button[type=submit]`. 玉川 루트는 meta refresh → `/uprx/` | ✅ | `portal.sa.dendai.ac.jp` / `unitama.tamagawa.ac.jp` |
+| 帝京 LMS | 帝京 | text+password+submit | ✅ | `lms2017.teikyo-u.ac.jp` |
+| KONECO(Drupal) | 駒澤 | 제출이 `input[type=image]` | ✅ 셀렉터에 image 추가 | `koneco.komazawa-u.ac.jp` |
+| CampusSquare | 拓殖 | `input[type=button]` + `onclick=exec('login')`(hidden 세팅 후 form.submit) | ✅ "ログイン" 라벨 버튼 click / 캡처는 click·Enter 훅 | `portal.takushoku-u.ac.jp` |
+| 教務Web | 専修 | 폼 밖 `<a onclick=goLogin()>ログイン</a>` | ✅ 문서 전체에서 ログイン 링크 탐색 | `ris.acc.senshu-u.ac.jp` |
+| ex-tic IdP | 亜細亜 / 同志社 | `identifier`+password+submit 단일 폼 | ✅ | `asia.ex-tic.com` / `doshisha.ex-tic.com` |
+| secioss IdP | 東洋 | 맨 앞 `display:none` dummy 텍스트칸(함정) + username + password | ✅ ID 칸 = "비밀번호 바로 앞 텍스트칸" 규칙으로 회피 | `slink.secioss.com` |
+| Microsoft Entra | 大東 / 東海 | 2단계(이메일→비밀번호) | ❌ 자동입력 미지원, **쿠키 유지만** | 없음 |
+| HTTP Basic | 日本文理 `unipax.nbu.ac.jp` | 401 Basic 인증(폼 아님) | ❌ 쿠키 유지만 | 없음 |
+| — | 大阪国際 | 해외 IP 무응답 | 미확인 | 없음 |
+| — | 日本 | 홈페이지만 | — | 없음 |
+
+⚠️ 위 ✅는 "공개 로그인 페이지의 폼 구조에 스크립트가 맞는다"까지. 실제 로그인 성공·세션 수명·2차 인증 유무는 재학생 실기로만 확인 가능.
 
 ## 2. 링크 생존 검사 결과 (2026-09-18)
 
