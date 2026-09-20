@@ -1,0 +1,9 @@
+# privacy.unipas.app (Cloudflare Worker "black-bush-a4e0", 정적 자산만) 배포 설정
+# 사용법: npx wrangler deploy -c wrangler.privacy.toml   (사전에 npx wrangler login)
+# ⚠️ 새 Worker를 만들지 말고 반드시 같은 이름으로 배포할 것 (커스텀 도메인이 이 Worker에 묶여 있음)
+name = "black-bush-a4e0"
+compatibility_date = "2026-06-14"
+keep_vars = true
+
+[assets]
+directory = "./web"

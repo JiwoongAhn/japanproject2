@@ -23,6 +23,7 @@ npm test                           # Jest (화면 수정 후 __tests__/screens.s
 npm run check:bundle               # 화면/훅 수정 후 필수: Metro 번들+Hermes 컴파일로 import·문법 오류 검출 (Jest가 못 잡는 것)
 npm run e2e:layout                 # 온보딩 넘침 자동 판정 (5뷰포트, 웹 서버 자동 기동)
 scripts/shot-devices.sh            # 릴리스 전 시뮬레이터 4대 스크린샷 대조 시트 (--no-build 재사용)
+npx wrangler deploy -c wrangler.privacy.toml   # privacy.unipas.app 재배포 (Worker black-bush-a4e0, 사전 npx wrangler login)
 ```
 
 ---
