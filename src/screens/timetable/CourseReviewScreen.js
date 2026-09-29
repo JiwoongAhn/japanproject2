@@ -143,14 +143,33 @@ export default function CourseReviewScreen({ navigation }) {
           }
         >
           {grouped.length === 0 ? (
+            // 빈 상태: 검색 결과 없음 / 평가 0건 두 경우 모두 작성 화면으로 유도
+            // 검색 중이면 검색어를 과목명으로 미리 채워 넘겨 입력 부담을 줄인다
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>{searchText ? '🔍' : '📝'}</Text>
+              <Text style={styles.emptyEmoji}>{searchText ? '✏️' : '📝'}</Text>
               <Text style={styles.emptyText}>
-                {searchText ? '該当する授業が見つからないみたい' : 'まだ講義評価がないみたい'}
+                {searchText
+                  ? `「${searchText}」の評価はまだありません`
+                  : 'まだ講義評価がありません'}
               </Text>
-              {!searchText && (
-                <Text style={styles.emptySubText}>最初の評価を書いてみよう</Text>
-              )}
+              <Text style={styles.emptySubText}>
+                {searchText
+                  ? '最初の評価を書いてみませんか?'
+                  : '履修した授業の感想を残すと\n次に取る人の参考になります'}
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                activeOpacity={0.85}
+                onPress={() =>
+                  navigation.navigate('CourseReviewCreate',
+                    searchText.trim() ? { courseName: searchText.trim() } : undefined
+                  )
+                }
+              >
+                <Text style={styles.emptyButtonText}>
+                  {searchText ? '＋ この授業を評価する' : '＋ 最初の評価を書く'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <>
@@ -387,10 +406,25 @@ const styles = StyleSheet.create({
     ...typography.subtitle,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   emptySubText: {
     ...typography.body2,
     color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.xl,
+  },
+  emptyButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radius.pill,
+  },
+  emptyButtonText: {
+    color: colors.white,
+    ...typography.bodyStrong,
+    fontWeight: '700',
   },
 
   // ── FAB ──

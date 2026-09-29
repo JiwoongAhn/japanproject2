@@ -100,6 +100,13 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 
 ---
 
+# 커뮤니티 시딩 / 큰 화면 대응 (1.0.3 트랙)
+
+- [x] 講義評価 빈 상태 → 평가 작성 유도 버튼 (검색어를 과목명으로 자동 입력해 `CourseReviewCreate`로 이동)
+- [ ] 講義評価 시딩 22건 — 확정본 `docs/seed-course-reviews.md`, **DB 미투입**. 시드계정 8개(`*@unione.local`) 생성 → SQL 작성 순
+- [ ] 게시판 글 시딩 — 사용자가 글 목록 직접 정리 예정 (국사관대학만)
+- [ ] 아이패드 대응(A안): `app.json` `ios.supportsTablet=true` + 폭 700px 이상이면 최대 600px 중앙 컬럼으로 제한하는 래퍼를 `App.js`에 추가(37화면 일괄 적용), `Dimensions.get` 고정값 2곳(`PostDetailScreen` `FreeTimeScreen`)을 `useWindowDimensions`로 교체. ⚠️심사 시 iPad 12.9" 스크린샷 필수
+
 # 향후 예정 작업
 
 ## 묶음 4 잔여 (모바일 UI 최적화)
