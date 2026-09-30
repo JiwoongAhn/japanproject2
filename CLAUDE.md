@@ -116,6 +116,8 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - [x] ③ 시간표 비교 점검 — 결함 발견·수정: 친구 시간표 0건을 "전 시간대 공강"으로 계산해 모든 칸이 공통으로 표시됐음
 - [x] ④ 카에데 로그인 실패 진단 — 에러 분류 안내(`utils/loginDiagnostics.js`) + 마이페이지 `ログイン情報をリセット` + 기기 내 실패 기록 10건
 - [x] 검증 장치: `navigationTargets.test.js`(이동 대상↔등록 화면 대조), smoke 목록에 누락 화면 8개 추가. Jest 592→667
+- [x] 시뮬레이터 실렌더링 검증 완료(2026-09-30, iPhone SE3) — 홈 배너·탭 4개·課題 모달·닫기·時間割·掲示板·마이페이지 신규 섹션 전부 실물 확인
+- [x] ⚠️ 시뮬 촬영이 막히던 원인 수정: `scripts/shot-devices.sh` 가 `CODE_SIGNING_ALLOWED=NO` 로 빌드해 엔타이틀먼트가 빠졌고 → Keychain 불가 → SecureStore 실패 → **앱 로그인 자체가 불가**했다(딥링크·OTP 모두). ad-hoc 서명 + 시뮬 전용 엔타이틀먼트(Keychain 그룹만)로 변경. 로그인 촬영은 `.maestro/shots_103_login.yaml` → 관리자 API로 OTP 발급(메일 미발송) → `shots_103_main.yaml` 2단계
 - [ ] ⚠️ **미배포**: `send-test-push` 엣지 함수(호출자 본인으로 고정하는 보안 수정 포함) — 배포 전까지 テスト通知 버튼 동작 안 함
 - [ ] ⚠️ 1.0.3 빌드 필요 — `app.json` 변경 포함이라 OTA 불가
 

@@ -1,0 +1,69 @@
+# 1단계: 실제 로그인 화면을 거쳐 인증코드 입력 화면까지 간다.
+# (딥링크 로그인은 이 시뮬레이터 환경에서 동작하지 않아 실제 OTP 경로를 쓴다)
+appId: com.jiwoongahn.unione
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    text: "http://localhost:8081"
+    optional: true
+- extendedWaitUntil:
+    visible: "Continue"
+    timeout: 20000
+    optional: true
+- tapOn:
+    text: "Continue"
+    optional: true
+- runFlow:
+    when:
+      visible: "Toggle element inspector"
+    commands:
+      - tapOn:
+          point: "50%,12%"
+
+- extendedWaitUntil:
+    visible: "始める"
+    timeout: 60000
+- tapOn: "始める"
+- extendedWaitUntil:
+    visible: "プライバシーポリシー・利用規約"
+    timeout: 30000
+- repeat:
+    while:
+      visible: "↓ 最後までスクロールしてください"
+    commands:
+      - scroll
+- tapOn: "上記のプライバシーポリシーおよび利用規約に同意します"
+- tapOn: "同意して始める"
+
+- extendedWaitUntil:
+    visible: "大学を選んでください"
+    timeout: 30000
+# ⚠️ 카드가 "국사관대학, 世田谷区, ›" 한 덩어리 접근성 라벨로 노출된다.
+#    Maestro 의 텍스트 매칭은 전체 일치라 부분 일치 패턴이 필요하다.
+- tapOn: ".*国士舘大学.*"
+- extendedWaitUntil:
+    visible: "学校メールアドレス"
+    timeout: 20000
+- tapOn:
+    below: "学校メールアドレス"
+- inputText: "e2etest@kokushikan.ac.jp"
+# Maestro 의 inputText 는 클립보드를 쓰므로 iOS 가 붙여넣기 허용을 묻는다 → 허용
+- tapOn:
+    text: "붙여넣기 허용|ペーストを許可|Allow Paste"
+    optional: true
+- hideKeyboard
+- tapOn: "認証コードを送信"
+# 붙여넣기 허용 팝업은 앱이 클립보드를 읽을 때마다 다시 뜬다 → 사라질 때까지 허용
+- repeat:
+    times: 5
+    commands:
+      - runFlow:
+          when:
+            visible: "붙여넣기 허용"
+          commands:
+            - tapOn: "붙여넣기 허용"
+- extendedWaitUntil:
+    visible: "認証コードを入力"
+    timeout: 40000
+- takeScreenshot: 00_otp_screen

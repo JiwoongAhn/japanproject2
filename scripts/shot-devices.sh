@@ -73,6 +73,31 @@ else
   # ⚠️ Xcode 의 JS 번들 단계는 .env 를 못 읽어 EXPO_PUBLIC_* 가 빠진 번들이 만들어진다
   #    (→ Supabase URL 없음 → 로그인이 조용히 실패). 셸 환경으로 내보내 상속시킨다.
   if [[ -f .env ]]; then set -a; source .env; set +a; fi
+  # ⚠️ 서명을 끄면(CODE_SIGNING_ALLOWED=NO) 엔타이틀먼트가 앱에 들어가지 않는다.
+  #    그러면 Keychain 접근이 막혀 expo-secure-store 가 실패하고, 세션을 저장할 수 없어
+  #    앱에서 로그인 자체가 불가능해진다(로그인하면 "ネットワークの状態を…" 알림).
+  #    expo-notifications 도 같은 이유로 console.error 를 내 LogBox 빨간 화면이 앱을 덮는다.
+  #    → ad-hoc 서명(-)으로 빌드하고, 시뮬레이터용 엔타이틀먼트(Keychain 그룹만)를 쓴다.
+  #      aps-environment 는 프로비저닝 프로파일이 필요해 ad-hoc 에서 제거되므로 뺀다.
+  SIM_ENT="ios/$SCHEME/$SCHEME-simulator.entitlements"
+  ORIG_ENT="ios/$SCHEME/$SCHEME.entitlements"
+  cat > "$SIM_ENT" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>keychain-access-groups</key>
+    <array>
+      <string>com.jiwoongahn.unione</string>
+    </array>
+  </dict>
+</plist>
+PLIST
+  # 빌드 동안만 바꿔치기하고, 어떻게 끝나든 원래 파일로 되돌린다
+  cp "$ORIG_ENT" "$ORIG_ENT.bak"
+  trap 'mv -f "'"$ORIG_ENT"'.bak" "'"$ORIG_ENT"'" 2>/dev/null || true' EXIT
+  cp "$SIM_ENT" "$ORIG_ENT"
+
   xcodebuild \
     -workspace "ios/$SCHEME.xcworkspace" \
     -scheme "$SCHEME" \
@@ -80,8 +105,13 @@ else
     -sdk iphonesimulator \
     -destination 'generic/platform=iOS Simulator' \
     -derivedDataPath "$DERIVED" \
-    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGNING_ALLOWED=YES \
+    CODE_SIGNING_REQUIRED=NO \
+    CODE_SIGN_IDENTITY="-" \
     build | grep -E "error:|warning: .*deprecated|BUILD (SUCCEEDED|FAILED)" || true
+
+  mv -f "$ORIG_ENT.bak" "$ORIG_ENT"
+  trap - EXIT
   [[ -d "$APP_PATH" ]] || { echo "❌ 빌드 산출물이 없습니다: $APP_PATH"; exit 1; }
 fi
 
