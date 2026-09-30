@@ -118,8 +118,15 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - [x] 검증 장치: `navigationTargets.test.js`(이동 대상↔등록 화면 대조), smoke 목록에 누락 화면 8개 추가. Jest 592→667
 - [x] 시뮬레이터 실렌더링 검증 완료(2026-09-30, iPhone SE3) — 홈 배너·탭 4개·課題 모달·닫기·時間割·掲示板·마이페이지 신규 섹션 전부 실물 확인
 - [x] ⚠️ 시뮬 촬영이 막히던 원인 수정: `scripts/shot-devices.sh` 가 `CODE_SIGNING_ALLOWED=NO` 로 빌드해 엔타이틀먼트가 빠졌고 → Keychain 불가 → SecureStore 실패 → **앱 로그인 자체가 불가**했다(딥링크·OTP 모두). ad-hoc 서명 + 시뮬 전용 엔타이틀먼트(Keychain 그룹만)로 변경. 로그인 촬영은 `.maestro/shots_103_login.yaml` → 관리자 API로 OTP 발급(메일 미발송) → `shots_103_main.yaml` 2단계
-- [ ] ⚠️ **미배포**: `send-test-push` 엣지 함수(호출자 본인으로 고정하는 보안 수정 포함) — 배포 전까지 テスト通知 버튼 동작 안 함
-- [ ] ⚠️ 1.0.3 빌드 필요 — `app.json` 변경 포함이라 OTA 불가
+
+### ▶ 다음 세션에서 이어서 할 것 (2026-09-30 중단 시점)
+1. [ ] **`send-test-push` 엣지 함수 배포** — 호출자 본인으로 고정하는 보안 수정 포함.
+       배포 전까지 마이페이지 `テスト通知を送る` 버튼 동작 안 함. 배포 경로 = Supabase MCP `deploy_edge_function`
+2. [ ] **아이패드 실화면 확인** — `npx expo prebuild --platform ios` 는 **이미 실행 완료**
+       (`TARGETED_DEVICE_FAMILY = "1,2"` 반영됨, `ios/` 는 gitignore 대상이라 로컬에만 존재).
+       남은 일 = 아이패드 시뮬레이터 생성 → 앱 설치 → `.maestro/shots_103_login.yaml` + `shots_103_main.yaml` 촬영.
+       ⚠️ 시뮬 빌드는 반드시 ad-hoc 서명으로 (그냥 빌드하면 Keychain 막혀 로그인 불가 — `scripts/shot-devices.sh` 참고)
+3. [ ] **1.0.3 빌드** — `app.json` 변경 포함이라 OTA 불가. 사용자 방침 = **다른 작업까지 끝낸 뒤 한 번에 제출**
 
 ---
 
