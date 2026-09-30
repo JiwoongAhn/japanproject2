@@ -103,7 +103,17 @@ describe('課題 탭 → 루트 모달 전환 (2026-09-29)', () => {
 
   it('課題는 루트 스택에 모달로 등록돼 있다', () => {
     expect(appNav).toContain('import AssignmentStack');
-    expect(appNav).toMatch(/name="Assignment"[\s\S]{0,200}AssignmentStack/);
+    // 화면은 AssignmentModal(= AssignmentStack 을 WideScreenContainer 로 감싼 것)로 등록된다.
+    // 아이패드에서 네이티브 모달이 App.js 의 래퍼 바깥에 뜨기 때문이다(2026-09-30).
+    expect(appNav).toMatch(/const AssignmentModal\s*=\s*withWideScreen\(AssignmentStack\)/);
+    expect(appNav).toMatch(/name="Assignment"[\s\S]{0,200}AssignmentModal/);
+    expect(appNav).toMatch(/name="Assignment"[\s\S]{0,200}presentation: 'modal'/);
+  });
+
+  it('외부 사이트 WebView 모달은 가운데 컬럼으로 좁히지 않는다', () => {
+    // 남의 웹페이지는 큰 화면에서 넓게 보는 편이 실용적이라 일부러 감싸지 않는다.
+    expect(appNav).toMatch(/name="Manaba"[\s\S]{0,200}component=\{ManabaStack\}/);
+    expect(appNav).toMatch(/name="SchoolWeb"[\s\S]{0,200}component=\{SchoolWebViewScreen\}/);
   });
 
   it('통지 화면은 MainTab을 경유해 課題로 가지 않는다 (모달 중첩 방지)', () => {

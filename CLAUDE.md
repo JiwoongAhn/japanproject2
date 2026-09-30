@@ -119,12 +119,16 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - [x] 시뮬레이터 실렌더링 검증 완료(2026-09-30, iPhone SE3) — 홈 배너·탭 4개·課題 모달·닫기·時間割·掲示板·마이페이지 신규 섹션 전부 실물 확인
 - [x] ⚠️ 시뮬 촬영이 막히던 원인 수정: `scripts/shot-devices.sh` 가 `CODE_SIGNING_ALLOWED=NO` 로 빌드해 엔타이틀먼트가 빠졌고 → Keychain 불가 → SecureStore 실패 → **앱 로그인 자체가 불가**했다(딥링크·OTP 모두). ad-hoc 서명 + 시뮬 전용 엔타이틀먼트(Keychain 그룹만)로 변경. 로그인 촬영은 `.maestro/shots_103_login.yaml` → 관리자 API로 OTP 발급(메일 미발송) → `shots_103_main.yaml` 2단계
 
-- [x] 작은 화면 인증코드 버튼 가려짐 ✅2026-09-30 — 원인=`OtpVerificationScreen`만 스크롤 컨테이너가 없었음(전 입력화면 전수검사로 확인). `KeyboardAwareScrollView` + `keyboardDismissMode='on-drag'` + 6자리 입력 시 자동 확인(`shouldAutoSubmitOtp`, 같은 코드 반복제출 가드). Jest 667→676
+- [x] 작은 화면 인증코드 버튼 가려짐 ✅2026-09-30 — 원인=`OtpVerificationScreen`만 스크롤 컨테이너가 없었음(전 입력화면 전수검사로 확인). `KeyboardAwareScrollView` + `keyboardDismissMode='on-drag'` + 6자리 입력 시 자동 확인(`shouldAutoSubmitOtp`, 같은 코드 반복제출 가드)
+- [x] ⚠️ 위 수정만으로는 **버튼이 그대로 가려졌다**(SE 실촬영으로 발견). 진짜 원인=`autoFocus` 로 진입 즉시 포커스될 때는 아직 키보드가 없어 스크롤 가능 범위가 0 이라 `scrollTo` 가 무시됨. `KeyboardAwareScrollView` 가 키보드가 뜬 뒤 한 번 더 스크롤하도록 수정(공용 컴포넌트라 다른 6개 입력 화면에도 같이 적용). SE 재촬영으로 確認 버튼 노출 확인
+- [x] 아이패드: 네이티브 모달이 `App.js` 의 `WideScreenContainer` 바깥에 떠서 모달만 화면 폭 전체로 펼쳐지던 문제 수정(`withWideScreen` HOC). 외부 사이트 WebView 모달(manaba·학교 사이트)은 일부러 제외
+- [x] 課題 닫기 버튼에 `accessibilityLabel="閉じる"` 추가 — VoiceOver 대응 + 촬영이 좌표 탭에 의존하지 않게
+- [x] 아이패드 실화면 확인 ✅2026-09-30 — iPad Pro 13" 시뮬에서 로그인~마이페이지 전 플로우 완주(홈·탭4개·課題모달·시간표·게시판·마이페이지). Jest 677
 
 ### ▶ 다음 세션에서 이어서 할 것 (2026-09-30 중단 시점)
 1. [x] **`send-test-push` 엣지 함수 배포** ✅2026-09-30 (v7) — 호출자 본인으로 고정하는 보안 수정 포함.
        anon 키로 남의 `userId`를 넣어 호출 → 401 `인증이 필요합니다` 실측 확인
-2. [ ] **아이패드 실화면 확인** — `npx expo prebuild --platform ios` 는 **이미 실행 완료**
+2. [x] **아이패드 실화면 확인** ✅2026-09-30 완료 (아래 기록 참조) — `npx expo prebuild --platform ios` 는 **이미 실행 완료**
        (`TARGETED_DEVICE_FAMILY = "1,2"` 반영됨, `ios/` 는 gitignore 대상이라 로컬에만 존재).
        남은 일 = 아이패드 시뮬레이터 생성 → 앱 설치 → `.maestro/shots_103_login.yaml` + `shots_103_main.yaml` 촬영.
        ⚠️ 시뮬 빌드는 반드시 ad-hoc 서명으로 (그냥 빌드하면 Keychain 막혀 로그인 불가 — `scripts/shot-devices.sh` 참고)

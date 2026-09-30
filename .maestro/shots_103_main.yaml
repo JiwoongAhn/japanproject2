@@ -29,10 +29,14 @@ appId: com.jiwoongahn.unione
             visible: "붙여넣기 허용"
           commands:
             - tapOn: "붙여넣기 허용"
-# ⚠️ 작은 화면(SE)에서는 숫자 키패드가 確認 버튼을 거의 덮는다.
-#    키패드를 내릴 수단이 없어(스크롤뷰 없음) 버튼의 보이는 윗부분을 좌표로 누른다.
+# 키패드가 올라온 상태를 찍어 둔다 — 確認 버튼이 가려지지 않는지 눈으로 확인하는 증거.
+- takeScreenshot: 00b_otp_keypad
+# 6자리를 채우면 앱이 자동으로 확인한다(2026-09-30 수정). 예전에는 키패드가 確認 버튼을
+# 거의 덮어 좌표 탭으로 우회해야 했는데, 그 우회를 없앴다.
+# optional 탭은 자동 확인이 안 먹었을 때만 발동하는 안전망이다(발동하면 수정이 안 된 것).
 - tapOn:
-    point: "50%,63%"
+    text: "確認"
+    optional: true
 
 # 통지 프리퍼미션(기기 1회) → 나중에
 - extendedWaitUntil:
@@ -80,8 +84,9 @@ appId: com.jiwoongahn.unione
             - tapOn: ".*課題.*"
 - takeScreenshot: 03_assignment_modal
 # 닫기(✕)로 빠져나올 수 있어야 한다 — 모달 전환의 핵심 확인 항목
-- tapOn:
-    point: "8%,9%"
+# ⚠️ 좌표 탭은 쓰지 않는다. 아이패드에서는 콘텐츠가 가운데 컬럼으로 모여
+#    같은 비율이 빈 여백을 가리켰다(2026-09-30 실측 실패). 접근성 라벨로 누른다.
+- tapOn: "閉じる"
 - extendedWaitUntil:
     visible: "今日のまとめ"
     timeout: 20000

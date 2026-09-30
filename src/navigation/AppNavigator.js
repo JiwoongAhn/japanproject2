@@ -21,9 +21,33 @@ import PushPrimingScreen, { PUSH_PRIMING_KEY } from '../screens/auth/PushPriming
 import WelcomeScreen, { WELCOME_SEEN_KEY } from '../screens/auth/WelcomeScreen';
 import { resolveAuthGate } from '../utils/authRoute';
 import { colors } from '../constants/colors';
+import WideScreenContainer from '../components/WideScreenContainer';
 
 // NavigationContainer 밖에서 navigate를 호출하기 위한 ref
 const navigationRef = createNavigationContainerRef();
+
+// iOS 의 네이티브 모달은 별도 뷰 컨트롤러로 루트 윈도우에 올라간다.
+// 그래서 App.js 의 WideScreenContainer 바깥에 놓이고, 아이패드에서 모달만
+// 화면 폭 전체로 펼쳐져 나머지 화면(가운데 컬럼)과 어긋난다(2026-09-30 실측).
+// → 앱 자체 UI 인 모달은 각자 한 번 더 감싼다.
+//   외부 사이트를 띄우는 WebView 모달(manaba·학교 사이트)은 감싸지 않는다.
+//   남의 웹페이지는 큰 화면에서 넓게 보는 편이 실용적이기 때문이다.
+// ⚠️ 모듈 레벨에서 한 번만 만든다. 렌더마다 새로 만들면 화면이 통째로 리마운트된다.
+const withWideScreen = (Component) => {
+  const Wrapped = (props) => (
+    <WideScreenContainer>
+      <Component {...props} />
+    </WideScreenContainer>
+  );
+  Wrapped.displayName = `WideScreen(${Component.displayName || Component.name || 'Screen'})`;
+  return Wrapped;
+};
+
+const AssignmentModal           = withWideScreen(AssignmentStack);
+const NoticePreviewModalWide    = withWideScreen(NoticePreviewModal);
+const MailConnectOnboardingWide = withWideScreen(MailConnectOnboardingScreen);
+const ManabaReminderSetupWide   = withWideScreen(ManabaReminderSetupScreen);
+const OnboardingReviewWide      = withWideScreen(OnboardingScreen);
 
 const NicknameStack = createNativeStackNavigator();
 const OnboardingStack = createNativeStackNavigator();
@@ -167,7 +191,7 @@ export default function AppNavigator() {
             홈 카드·時間割 셀·통지 프리뷰에서 navigate('Assignment')로 계속 열 수 있다. */}
         <RootStack.Screen
           name="Assignment"
-          component={AssignmentStack}
+          component={AssignmentModal}
           options={{ presentation: 'modal' }}
         />
         <RootStack.Screen
@@ -177,23 +201,23 @@ export default function AppNavigator() {
         />
         <RootStack.Screen
           name="NoticePreview"
-          component={NoticePreviewModal}
+          component={NoticePreviewModalWide}
           options={{ presentation: 'modal' }}
         />
         <RootStack.Screen
           name="MailConnectOnboarding"
-          component={MailConnectOnboardingScreen}
+          component={MailConnectOnboardingWide}
           options={{ presentation: 'modal' }}
         />
         <RootStack.Screen
           name="ManabaReminderSetup"
-          component={ManabaReminderSetupScreen}
+          component={ManabaReminderSetupWide}
           options={{ presentation: 'modal' }}
         />
         {/* 마이페이지 "使い方をもう一度見る"에서 여는 온보딩 다시 보기(모달, DB 미변경) */}
         <RootStack.Screen
           name="OnboardingReview"
-          component={OnboardingScreen}
+          component={OnboardingReviewWide}
           options={{ presentation: 'modal' }}
           initialParams={{ review: true }}
         />

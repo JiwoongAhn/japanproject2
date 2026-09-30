@@ -171,6 +171,8 @@ export default function AssignmentScreen({ navigation }) {
           onPress={() => navigation.goBack()}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="閉じる"
         >
           <Ionicons name="close" size={26} color={colors.textPrimary} />
         </TouchableOpacity>

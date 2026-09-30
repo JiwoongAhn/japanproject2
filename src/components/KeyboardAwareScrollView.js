@@ -51,6 +51,23 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
   const scrollRef = useRef(null);
   const scrollY = useRef(0); // 현재 스크롤 오프셋(스크롤할 때마다 갱신)
   const keyboardHeight = useRef(0); // 현재 키보드 높이(키보드 이벤트로 갱신)
+  const focusedNode = useRef(null); // 마지막으로 포커스된 입력칸(키보드가 뜬 뒤 재시도용)
+
+  // 포커스된 칸을 계산된 위치로 실제로 옮긴다(측정 → 계산 → scrollTo)
+  const scrollToFocused = useCallback(() => {
+    const node = focusedNode.current;
+    if (!node || !scrollRef.current) return;
+    node.measureInWindow((x, y, w, h) => {
+      const nextY = computeFocusScrollY({
+        inputY: y,
+        currentScrollY: scrollY.current,
+        screenHeight: Dimensions.get('window').height,
+        keyboardHeight: keyboardHeight.current,
+      });
+      if (nextY == null) return; // 이동 불필요
+      scrollRef.current?.scrollTo({ y: nextY, animated: true });
+    });
+  }, []);
 
   // 키보드 높이 추적: 보이는 영역 계산에 필요
   useEffect(() => {
@@ -58,6 +75,13 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvt, (e) => {
       keyboardHeight.current = e?.endCoordinates?.height ?? 0;
+      // ⚠️ 키보드가 올라온 뒤 한 번 더 옮긴다.
+      //    autoFocus 로 화면 진입과 동시에 포커스되는 경우, 첫 시도 시점에는 키보드가 없어
+      //    스크롤 가능 범위가 0 이라 scrollTo 가 그대로 무시된다(내용이 화면보다 짧을 때).
+      //    그 뒤 키보드가 올라와 여백이 생겨도 다시 옮기지 않아, 화면 아래쪽 버튼이
+      //    키보드에 덮인 채로 남았다(2026-09-30 iPhone SE 실촬영으로 확인).
+      //    이미 제자리면 computeFocusScrollY 가 null 을 돌려주므로 헛돌지 않는다.
+      setTimeout(scrollToFocused, Platform.OS === 'ios' ? 120 : 160);
     });
     const hideSub = Keyboard.addListener(hideEvt, () => {
       keyboardHeight.current = 0;
@@ -66,7 +90,7 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [scrollToFocused]);
 
   const handleScroll = useCallback(
     (e) => {
@@ -78,25 +102,12 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
 
   // 포커스된 입력칸(native node)을 화면 위쪽으로 이동
   const handleInputFocus = useCallback((node) => {
-    if (!node || !scrollRef.current) return;
-
-    const run = () => {
-      // measureInWindow: 화면(윈도우) 기준 절대 좌표
-      node.measureInWindow((x, y, w, h) => {
-        const nextY = computeFocusScrollY({
-          inputY: y,
-          currentScrollY: scrollY.current,
-          screenHeight: Dimensions.get('window').height,
-          keyboardHeight: keyboardHeight.current,
-        });
-        if (nextY == null) return; // 이동 불필요
-        scrollRef.current?.scrollTo({ y: nextY, animated: true });
-      });
-    };
-
+    if (!node) return;
+    focusedNode.current = node; // 키보드가 뜬 뒤 다시 옮길 수 있게 기억해 둔다
+    if (!scrollRef.current) return;
     // iOS는 keyboardWillShow가 먼저 도착하도록, Android는 레이아웃이 잡히도록 약간 지연
-    setTimeout(run, Platform.OS === 'ios' ? 60 : 120);
-  }, []);
+    setTimeout(scrollToFocused, Platform.OS === 'ios' ? 60 : 120);
+  }, [scrollToFocused]);
 
   return (
     <FocusScrollContext.Provider value={handleInputFocus}>
