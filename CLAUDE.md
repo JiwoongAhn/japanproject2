@@ -125,6 +125,19 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 
 # 향후 예정 작업
 
+## 🔜 다음 작업 — 작은 화면 인증코드 버튼 가려짐 (2026-09-30 발견)
+
+- [ ] **증상**: iPhone SE(작은 화면)에서 `OtpVerificationScreen` 진입 → 숫자 키패드가 올라오면
+      `確認` 버튼이 키패드에 거의 덮여 누르기 어렵다. 키패드를 내릴 방법도 없다.
+- [ ] **원인**: 화면에 ScrollView 가 없다(`SafeAreaView > KeyboardAvoidingView > View`).
+      `behavior='padding'` 으로 영역만 줄어들 뿐, 내용이 넘치면 버튼이 키패드 뒤로 밀린다.
+      숫자 키패드에는 완료/닫기 키가 없어 사용자가 내릴 수도 없다.
+- [ ] **확인 경로**: 시뮬레이터 실촬영으로 확인(2026-09-30). Maestro 도 버튼을 못 눌러
+      좌표 탭으로 우회해야 했다(`.maestro/shots_103_main.yaml` 주석 참조).
+- [ ] **수정 방향(안)**: ① 화면을 ScrollView/KeyboardAwareScrollView 로 감싸 버튼까지 스크롤 가능하게
+      ② 또는 6자리 입력 완료 시 자동 제출 ③ 또는 입력칸 바깥 탭으로 키보드 내리기
+- [ ] ⚠️ 다른 입력 화면들도 같은 구조인지 함께 점검할 것
+
 ## 묶음 4 잔여 (모바일 UI 최적화)
 - [ ] 추가 학교 periodRanges 미정의 (국사관 외 16개) — 학교별 시간 확인 후 적용
 - [ ] 외관 잔여: C-2(텍스트 overflow), C-1(폰트 일관성 103곳), C-3(빈 상태 빈틈) — 출시 후 결정
