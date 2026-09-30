@@ -1,4 +1,4 @@
-import { extractOtpCode } from '../../src/utils/otpCode';
+import { extractOtpCode, shouldAutoSubmitOtp } from '../../src/utils/otpCode';
 
 describe('extractOtpCode', () => {
   test('코드만 있는 경우', () => {
@@ -32,5 +32,36 @@ describe('extractOtpCode', () => {
   });
   test('length 인자로 자리수 변경 가능', () => {
     expect(extractOtpCode('code 1234', 4)).toBe('1234');
+  });
+});
+
+// 작은 화면에서 確認 버튼이 키패드에 가려지는 문제 때문에 6자리 입력 시 자동 확인한다.
+// 여기서 검증하는 핵심은 "같은 코드로 반복 제출하지 않는다"는 가드.
+describe('shouldAutoSubmitOtp', () => {
+  test('6자리를 채우면 제출한다', () => {
+    expect(shouldAutoSubmitOtp({ code: '123456', loading: false, lastTried: null })).toBe(true);
+  });
+  test('6자리 미만이면 제출하지 않는다', () => {
+    expect(shouldAutoSubmitOtp({ code: '12345', loading: false, lastTried: null })).toBe(false);
+  });
+  test('6자리를 넘으면 제출하지 않는다', () => {
+    expect(shouldAutoSubmitOtp({ code: '1234567', loading: false, lastTried: null })).toBe(false);
+  });
+  test('확인 요청 중이면 제출하지 않는다(중복 요청 방지)', () => {
+    expect(shouldAutoSubmitOtp({ code: '123456', loading: true, lastTried: null })).toBe(false);
+  });
+  test('같은 코드를 이미 시도했으면 제출하지 않는다(실패 후 무한 재시도 방지)', () => {
+    expect(shouldAutoSubmitOtp({ code: '123456', loading: false, lastTried: '123456' })).toBe(false);
+  });
+  test('코드를 고쳐 다른 값이 되면 다시 제출한다', () => {
+    expect(shouldAutoSubmitOtp({ code: '123457', loading: false, lastTried: '123456' })).toBe(true);
+  });
+  test('코드가 문자열이 아니면 제출하지 않는다', () => {
+    expect(shouldAutoSubmitOtp({ code: null, loading: false, lastTried: null })).toBe(false);
+    expect(shouldAutoSubmitOtp({ code: 123456, loading: false, lastTried: null })).toBe(false);
+  });
+  test('length 인자로 자리수 변경 가능', () => {
+    expect(shouldAutoSubmitOtp({ code: '1234', loading: false, lastTried: null }, 4)).toBe(true);
+    expect(shouldAutoSubmitOtp({ code: '123456', loading: false, lastTried: null }, 4)).toBe(false);
   });
 });

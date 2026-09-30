@@ -15,3 +15,24 @@ export function extractOtpCode(text, length = 6) {
   const hit = runs.find((r) => r.length === length);
   return hit || null;
 }
+
+// 6자리를 다 채웠을 때 "지금 자동으로 확인을 보낼지" 판단하는 순수 함수.
+//
+// 왜 필요한가:
+//   작은 화면(iPhone SE 등)에서는 숫자 키패드가 確認 버튼을 거의 덮는다.
+//   숫자 키패드에는 완료 키도 없어 사용자가 내릴 수도 없었다.
+//   → 6자리가 채워지면 버튼을 누르지 않아도 진행시킨다.
+//
+// 반복 제출을 막는 것이 핵심:
+//   코드가 틀리면 Alert이 뜨고 입력값은 그대로 남는다. 가드가 없으면
+//   같은 코드로 무한히 재요청하게 된다. 그래서 "이미 시도한 코드"는 건너뛴다.
+//
+//   code      : 현재 입력값
+//   loading   : 확인 요청이 진행 중인가
+//   lastTried : 자동 제출을 이미 시도한 코드(없으면 null)
+export function shouldAutoSubmitOtp({ code, loading, lastTried }, length = 6) {
+  if (typeof code !== 'string' || code.length !== length) return false;
+  if (loading) return false;
+  if (lastTried === code) return false;
+  return true;
+}

@@ -40,6 +40,8 @@ describe('수정한 화면 모듈 로드 스모크', () => {
     ['MainTab', '../src/navigation/MainTab'],
     ['AppNavigator', '../src/navigation/AppNavigator'],
     ['WideScreenContainer', '../src/components/WideScreenContainer'],
+    // ↓ 2026-09-30 작은 화면 키패드 가림 수정으로 손댄 파일
+    ['OtpVerificationScreen', '../src/screens/auth/OtpVerificationScreen'],
   ])('%s 가 로드된다', (name, path) => {
     const mod = require(path);
     expect(typeof mod.default).toBe('function');

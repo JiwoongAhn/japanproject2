@@ -2,17 +2,18 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, SafeAreaView, Alert,
-  KeyboardAvoidingView, Platform, AppState,
+  KeyboardAvoidingView, AppState,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import AppTextInput from '../../components/AppTextInput';
+import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { DEMO_EMAIL } from '../../constants/demo';
-import { extractOtpCode } from '../../utils/otpCode';
+import { extractOtpCode, shouldAutoSubmitOtp } from '../../utils/otpCode';
 
 // 학교 이메일 OTP 인증 화면
 // SchoolPortalAuthScreen에서 OTP 발송 후 이 화면으로 이동
@@ -25,6 +26,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
   const [resendCooldown, setResendCooldown] = useState(60); // 재발송 쿨다운(초)
   const [clipboardCode, setClipboardCode] = useState(null); // 클립보드에서 찾은 6자리 코드
   const timerRef = useRef(null);
+  const triedCodeRef = useRef(null); // 자동 제출을 이미 시도한 코드(같은 코드 반복 제출 방지)
 
   // 클립보드에 6자리 코드가 있으면 "貼り付け" 칩을 띄운다.
   // number-pad 키보드는 iOS의 붙여넣기 제안 바가 안 떠서 앱이 직접 제공.
@@ -95,7 +97,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
   };
 
   // OTP 확인 + 가입 (Supabase 내장 OTP)
-  const handleVerify = async () => {
+  const handleVerify = useCallback(async () => {
     const trimmedCode = code.trim();
     if (trimmedCode.length !== 6) {
       Alert.alert('お知らせ', '6桁のコードを入力してください');
@@ -150,20 +152,41 @@ export default function OtpVerificationScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [code, email]);
+
+  // 6자리를 다 채우면 바로 확인한다.
+  // 작은 화면(iPhone SE 등)에서는 숫자 키패드가 確認 버튼을 거의 덮어 누르기 어려웠다.
+  // 키패드엔 완료 키도 없어 내릴 방법이 없었으므로, 버튼을 누르지 않아도 진행되게 한다.
+  // (버튼은 그대로 남겨 둔다 — 코드가 틀려 다시 고쳐 넣는 경우의 명시적 재시도 수단)
+  useEffect(() => {
+    // 판단 규칙은 순수 함수로 분리해 테스트한다(utils/otpCode).
+    if (!shouldAutoSubmitOtp({ code, loading, lastTried: triedCodeRef.current })) return;
+    triedCodeRef.current = code;
+    handleVerify();
+  }, [code, loading, handleVerify]);
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* behavior를 주지 않는다: 아래 KeyboardAwareScrollView가 직접 스크롤하므로
+          padding까지 겹치면 이중 오프셋이 된다(다른 입력 화면들과 같은 방식). */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={undefined}
         style={{ flex: 1 }}
       >
-        <View style={styles.inner}>
-          {/* 뒤로가기 */}
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.backText}>‹ 戻る</Text>
-          </TouchableOpacity>
+        {/* 뒤로가기 — 스크롤과 함께 사라지지 않도록 바깥에 고정 */}
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.backText}>‹ 戻る</Text>
+        </TouchableOpacity>
 
+        {/* 숫자 키패드에는 완료 키가 없다 → 아래로 드래그해 내릴 수 있게 on-drag */}
+        <KeyboardAwareScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          automaticallyAdjustKeyboardInsets
+        >
           {/* 헤더 — 1 thing/1 page: 코드 입력 한 가지에 집중 */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
@@ -234,7 +257,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
           <Text style={styles.note}>
             メールが届かない場合、迷惑メールフォルダもご確認ください
           </Text>
-        </View>
+        </KeyboardAwareScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -245,13 +268,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.surface,
   },
-  inner: {
-    flex: 1,
+  // 내용이 짧아도 화면을 채우고, 길면(키패드 올라온 작은 화면) 스크롤된다.
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: spacing.xxl,
     paddingBottom: spacing.huge,
   },
 
   backButton: {
+    paddingHorizontal: spacing.xxl,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
