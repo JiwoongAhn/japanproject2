@@ -9,6 +9,13 @@ jest.mock('@react-native-cookies/cookies', () => ({
   default: { get: jest.fn(), set: jest.fn(), clearAll: jest.fn(), getAll: jest.fn() },
 }));
 jest.mock('expo-web-browser', () => ({ openBrowserAsync: jest.fn() }));
+// expo-linking은 실기기의 app.json 매니페스트를 읽어 URI 스킴을 정하므로 테스트 환경에선 실패한다.
+// 딥링크 동작 자체는 이 테스트의 관심사가 아니라 대체한다.
+jest.mock('expo-linking', () => ({
+  createURL: () => 'unione://',
+  addEventListener: () => ({ remove: () => {} }),
+  getInitialURL: async () => null,
+}));
 
 describe('수정한 화면 모듈 로드 스모크', () => {
   it.each([
@@ -24,6 +31,15 @@ describe('수정한 화면 모듈 로드 스모크', () => {
     ['PhoneMockup', '../src/components/PhoneMockup'],
     ['SchoolWebViewScreen', '../src/screens/SchoolWebViewScreen'],
     ['TimetableScreen', '../src/screens/timetable/TimetableScreen'],
+    // ↓ 2026-09-29 실기 버그 수정으로 손댄 파일들. 이전에는 목록에 없어 검사조차 되지 않았다.
+    ['AssignmentScreen', '../src/screens/AssignmentScreen'],
+    ['FreeTimeScreen', '../src/screens/timetable/FreeTimeScreen'],
+    ['PostDetailScreen', '../src/screens/community/PostDetailScreen'],
+    ['SplashScreen', '../src/screens/auth/SplashScreen'],
+    ['NoticePreviewModal', '../src/screens/notice/NoticePreviewModal'],
+    ['MainTab', '../src/navigation/MainTab'],
+    ['AppNavigator', '../src/navigation/AppNavigator'],
+    ['WideScreenContainer', '../src/components/WideScreenContainer'],
   ])('%s 가 로드된다', (name, path) => {
     const mod = require(path);
     expect(typeof mod.default).toBe('function');

@@ -100,3 +100,41 @@ describe('shouldShowMockup — 창 높이만으로 사전 판정', () => {
     expect(shouldShowMockup(undefined)).toBe(false);
   });
 });
+
+describe('큰 화면 대응 (⑦ 아이패드/노트북)', () => {
+  const { isWideScreen, getContentWidth, getContentContainerStyle,
+          WIDE_BREAKPOINT, CONTENT_MAX_WIDTH } = require('../../src/utils/layout');
+
+  it('폰 폭은 큰 화면이 아니다', () => {
+    expect(isWideScreen(375)).toBe(false);   // iPhone SE
+    expect(isWideScreen(430)).toBe(false);   // iPhone Pro Max
+  });
+
+  it('아이패드 폭은 큰 화면이다', () => {
+    expect(isWideScreen(744)).toBe(true);    // iPad mini 세로
+    expect(isWideScreen(1024)).toBe(true);   // iPad 가로
+  });
+
+  it('경계값에서 정확히 갈린다', () => {
+    expect(isWideScreen(WIDE_BREAKPOINT - 1)).toBe(false);
+    expect(isWideScreen(WIDE_BREAKPOINT)).toBe(true);
+  });
+
+  it('⑦ 회귀 방지: 폰에서는 레이아웃이 기존과 완전히 동일하다', () => {
+    expect(getContentWidth(390)).toBe(390);               // 폭 제한 없음
+    expect(getContentContainerStyle(390)).toEqual({ flex: 1 });  // 스타일도 flex만
+  });
+
+  it('큰 화면에서는 가운데 고정 폭으로 제한된다', () => {
+    expect(getContentWidth(1024)).toBe(CONTENT_MAX_WIDTH);
+    const style = getContentContainerStyle(1024);
+    expect(style.maxWidth).toBe(CONTENT_MAX_WIDTH);
+    expect(style.alignSelf).toBe('center');
+  });
+
+  it('잘못된 입력에도 터지지 않는다', () => {
+    expect(getContentWidth(0)).toBe(0);
+    expect(getContentWidth(undefined)).toBe(0);
+    expect(isWideScreen(NaN)).toBe(false);
+  });
+});

@@ -19,7 +19,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.jiwoongahn.unione",
       "infoPlist": {
         "CFBundleDevelopmentRegion": "ja",

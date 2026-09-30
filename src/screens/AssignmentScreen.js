@@ -162,8 +162,18 @@ export default function AssignmentScreen({ navigation }) {
   return (
     <SafeAreaView style={styles.container}>
 
-      {/* 상단 헤더 */}
+      {/* 상단 헤더
+          하단 탭에서 모달로 바뀌었으므로 닫기(✕) 버튼이 반드시 필요하다.
+          (안드로이드에는 스와이프로 닫기가 없어 버튼이 없으면 빠져나올 수 없다) */}
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="close" size={26} color={colors.textPrimary} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>課題</Text>
         <TouchableOpacity
           style={styles.addButton}
@@ -307,9 +317,13 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.md,
     backgroundColor: colors.background,
   },
+  closeButton: {
+    marginRight: spacing.sm,
+  },
   headerTitle: {
     ...typography.title2,
     color: colors.textPrimary,
+    flex: 1,          // 닫기 버튼과 追加 버튼 사이를 채워 제목이 왼쪽에 붙게 한다
   },
   addButton: {
     backgroundColor: colors.primary,

@@ -8,6 +8,8 @@ import {
   getCurrentTerm,
   termLabel,
   semesterLabel,
+  pickTodayCourses,
+  computeCommonFreeCells,
 } from '../../src/utils/timetable';
 
 describe('calculateFreePeriods', () => {
@@ -339,5 +341,78 @@ describe('parseKaedeTimetable', () => {
   test('K-10: 빈·null 입력 안전', () => {
     expect(parseKaedeTimetable(null)).toEqual({ parsed: [], unparsed: [] });
     expect(parseKaedeTimetable([{ id: 'Cell1_1_Spring', name: '' }]).parsed).toHaveLength(0);
+  });
+});
+
+describe('pickTodayCourses (② 홈탭 시간표 미표시 대응)', () => {
+  const fall = [
+    { id: 1, term: 'fall', period: 1, name: '情報処理' },
+    { id: 2, term: 'fall', period: 3, name: '英語' },
+  ];
+  const spring = [{ id: 3, term: 'spring', period: 2, name: '体育' }];
+
+  it('현재 학기 수업이 있으면 그것만 보여준다', () => {
+    const r = pickTodayCourses([...fall, ...spring], 'fall');
+    expect(r.courses).toHaveLength(2);
+    expect(r.fallbackTerm).toBeNull();
+  });
+
+  it('현재 학기 수업이 없으면 다른 학기라도 보여주고 그 사실을 알린다', () => {
+    const r = pickTodayCourses(spring, 'fall');
+    expect(r.courses).toHaveLength(1);
+    expect(r.fallbackTerm).toBe('spring');
+  });
+
+  it('수업이 아예 없으면 빈 결과', () => {
+    const r = pickTodayCourses([], 'fall');
+    expect(r.courses).toEqual([]);
+    expect(r.fallbackTerm).toBeNull();
+  });
+
+  it('잘못된 입력에도 터지지 않는다', () => {
+    expect(pickTodayCourses(null, 'fall').courses).toEqual([]);
+    expect(pickTodayCourses(undefined, 'fall').fallbackTerm).toBeNull();
+  });
+
+  it('② 회귀: 8월에 넣은 春학기 시간표가 9월에 홈에서 사라지지 않는다', () => {
+    // 실제 DB에 있던 상황 — 8/18에 spring으로 저장된 수업, 오늘은 9월(fall)
+    const september = new Date('2026-09-29T09:00:00+09:00');
+    expect(getCurrentTerm(september)).toBe('fall');
+    const r = pickTodayCourses(spring, getCurrentTerm(september));
+    expect(r.courses).toHaveLength(1);   // 예전에는 여기가 0건이었다
+    expect(r.fallbackTerm).toBe('spring');
+  });
+});
+
+describe('computeCommonFreeCells (③ 시간표 비교 점검)', () => {
+  const PERIODS = [1, 2, 3, 4, 5, 6];
+  const myFree = ['0-1', '0-2', '1-3'];
+
+  it('나도 비고 친구도 비는 칸만 공통으로 잡는다', () => {
+    const friend = [{ day_of_week: 0, period: 2 }];  // 친구는 月2限에 수업
+    const r = computeCommonFreeCells(myFree, friend, PERIODS);
+    expect(r.friendHasTimetable).toBe(true);
+    expect([...r.commonKeys].sort()).toEqual(['0-1', '1-3']);
+  });
+
+  it('③ 회귀: 친구가 시간표를 등록하지 않았으면 "전부 공통"으로 처리하지 않는다', () => {
+    const r = computeCommonFreeCells(myFree, [], PERIODS);
+    expect(r.friendHasTimetable).toBe(false);
+    expect(r.commonKeys.size).toBe(0);   // 예전에는 여기가 myFree 전부였다
+  });
+
+  it('내가 고른 칸이 없으면 공통도 없다', () => {
+    const r = computeCommonFreeCells([], [{ day_of_week: 0, period: 1 }], PERIODS);
+    expect(r.commonKeys.size).toBe(0);
+  });
+
+  it('Set으로 넘겨도 동작한다 (화면이 Set을 쓴다)', () => {
+    const r = computeCommonFreeCells(new Set(myFree), [{ day_of_week: 9, period: 9 }], PERIODS);
+    expect([...r.commonKeys].sort()).toEqual(['0-1', '0-2', '1-3']);
+  });
+
+  it('잘못된 입력에도 터지지 않는다', () => {
+    expect(() => computeCommonFreeCells(null, null, null)).not.toThrow();
+    expect(computeCommonFreeCells(null, null, null).friendHasTimetable).toBe(false);
   });
 });

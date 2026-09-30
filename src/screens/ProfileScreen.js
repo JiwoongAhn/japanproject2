@@ -24,6 +24,9 @@ import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo, findUniversityByEmail, getUniversityLinks } from '../utils/university';
 import { supportsManaba } from '../constants/manaba';
 import { clearCachedNotices } from '../utils/manabaCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { cookieKeyForUrl, credKeyForUrl, clearCookies, clearCredentials } from '../utils/schoolCookies';
+import { readLoginFailures, getFailureCopy } from '../utils/loginDiagnostics';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { formatTimeAgo } from '../utils/community';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
@@ -36,9 +39,9 @@ export default function ProfileScreen({ navigation }) {
   const [universityName, setUniversityName] = useState('');
   // 내 학교가 manaba를 쓰는가 — manaba 관련 메뉴 노출 여부를 가른다.
   // ⚠️ getUniversityInfo는 모르는 도메인을 국사관으로 폴백하므로 여기선 쓰면 안 된다.
-  const usesManaba = supportsManaba(
-    getUniversityLinks(findUniversityByEmail(userEmail)?.id)?.manabaUrl
-  );
+  // 내 학교의 링크 모음 (로그인 정보 리셋 대상 호스트를 고르는 데도 쓴다)
+  const links = getUniversityLinks(findUniversityByEmail(userEmail)?.id) ?? {};
+  const usesManaba = supportsManaba(links.manabaUrl);
   const [loading, setLoading]               = useState(true);
   const [loggingOut, setLoggingOut]         = useState(false);
   const [myPosts, setMyPosts]               = useState([]);
@@ -51,6 +54,9 @@ export default function ProfileScreen({ navigation }) {
   const [savingNickname, setSavingNickname]             = useState(false);
   // manaba 통지 메일전달 상태: 'none'(미설정) | 'pending'(주소발급, 전달대기) | 'verified'(전달확인)
   const [forwardStatus, setForwardStatus] = useState('none');
+  const [testPushSending, setTestPushSending] = useState(false);
+  // 최근 학교 사이트 접속 실패 기록 (④ 재현 어려운 로그인 문제 추적용)
+  const [loginFailures, setLoginFailures] = useState([]);
   // 푸시 수신 상태(안전망 정보): 최근 받은 통지 시각 + 최근 7일 미달 건수
   const [lastDelivered, setLastDelivered] = useState(null);
   const [recentFailed, setRecentFailed]   = useState(0);
@@ -111,6 +117,60 @@ export default function ProfileScreen({ navigation }) {
   useEffect(() => {
     fetchForwardStatus();
   }, [fetchForwardStatus]);
+
+  // 최근 접속 실패 기록 읽기 (기기 안에만 저장된 값)
+  useEffect(() => {
+    readLoginFailures(AsyncStorage).then(setLoginFailures).catch(() => {});
+  }, []);
+
+  // 학교 로그인 정보 초기화 — 쿠키가 만료·오염된 채로 굳어 로그인이 계속 실패할 때의 탈출구.
+  // 저장된 ID/PW와 쿠키를 모두 비우고 처음부터 다시 로그인하게 한다.
+  const handleResetSchoolLogin = useCallback(() => {
+    Alert.alert(
+      '学校ログイン情報をリセット',
+      '保存されたIDとパスワード、ログイン状態を削除します。\n次回は改めてログインが必要になります。',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        {
+          text: 'リセット',
+          style: 'destructive',
+          onPress: async () => {
+            // 이 학교에서 쓰는 모든 로그인 호스트를 대상으로 정리한다
+            const urls = [links.manabaUrl, links.portalUrl, links.lmsUrl, links.timetableUrl]
+              .filter(Boolean);
+            for (const url of urls) {
+              await clearCookies(url, cookieKeyForUrl(url));
+              await clearCredentials(credKeyForUrl(url));
+            }
+            await clearCachedNotices();
+            Alert.alert('完了', 'ログイン情報を削除しました。\nもう一度ログインしてお試しください。');
+          },
+        },
+      ],
+    );
+  }, [links]);
+
+  // 테스트 통지 발송 — 서버가 호출자 본인에게만 보낸다(userId를 보내지 않는다)
+  const handleSendTestPush = useCallback(async () => {
+    setTestPushSending(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-test-push', {
+        body: { scenario: 'normal' },
+      });
+      if (error) throw error;
+      Alert.alert(
+        'テスト通知を送信しました',
+        '数秒以内に届かない場合は、端末の通知設定をご確認ください。',
+      );
+    } catch {
+      Alert.alert(
+        '送信できませんでした',
+        '通知の準備がまだ完了していない可能性があります。manaba通知設定をご確認ください。',
+      );
+    } finally {
+      setTestPushSending(false);
+    }
+  }, []);
 
   // 푸시 수신 상태 조회 (최신 delivered 시각 + 최근 7일 dead/permanent_fail 건수)
   const fetchPushStatus = useCallback(async () => {
@@ -573,9 +633,55 @@ export default function ProfileScreen({ navigation }) {
                 ⚠️ 一部の通知が届かなかった可能性があります（{recentFailed}件）
               </Text>
             )}
+
+            {/* 테스트 통지 — 설정이 실제로 동작하는지 사용자가 직접 확인할 수 있게 한다.
+                "연결했는데 통지가 안 온다"를 스스로 진단하는 가장 빠른 방법 */}
+            <TouchableOpacity
+              style={styles.testPushButton}
+              onPress={handleSendTestPush}
+              disabled={testPushSending}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="notifications-outline" size={16} color={colors.primary} />
+              <Text style={styles.testPushButtonText}>
+                {testPushSending ? '送信中…' : 'テスト通知を送る'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
         )}
+
+        {/* ── 학교 로그인 문제 해결 ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>学校サイトの接続</Text>
+          <View style={styles.infoCard}>
+            <TouchableOpacity onPress={handleResetSchoolLogin} activeOpacity={0.8}>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>ログイン情報をリセット</Text>
+                  <Text style={styles.toggleHint}>
+                    ログインがうまくいかないときにお試しください。保存されたIDとログイン状態を削除します
+                  </Text>
+                </View>
+                <Text style={styles.menuArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* 최근 접속 실패 기록 — 기기 안에만 저장되며 서버로 보내지 않는다 */}
+            {loginFailures.length > 0 && (
+              <>
+                <View style={styles.divider} />
+                <Text style={styles.failureLogTitle}>最近の接続エラー</Text>
+                {loginFailures.slice(0, 3).map((f, i) => (
+                  <Text key={`${f.at}-${i}`} style={styles.failureLogItem}>
+                    ・{formatTimeAgo(f.at)} — {getFailureCopy(f.kind).title}
+                    {f.host ? `（${f.host}）` : ''}
+                  </Text>
+                ))}
+              </>
+            )}
+          </View>
+        </View>
 
         {/* ── 앱 사용법 다시 보기 ── */}
         <View style={styles.section}>
@@ -897,6 +1003,32 @@ const styles = StyleSheet.create({
     ...typography.body2,
     fontWeight: '600',
     color: colors.textPrimary,
+  },
+  testPushButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  testPushButtonText: {
+    ...typography.captionStrong,
+    color: colors.primary,
+  },
+  failureLogTitle: {
+    ...typography.captionStrong,
+    color: colors.textSecondary,
+    marginTop: spacing.sm,
+    marginBottom: 4,
+  },
+  failureLogItem: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 19,
   },
   pushFailNote: {
     ...typography.small,

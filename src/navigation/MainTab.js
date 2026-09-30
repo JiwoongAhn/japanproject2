@@ -4,7 +4,6 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import HomeScreen from '../screens/HomeScreen';
 import TimetableStack from './TimetableStack';
-import AssignmentStack from './AssignmentStack';
 import CommunityStack from './CommunityStack';
 import ProfileScreen from '../screens/ProfileScreen';
 import PrivacyPolicyScreen from '../screens/PrivacyPolicyScreen';
@@ -38,7 +37,9 @@ function ProfileStackNavigator() {
   );
 }
 
-// 로그인 후 보이는 하단 탭 5개
+// 로그인 후 보이는 하단 탭 4개
+// 課題는 탭에서 뺐다(실사용 0건) — AppNavigator의 루트 모달 'Assignment'로 남아 있어
+// 홈·時間割·통지에서 계속 열 수 있다.
 export default function MainTab() {
   return (
     <TabBarScrollProvider>
@@ -67,16 +68,6 @@ export default function MainTab() {
           tabBarLabel: '時間割',
           tabBarIcon: ({ focused, color }) => (
             <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={24} color={color} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Assignment"
-        component={AssignmentStack}
-        options={{
-          tabBarLabel: '課題',
-          tabBarIcon: ({ focused, color }) => (
-            <Ionicons name={focused ? 'checkbox' : 'checkbox-outline'} size={24} color={color} />
           ),
         }}
       />

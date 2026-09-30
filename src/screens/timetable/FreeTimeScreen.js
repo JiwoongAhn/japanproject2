@@ -8,7 +8,7 @@ import {
   TextInput,
   SafeAreaView,
   Alert,
-  Dimensions,
+  useWindowDimensions,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -21,14 +21,18 @@ import { typography } from '../../constants/typography';
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo } from '../../utils/university';
 import Card from '../../components/Card';
-import { getCurrentTerm } from '../../utils/timetable';
+import { getCurrentTerm, computeCommonFreeCells } from '../../utils/timetable';
+import { getContentWidth } from '../../utils/layout';
 
 const DAY_LABELS = ['月', '火', '水', '木', '金'];
 const PERIOD_COL_WIDTH = 36;
 // 화면 너비 기반 셀 크기 계산
 // 32 = ScrollView padding (16 * 2), 32 = Card padding (16 * 2), 10 = gap*5
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CELL_WIDTH = Math.floor((SCREEN_WIDTH - 32 - 32 - PERIOD_COL_WIDTH - 10) / 5);
+// 셀 폭은 모듈 로드 시점의 고정값이 아니라 컴포넌트 안에서 훅으로 계산한다.
+// (아이패드·회전·분할 화면에서 폭이 바뀌면 그리드가 어긋나기 때문)
+function computeCellWidth(contentWidth) {
+  return Math.floor((contentWidth - 32 - 32 - PERIOD_COL_WIDTH - 10) / 5);
+}
 
 export default function FreeTimeScreen({ navigation }) {
   const scrollViewRef = useRef(null);
@@ -36,6 +40,9 @@ export default function FreeTimeScreen({ navigation }) {
 
   // 학교별 교시 수에 맞게 그리드 동적 계산
   const universityInfo = getUniversityInfo(session?.user?.email);
+  // 큰 화면에서는 콘텐츠가 가운데 고정 폭으로 제한되므로 그 폭을 기준으로 계산한다
+  const { width: windowWidth } = useWindowDimensions();
+  const CELL_WIDTH = computeCellWidth(getContentWidth(windowWidth));
   const periodCount = universityInfo?.periodRanges ? Object.keys(universityInfo.periodRanges).length : 6;
   const PERIODS = Array.from({ length: periodCount }, (_, i) => i + 1);
   // 교시 수가 많을수록 셀 높이를 줄여 화면에 맞게 조정
@@ -132,6 +139,12 @@ export default function FreeTimeScreen({ navigation }) {
     const input = friendInput.trim();
     if (!input) return;
 
+    // 본인 ID를 넣으면 "내 공강 전부가 공통"으로 나와 의미가 없다
+    if (myNickname && input === myNickname) {
+      Alert.alert('お知らせ', '自分以外の友達のIDを入力してください');
+      return;
+    }
+
     setComparing(true);
     setCommonCells(new Set());
     setFriendNickname('');
@@ -162,16 +175,21 @@ export default function FreeTimeScreen({ navigation }) {
         .eq('user_id', profile.id)
         .eq('term', getCurrentTerm()); // 공강 비교는 지금 학기끼리
 
-      const friendClassSet = new Set((friendCourses ?? []).map(c => `${c.day_of_week}-${c.period}`));
-      const friendFreeSet = new Set();
-      for (let day = 0; day <= 4; day++) {
-        for (const period of PERIODS) {
-          if (!friendClassSet.has(`${day}-${period}`)) friendFreeSet.add(`${day}-${period}`);
-        }
+      const { friendHasTimetable, commonKeys } = computeCommonFreeCells(
+        selectedCells, friendCourses, PERIODS,
+      );
+
+      // 친구가 시간표를 아직 등록하지 않았다면 비교 결과를 내지 않는다.
+      // (0건을 "전부 공강"으로 계산하면 모든 칸이 공통으로 표시돼 잘못된 약속을 잡게 된다)
+      if (!friendHasTimetable) {
+        Alert.alert(
+          'お知らせ',
+          `${profile.nickname}さんはまだ時間割を登録していないようです。\n登録をお願いしてみよう`,
+        );
+        return;
       }
 
-      const common = new Set([...selectedCells].filter(k => friendFreeSet.has(k)));
-      setCommonCells(common);
+      setCommonCells(commonKeys);
       setFriendNickname(profile.nickname);
     } catch {
       Alert.alert('お知らせ', 'うまく比較できませんでした。もう一度お試しください');

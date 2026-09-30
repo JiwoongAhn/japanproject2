@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import AuthStack from './AuthStack';
 import MainTab from './MainTab';
 import ManabaStack from './ManabaStack';
+import AssignmentStack from './AssignmentStack';
 import SchoolWebViewScreen from '../screens/SchoolWebViewScreen';
 import SplashScreen from '../screens/auth/SplashScreen';
 import AcEmailInputScreen from '../screens/auth/AcEmailInputScreen';
@@ -43,7 +44,7 @@ const linking = {
 };
 
 export default function AppNavigator() {
-  const { session, profile, loading, pendingNotice, clearPendingNotice } = useAuth();
+  const { session, profile, loading, pendingNotice, clearPendingNotice, bootStalled, retryBoot } = useAuth();
 
   // 환영 화면 노출 여부 (첫 실행 1회 게이트, 개인정보 동의보다 앞). null=확인중
   const [welcomeSeen, setWelcomeSeen] = useState(null);
@@ -120,6 +121,8 @@ export default function AppNavigator() {
   const gate = resolveAuthGate({ loading, welcomeSeen, consented, pushPrimingDone, session, profile });
 
   // 로그인 이전 게이트 + 스플래시는 NavigationContainer 바깥에서 바로 반환
+  // 세션은 저장돼 있는데 확인이 계속 실패하는 중 → 로그아웃시키지 말고 재시도 안내
+  if (bootStalled) return <SplashScreen onRetry={retryBoot} />;
   if (gate === 'splash') return <SplashScreen />;
   if (gate === 'welcome') return <WelcomeScreen onStart={markWelcomeSeen} />;
   if (gate === 'consent') return <PrivacyConsentScreen onConsent={() => setConsented(true)} />;
@@ -158,6 +161,13 @@ export default function AppNavigator() {
         <RootStack.Screen
           name="Manaba"
           component={ManabaStack}
+          options={{ presentation: 'modal' }}
+        />
+        {/* 課題 — 하단 탭에서 빼고 모달로 전환(실사용 0건).
+            홈 카드·時間割 셀·통지 프리뷰에서 navigate('Assignment')로 계속 열 수 있다. */}
+        <RootStack.Screen
+          name="Assignment"
+          component={AssignmentStack}
           options={{ presentation: 'modal' }}
         />
         <RootStack.Screen

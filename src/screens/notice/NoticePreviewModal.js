@@ -130,15 +130,16 @@ export default function NoticePreviewModal() {
   const handleAddAssignment = () => {
     markAsReadOnce();
     clearPendingNotice();
-    navigation.navigate('MainTab', {
-      screen: 'Assignment',
+    // 課題는 탭이 아니라 루트 모달이 됐다.
+    // navigate로 열면 이 통지 모달 위에 과제 모달이 쌓여, 과제를 닫았을 때 통지 화면으로
+    // 되돌아가 버린다. replace로 이 모달 자체를 과제 모달로 바꿔 예전 흐름(통지 닫힘 →
+    // 과제로 이동)을 유지한다.
+    navigation.replace('Assignment', {
+      screen: 'AssignmentAdd',
       params: {
-        screen: 'AssignmentAdd',
-        params: {
-          courseName: summary.courseName ?? '',
-          title: summary.summary ?? '',
-          dueDate: deadlineToDueDate(summary.deadline),
-        },
+        courseName: summary.courseName ?? '',
+        title: summary.summary ?? '',
+        dueDate: deadlineToDueDate(summary.deadline),
       },
     });
   };

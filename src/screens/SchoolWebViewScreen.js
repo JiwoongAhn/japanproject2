@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,6 +33,13 @@ import { parseTimetable } from '../utils/timetableRouter';
 import { getCurrentTerm, termLabel } from '../utils/timetable';
 import { shouldShowExtractButton } from '../utils/timetableImport';
 import { buildKaedeCellId, buildSyllabusClickJS } from '../utils/syllabusLink';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  classifyLoginFailure,
+  getFailureCopy,
+  buildFailureEntry,
+  recordLoginFailure,
+} from '../utils/loginDiagnostics';
 
 // 카에데 MY時間割 셀 추출 스크립트
 // 각 수업 칸은 <td id="Cell{열}_{교시}_{Spring|Autumn}" class="cell"> 구조.
@@ -272,6 +279,22 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   };
 
   // 페이지 로드 완료: 쿠키 저장 + 로그인 폼 프로브 (결과는 handleLoginProbe)
+  // 페이지 로드 실패 처리 — 원인을 분류해 안내하고, 기기에 기록을 남긴다.
+  // (④ "카에데 로그인이 한동안 안 됐다"처럼 재현이 어려운 문제를 나중에 추적하기 위함)
+  const handleLoadFailure = useCallback((nativeEvent) => {
+    const kind = classifyLoginFailure({
+      code: nativeEvent?.code,
+      description: nativeEvent?.description,
+      statusCode: nativeEvent?.statusCode,
+    });
+    recordLoginFailure(
+      AsyncStorage,
+      buildFailureEntry({ url: nativeEvent?.url, kind, statusCode: nativeEvent?.statusCode }),
+    );
+    const copy = getFailureCopy(kind);
+    Alert.alert(copy.title, copy.message);
+  }, []);
+
   const handleLoadEnd = async () => {
     setLoading(false);
     await saveCookies(url, cookieKey);
@@ -359,12 +382,13 @@ export default function SchoolWebViewScreen({ navigation, route }) {
           onNavigationStateChange={handleNavStateChange}
           onMessage={handleMessage}
           onLoadEnd={handleLoadEnd}
-          onError={() => {
+          onError={(e) => {
             setLoading(false);
-            Alert.alert(
-              '接続エラー',
-              'ページに接続できませんでした。\nインターネット接続を確認してください。'
-            );
+            handleLoadFailure(e?.nativeEvent);
+          }}
+          onHttpError={(e) => {
+            // 4xx/5xx는 onError로 오지 않는다 — 학교 서버 장애를 구분하려면 별도로 받아야 한다
+            handleLoadFailure(e?.nativeEvent);
           }}
           sharedCookiesEnabled
           domStorageEnabled

@@ -19,9 +19,14 @@ import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { supabase } from '../lib/supabase';
-import { getCourseStatus, getPeriodRanges, getCurrentTerm } from '../utils/timetable';
+import { getCourseStatus, getPeriodRanges, getCurrentTerm, pickTodayCourses, termLabel } from '../utils/timetable';
 import { getTodayStr } from '../utils/date';
 import { getUniversityInfo, getUniversityLinks, findUniversityByEmail } from '../utils/university';
+import {
+  resolveManabaSetupStage,
+  shouldShowSetupBanner,
+  getSetupBannerCopy,
+} from '../utils/manabaSetupStatus';
 import { universities } from '../constants/universities';
 import ManabaNoticePreview from '../components/ManabaNoticePreview';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
@@ -29,6 +34,10 @@ import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 export default function HomeScreen({ navigation }) {
   const { handleScroll } = useTabBarScroll();
   const [todayCourses, setTodayCourses] = useState([]);
+  // manaba 통지 설정 상태 (⑤ 미완료 배너용) — { hasSubscription, verifiedAt, pushTokenCount }
+  const [manabaSetup, setManabaSetup] = useState(null);
+  // 현재 학기가 아닌 학기의 시간표를 보여주는 중이면 그 학기 코드 (② 대응)
+  const [termFallback, setTermFallback] = useState(null);
   const [upcomingAssignments, setUpcomingAssignments] = useState([]);
   const [recentPosts, setRecentPosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,13 +74,18 @@ export default function HomeScreen({ navigation }) {
         if (profile?.nickname) setNickname(profile.nickname);
       }
 
+      // ⚠️ 날짜는 반드시 "지금" 다시 계산한다.
+      //    예전에는 렌더 시점의 now를 useCallback([])이 붙잡고 있어서, 앱을 켜 둔 채
+      //    날이 바뀌면 계속 어제 요일의 수업을 조회했다(실기 버그 ② 원인 중 하나).
+      const today = new Date();
+
       // 오늘 요일 → DB day_of_week (0=월, 4=금 / JS: 0=일, 1=월 ... 6=토)
-      const jsDay = now.getDay(); // 0=일, 1=월 ... 6=토
-      const dbDay = jsDay - 1;   // 0=월, 4=금, 토일은 -1, 6
+      const jsDay = today.getDay(); // 0=일, 1=월 ... 6=토
+      const dbDay = jsDay - 1;      // 0=월, 4=금, 토일은 -1, 6
 
       const todayStr = getTodayStr();
       const d3Str = (() => {
-        const d = new Date(now);
+        const d = new Date(today);
         d.setDate(d.getDate() + 3);
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       })();
@@ -81,8 +95,10 @@ export default function HomeScreen({ navigation }) {
 
       const [coursesRes, assignmentsRes, postsRes] = await Promise.all([
         // 오늘 수업 (평일일 때만, 본인 수업만)
+        // 학기로 DB에서 거르지 않는다 — 어느 학기를 보여줄지는 pickTodayCourses가 정한다.
+        // (현재 학기에 데이터가 없으면 다른 학기라도 보여줘 홈이 빈 채로 남지 않게 함)
         dbDay >= 0 && dbDay <= 4 && user
-          ? supabase.from('courses').select('*').eq('user_id', user.id).eq('term', getCurrentTerm()).eq('day_of_week', dbDay).order('period')
+          ? supabase.from('courses').select('*').eq('user_id', user.id).eq('day_of_week', dbDay).order('period')
           : Promise.resolve({ data: [] }),
 
         // D-3 이내 미제출 과제
@@ -105,9 +121,27 @@ export default function HomeScreen({ navigation }) {
           : Promise.resolve({ data: [] }),
       ]);
 
-      if (coursesRes.data) setTodayCourses(coursesRes.data);
+      if (coursesRes.data) {
+        const picked = pickTodayCourses(coursesRes.data, getCurrentTerm(today));
+        setTodayCourses(picked.courses);
+        setTermFallback(picked.fallbackTerm);
+      }
       if (assignmentsRes.data) setUpcomingAssignments(assignmentsRes.data);
       if (postsRes.data) setRecentPosts(postsRes.data);
+
+      // manaba 통지 설정이 실제로 끝났는지 확인 (⑤ "연결했는데 통지가 안 와" 대응)
+      // 주소 발급만 하고 학교 쪽 등록을 안 끝낸 사람 / 푸시 권한이 없는 사람을 찾아낸다.
+      if (user) {
+        const [subRes, tokenRes] = await Promise.all([
+          supabase.from('mail_subscriptions').select('verified_at').eq('user_id', user.id).maybeSingle(),
+          supabase.from('push_tokens').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        ]);
+        setManabaSetup({
+          hasSubscription: !!subRes.data,
+          verifiedAt: subRes.data?.verified_at ?? null,
+          pushTokenCount: tokenRes.count ?? 0,
+        });
+      }
     } catch {
       // 네트워크 에러 등 — 빈 상태로 표시
     } finally {
@@ -201,6 +235,20 @@ export default function HomeScreen({ navigation }) {
   const noticeDisplayCount = hasUnreadNotice ? noticeCounts.unread : noticeCounts.total;
   const noticeMain = hasUnreadNotice ? '新着あり' : noticeCounts.total > 0 ? 'すべて既読' : 'なし';
 
+  // ── manaba 통지 설정 미완료 배너 (⑤) ──
+  // "연결은 했는데 통지가 안 오는" 상태를 홈에서 눈에 띄게 알려준다.
+  // 마이페이지에만 표시하던 때는 사용자가 거기까지 들어가지 않아 계속 방치됐다.
+  const setupStage = resolveManabaSetupStage({
+    usesManaba: !!links.manabaUrl,
+    hasSubscription: !!manabaSetup?.hasSubscription,
+    verifiedAt: manabaSetup?.verifiedAt,
+    pushTokenCount: manabaSetup?.pushTokenCount,
+  });
+  // manabaSetup이 아직 null(조회 전)이면 배너를 띄우지 않는다 — 깜빡임 방지
+  const setupBanner = manabaSetup && shouldShowSetupBanner(setupStage)
+    ? getSetupBannerCopy(setupStage)
+    : null;
+
   // 課題: 마감 임박 과제 수 + 가장 가까운 1개의 D-day
   const nearestAssignment = upcomingAssignments[0] ?? null;
   let nearestDday = null;
@@ -243,9 +291,37 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
+        {/* ── ⚠️ manaba 통지 설정 미완료 배너 ── */}
+        {setupBanner && (
+          <TouchableOpacity
+            style={styles.setupBanner}
+            activeOpacity={0.85}
+            onPress={() => {
+              if (setupStage === 'no-push') navigation.navigate('Profile');
+              else navigation.navigate('MailConnectOnboarding', { mode: 'settings' });
+            }}
+          >
+            <View style={styles.setupBannerIcon}>
+              <Ionicons name="alert-circle" size={22} color={colors.warning ?? '#F59E0B'} />
+            </View>
+            <View style={styles.setupBannerBody}>
+              <Text style={styles.setupBannerTitle}>{setupBanner.title}</Text>
+              <Text style={styles.setupBannerText}>{setupBanner.body}</Text>
+              <Text style={styles.setupBannerAction}>{setupBanner.action} →</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+
         {/* ── ★ 요약 히어로 카드 (今日のまとめ) ── */}
         <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>今日のまとめ</Text>
+          <View style={styles.heroTitleRow}>
+            <Text style={styles.heroTitle}>今日のまとめ</Text>
+            {/* 현재 학기 수업이 없어 다른 학기를 보여주는 중이면 그 사실을 알린다.
+                (홈이 이유 없이 비어 보이던 문제 ②의 사용자 안내) */}
+            {termFallback && (
+              <Text style={styles.heroTermNote}>{termLabel(termFallback)}を表示中</Text>
+            )}
+          </View>
           <View style={styles.heroRow}>
             {/* 授業 — 현재 시각 기준 지금/다음 수업 */}
             <TouchableOpacity
@@ -486,6 +562,50 @@ const styles = StyleSheet.create({
   },
 
   // ★ 히어로 카드 (今日のまとめ)
+  heroTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  heroTermNote: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  // ⚠️ manaba 통지 설정 미완료 배너
+  setupBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.warning,
+  },
+  setupBannerIcon: {
+    marginRight: spacing.sm,
+    marginTop: 1,
+  },
+  setupBannerBody: {
+    flex: 1,
+  },
+  setupBannerTitle: {
+    ...typography.body1,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  setupBannerText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  setupBannerAction: {
+    ...typography.caption,
+    color: colors.warning,
+    fontWeight: '700',
+    marginTop: spacing.sm,
+  },
   heroCard: {
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,

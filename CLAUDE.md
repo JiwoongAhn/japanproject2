@@ -6,8 +6,8 @@
 - **패키지/번들 ID:** `com.jiwoongahn.unione` (iOS·Android 공통)
 - **EAS slug:** `unipas` / projectId `1f321891…` (⚠️ slug는 EAS 식별자라 앱 이름 unione와 다름, 바꾸면 빌드 에러)
 - **UI 스타일:** 토스 스타일 (primary #3182F6, background #F2F4F6)
-- **하단 탭:** 홈 / 시간표 / 과제 / 게시판 / マイページ (5개)
-- **학기 구분:** `courses.term`(spring/fall). 기준=`getCurrentTerm()`(4~8월 春, 9~3월 秋). 시간표 헤더 라벨 탭으로 전환, kaede 추출 시 학기 선택 알림 (2026-09-18)
+- **하단 탭:** 홈 / 시간표 / 게시판 / マイページ (4개). 課題는 실사용 0건이라 탭에서 빼고 루트 모달 `Assignment`로 유지(홈 카드·시간표 셀·통지에서 진입) (2026-09-29)
+- **학기 구분:** `courses.term`(spring/fall). 기준=`getCurrentTerm()`(4~8월 春, 9~3월 秋). 시간표 헤더 라벨 탭으로 전환, kaede 추출 시 학기 선택 알림 (2026-09-18). 홈은 학기로 DB를 거르지 않고 `pickTodayCourses()`가 고른다 — 현재 학기가 비면 다른 학기라도 보여줘 홈이 빈 채로 남지 않게 함 (2026-09-29)
 - **타 대학 "재로그인 0회" 일반화(2026-09-20):** 자동입력 허용 판정은 `universityLinks[id].autoLoginHosts` 단일 소스(`utils/autoLoginPolicy.js`), 자동 재로그인 로직은 `hooks/useAutoRelogin.js`를 manaba/리마인더/SchoolWeb 3화면이 공유. LMS(`lmsUrl`)는 외부 브라우저가 아니라 `SchoolWeb` 인앱(쿠키 영속)으로 연다. 一括取り込み는 `timetableUrl` 있는 학교만 노출. 온보딩 문구는 `utils/onboardingCopy.js`가 학교 링크로 분기. 게시판은 RLS(`profiles.university`)로 이미 전 대학 분리
 - **과목별 시라바스(1.0.2):** kaede 학교는 수업 시트 シラバス → `SchoolWeb`을 `syllabusTarget:{day,period,term}`으로 열어 MY時間割 도착 시 `td#Cell{열}_{교시}_{Spring|Autumn}` 안 링크의 `onclick=OpenSyllabusWindow(uid)`에서 uid를 읽어 같은 WebView에서 `/Syllabus/SyllabusViewVer2.aspx?uid=…`로 이동(`utils/syllabusLink.js`, 2026-09-18 Chrome 실측 검증). 원 링크는 window.open 새창이라 클릭 방식 불가. 실패 시 알림만. 타학교는 Top URL 인앱 브라우저 유지
 
@@ -105,7 +105,21 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - [x] 講義評価 빈 상태 → 평가 작성 유도 버튼 (검색어를 과목명으로 자동 입력해 `CourseReviewCreate`로 이동)
 - [ ] 講義評価 시딩 22건 — 확정본 `docs/seed-course-reviews.md`, **DB 미투입**. 시드계정 8개(`*@unione.local`) 생성 → SQL 작성 순
 - [ ] 게시판 글 시딩 — 사용자가 글 목록 직접 정리 예정 (국사관대학만)
-- [ ] 아이패드 대응(A안): `app.json` `ios.supportsTablet=true` + 폭 700px 이상이면 최대 600px 중앙 컬럼으로 제한하는 래퍼를 `App.js`에 추가(37화면 일괄 적용), `Dimensions.get` 고정값 2곳(`PostDetailScreen` `FreeTimeScreen`)을 `useWindowDimensions`로 교체. ⚠️심사 시 iPad 12.9" 스크린샷 필수
+- [x] 아이패드 대응(A안) ✅2026-09-29 — `WideScreenContainer`(폭 700px↑ → 최대 600px 중앙 컬럼)를 `App.js`에 적용, `supportsTablet=true`, `Dimensions.get` 2곳 훅 전환. ⚠️심사 시 iPad 12.9" 스크린샷 필수
+
+# 실기 버그 수정 (1.0.3) — 2026-09-29
+
+- [x] ⑥ 사용 중 대학 선택 화면으로 롤백 — 원인=`AppState`↔토큰 자동갱신 미연결 + 앱 시작 5초 후 강제 로그아웃. `lib/sessionKeeper.js` 신설, 저장된 세션이 있으면 로그아웃시키지 않고 재시도(실패 시 스플래시에 재시도 버튼)
+- [x] ⑤ 마나바 통지 미수신 — 원인=주소 발급만 하고 `verified_at`이 빈 사용자(운영 DB 7명 중 5명)에게 앱이 경고하지 않음. 홈 미완료 배너(`utils/manabaSetupStatus.js`) + 마이페이지 `テスト通知を送る`
+- [x] ② 홈탭 시간표 미표시 — 원인=홈만 학기 고정 + `now`가 앱 시작 시점에 고정(날 바뀌면 어제 요일 조회)
+- [x] ① 課題 탭 제거(A안) — 탭 4개로, 기능은 모달 유지
+- [x] ③ 시간표 비교 점검 — 결함 발견·수정: 친구 시간표 0건을 "전 시간대 공강"으로 계산해 모든 칸이 공통으로 표시됐음
+- [x] ④ 카에데 로그인 실패 진단 — 에러 분류 안내(`utils/loginDiagnostics.js`) + 마이페이지 `ログイン情報をリセット` + 기기 내 실패 기록 10건
+- [x] 검증 장치: `navigationTargets.test.js`(이동 대상↔등록 화면 대조), smoke 목록에 누락 화면 8개 추가. Jest 592→667
+- [ ] ⚠️ **미배포**: `send-test-push` 엣지 함수(호출자 본인으로 고정하는 보안 수정 포함) — 배포 전까지 テスト通知 버튼 동작 안 함
+- [ ] ⚠️ 1.0.3 빌드 필요 — `app.json` 변경 포함이라 OTA 불가
+
+---
 
 # 향후 예정 작업
 

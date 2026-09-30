@@ -12,12 +12,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-  Dimensions,
+  useWindowDimensions,
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+// 이미지 뷰어 크기는 모듈 로드 시점의 고정값이 아니라 훅으로 계산한다.
+// (아이패드·회전·분할 화면에서 폭이 바뀌면 페이지 넘김 위치가 어긋나기 때문)
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -47,6 +47,9 @@ function formatTimeAgo(timestamp) {
 
 export default function PostDetailScreen({ navigation, route }) {
   const { postId } = route.params;
+
+  // 이미지 뷰어는 화면 전체를 쓰므로 콘텐츠 제한 폭이 아니라 실제 창 크기를 쓴다
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
 
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
@@ -593,10 +596,10 @@ export default function PostDetailScreen({ navigation, route }) {
               contentOffset={{ x: viewerIndex * SCREEN_WIDTH, y: 0 }}
             >
               {post.image_urls.map((url, idx) => (
-                <View key={idx} style={styles.viewerPage}>
+                <View key={idx} style={[styles.viewerPage, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]}>
                   <Image
                     source={{ uri: url }}
-                    style={styles.viewerImage}
+                    style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT * 0.85 }}
                     resizeMode="contain"
                   />
                 </View>
@@ -731,14 +734,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   viewerPage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  viewerImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT * 0.85,
   },
   postFooter: {
     flexDirection: 'row',

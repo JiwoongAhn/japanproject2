@@ -72,6 +72,36 @@ export function getCurrentTerm(date = new Date()) {
   return (m >= 4 && m <= 8) ? 'spring' : 'fall';
 }
 
+// 홈 화면에 보여줄 "오늘 수업"을 고른다 (순수 함수)
+//
+// 배경(실기 버그 ②: "시간표를 넣었는데 홈탭에 안 나온다"):
+//   홈은 getCurrentTerm()으로 학기를 강제 고정해 조회했다. 반면 時間割 탭은 사용자가
+//   고른 학기를 보여준다. 그래서 학기 경계(9월 등)에 등록해 둔 시간표가 時間割 탭에는
+//   보이는데 홈에서만 사라지는 현상이 생겼다.
+//
+//   해결: 현재 학기를 우선 쓰되, 현재 학기 수업이 하나도 없고 다른 학기 수업만 있으면
+//   그쪽을 보여주고 "어느 학기를 보여주는 중인지" 알려준다. 데이터가 있는데 홈이
+//   비어 보이는 상황 자체를 없앤다.
+//
+// 반환: { courses, fallbackTerm }
+//   fallbackTerm이 null이 아니면 "현재 학기가 아닌 학기를 보여주는 중"이라는 뜻
+export function pickTodayCourses(allTodayCourses, currentTerm) {
+  const list = Array.isArray(allTodayCourses) ? allTodayCourses : [];
+  const current = list.filter(c => c.term === currentTerm);
+  if (current.length > 0) return { courses: current, fallbackTerm: null };
+
+  const others = list.filter(c => c.term && c.term !== currentTerm);
+  if (others.length === 0) return { courses: [], fallbackTerm: null };
+
+  // 다른 학기가 여러 개일 일은 없지만, 있다면 가장 수업이 많은 쪽을 택한다
+  const byTerm = others.reduce((acc, c) => {
+    (acc[c.term] = acc[c.term] || []).push(c);
+    return acc;
+  }, {});
+  const [term, courses] = Object.entries(byTerm).sort((a, b) => b[1].length - a[1].length)[0];
+  return { courses, fallbackTerm: term };
+}
+
 // 학기 코드 → 화면 표시용 일본어 라벨
 export const TERM_LABELS = { spring: '春学期', fall: '秋学期' };
 export function termLabel(term) {
@@ -202,4 +232,37 @@ export function buildCourseRows(items, userId, existing = [], options = {}) {
   }
 
   return { rows, skipped };
+}
+
+// 친구와 겹치는 공강 칸을 계산한다 (순수 함수)
+//
+// 배경(실기 점검 ③: 시간표 비교 기능):
+//   예전 코드는 친구의 수업 목록이 비어 있으면 "친구는 전 시간대가 공강"으로 계산해,
+//   아직 시간표를 등록하지 않은 친구와 비교했을 때 모든 칸이 '공통 공강'으로 표시됐다.
+//   사용자는 비교가 제대로 된 줄 알고 잘못된 약속을 잡게 된다.
+//   → 친구 시간표가 0건이면 결과를 내지 않고 그 사실을 알리도록 분리했다.
+//
+// mySelectedKeys: 내가 고른 칸의 'day-period' 문자열 집합(Set 또는 배열)
+// friendCourses:  친구 수업 [{ day_of_week, period }]
+// periods:        학교별 교시 번호 배열 (예: [1,2,3,4,5,6])
+// 반환: { friendHasTimetable, commonKeys }
+export function computeCommonFreeCells(mySelectedKeys, friendCourses, periods) {
+  const mine = new Set(mySelectedKeys ?? []);
+  const courses = Array.isArray(friendCourses) ? friendCourses : [];
+
+  // 시간표를 한 건도 등록하지 않은 친구는 비교 대상이 될 수 없다
+  if (courses.length === 0) {
+    return { friendHasTimetable: false, commonKeys: new Set() };
+  }
+
+  const friendClassSet = new Set(courses.map(c => `${c.day_of_week}-${c.period}`));
+  const commonKeys = new Set();
+  for (let day = 0; day <= 4; day += 1) {
+    for (const period of (periods ?? [])) {
+      const key = `${day}-${period}`;
+      // 나도 비어 있고(내가 고른 칸) 친구도 수업이 없는 칸 = 공통 공강
+      if (mine.has(key) && !friendClassSet.has(key)) commonKeys.add(key);
+    }
+  }
+  return { friendHasTimetable: true, commonKeys };
 }

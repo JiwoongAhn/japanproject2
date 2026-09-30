@@ -23,15 +23,33 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { userId, scenario = 'normal' } = await req.json();
-    if (!userId) {
-      return json({ error: 'userId가 필요합니다' }, 400);
-    }
+    const body = await req.json();
+    const scenario = body?.scenario ?? 'normal';
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
+
+    // ⚠️ 호출자 본인에게만 보낸다.
+    //    앱에서 "テスト通知を送る" 버튼으로 이 함수를 부르게 되면서, 본문의 userId를
+    //    그대로 믿으면 아무나 남의 기기로 푸시를 보낼 수 있게 된다. 그래서 로그인
+    //    토큰이 실린 호출은 그 토큰의 주인으로 강제하고, 본문 userId는 무시한다.
+    //    (CLI에서 service_role 키로 부르는 기존 개발용 경로는 그대로 동작)
+    let userId: string | null = null;
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    if (jwt && jwt !== Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')) {
+      const { data: { user } } = await supabase.auth.getUser(jwt);
+      if (!user) return json({ error: '인증이 필요합니다' }, 401);
+      userId = user.id;
+    } else {
+      userId = body?.userId ?? null;
+    }
+
+    if (!userId) {
+      return json({ error: 'userId가 필요합니다' }, 400);
+    }
 
     // 실제 토큰 조회 (normal / mixed 시나리오에서 사용)
     const { data: tokenRows } = await supabase

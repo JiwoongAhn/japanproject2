@@ -40,3 +40,41 @@ export function shouldShowMockup(windowHeight) {
   if (!Number.isFinite(windowHeight) || windowHeight <= 0) return false;
   return windowHeight - ONBOARDING_FIXED_HEIGHT >= MOCK_WIDTH_MIN * MOCK_ASPECT;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 큰 화면(아이패드·가로 모드·분할 화면) 대응
+//
+// 문제: 모든 레이아웃이 폰 세로 기준이라, 아이패드에서 열면 카드와 글줄이
+//       화면 폭만큼 늘어나 읽기 어렵고 허전하다.
+// 해결: 폭이 넓어지면 콘텐츠를 가운데 고정 폭 컬럼으로 제한한다.
+//       폰 크기에서는 계산 결과가 "제한 없음"이라 기존 화면과 완전히 동일하다(회귀 0).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 이 폭을 넘어서면 큰 화면으로 본다 (아이패드 미니 세로 = 744px)
+export const WIDE_BREAKPOINT = 700;
+// 큰 화면에서 콘텐츠에 허용할 최대 폭
+export const CONTENT_MAX_WIDTH = 600;
+
+// 큰 화면인가 (탭 레이아웃·폰트 크기 분기에 사용)
+export function isWideScreen(width) {
+  return Number.isFinite(width) && width >= WIDE_BREAKPOINT;
+}
+
+// 실제로 콘텐츠를 그릴 폭을 돌려준다.
+// 폰: 화면 폭 그대로 / 큰 화면: CONTENT_MAX_WIDTH로 제한
+export function getContentWidth(windowWidth) {
+  if (!Number.isFinite(windowWidth) || windowWidth <= 0) return 0;
+  return isWideScreen(windowWidth) ? CONTENT_MAX_WIDTH : windowWidth;
+}
+
+// 앱 전체를 감싸는 래퍼에 줄 스타일.
+// 폰에서는 flex:1만 (기존과 동일), 큰 화면에서는 가운데 정렬된 고정 폭 컬럼.
+export function getContentContainerStyle(windowWidth) {
+  if (!isWideScreen(windowWidth)) return { flex: 1 };
+  return {
+    flex: 1,
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    alignSelf: 'center',
+  };
+}
