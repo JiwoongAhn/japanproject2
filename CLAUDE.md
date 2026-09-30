@@ -138,7 +138,13 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
        (`TARGETED_DEVICE_FAMILY = "1,2"` 반영됨, `ios/` 는 gitignore 대상이라 로컬에만 존재).
        남은 일 = 아이패드 시뮬레이터 생성 → 앱 설치 → `.maestro/shots_103_login.yaml` + `shots_103_main.yaml` 촬영.
        ⚠️ 시뮬 빌드는 반드시 ad-hoc 서명으로 (그냥 빌드하면 Keychain 막혀 로그인 불가 — `scripts/shot-devices.sh` 참고)
-3. [ ] **1.0.3 빌드** — `app.json` 변경 포함이라 OTA 불가. 사용자 방침 = **다른 작업까지 끝낸 뒤 한 번에 제출**
+3. [ ] **1.0.3 빌드·제출** — ▶ 지금 여기. `app.json` version 을 **1.0.3 으로 올려 커밋 완료**(`fd145f1`).
+       `runtimeVersion` 이 appVersion 정책이라 OTA 채널이 갈라진다 = 기존 1.0.2 설치본에는 OTA 전달 불가.
+       ✅ **1.0.2 는 이미 심사 승인·출시 완료**(2026-09-30 사용자 확인) → 1.0.3 은 새 버전으로 정상 제출하면 되고,
+       심사 취소 같은 처리는 필요 없다. EAS 로그인 상태 정상, 최신 빌드=1.0.2(iOS build 10 / Android vc9).
+       빌드 번호·versionCode 는 `eas.json` 의 `appVersionSource: remote` + `autoIncrement` 로 자동 증가한다.
+       **사용자 방침(2026-09-30) = 빌드는 아직 시작하지 않고 대기.**
+       빌드 명령 = `npx eas build --platform all --profile production`
 
 ---
 
