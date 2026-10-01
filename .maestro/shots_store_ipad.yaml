@@ -1,0 +1,56 @@
+# App Store 제출용 아이패드 스크린샷 촬영 (2026-10-01).
+#
+# 왜 따로 있나:
+#   기존 shots_103_main.yaml 은 "기능이 동작하는가"를 보는 검증용이라
+#   빈 상태라도 상관없다. 반면 스토어 스크린샷은 내용이 차 있어야 한다.
+#   → 데이터를 채운 계정으로 로그인한 뒤, 보여줄 화면만 골라 찍는다.
+#
+# 전제: shots_103_login.yaml + shots_103_main.yaml 로 로그인까지 끝나 홈에 있어야 한다.
+appId: com.jiwoongahn.unione
+---
+# ── 1) 홈 — 오늘 수업·과제·공지 한눈에 ──
+# 앞 플로우(shots_103_main)가 마이페이지에서 끝나므로 홈으로 먼저 돌아온다
+- tapOn: "ホーム"
+- extendedWaitUntil:
+    visible: "今日のまとめ"
+    timeout: 60000
+- takeScreenshot: store_01_home
+
+# ── 2) 시간표 — 주간 격자가 과목으로 차 있는 화면 ──
+- tapOn: "時間割"
+- extendedWaitUntil:
+    visible: ".*学期.*"
+    timeout: 30000
+- takeScreenshot: store_02_timetable
+
+# ── 3) 강의평가 목록 ──
+# ⚠️ centerElement 없이는 카드가 하단 탭바에 가린 채 "보인다"고 판정돼 탭이 빗나간다
+- scrollUntilVisible:
+    element: ".*講義評価.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- tapOn: ".*講義評価.*"
+- extendedWaitUntil:
+    visible: ".*経営学概論.*"
+    timeout: 30000
+- takeScreenshot: store_03_review_list
+
+# ── 4) 강의평가 상세 + 댓글(이번 신규 기능) ──
+- tapOn: ".*経営学概論.*"
+- extendedWaitUntil:
+    visible: "みんなの評価"
+    timeout: 30000
+- tapOn: ".*コメント.*"
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: store_04_review_comments
+
+# ── 5) 게시판 ──
+- tapOn: "掲示板"
+- extendedWaitUntil:
+    visible: "掲示板"
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
+- takeScreenshot: store_05_board

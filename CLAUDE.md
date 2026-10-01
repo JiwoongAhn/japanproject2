@@ -157,7 +157,20 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
        (`TARGETED_DEVICE_FAMILY = "1,2"` 반영됨, `ios/` 는 gitignore 대상이라 로컬에만 존재).
        남은 일 = 아이패드 시뮬레이터 생성 → 앱 설치 → `.maestro/shots_103_login.yaml` + `shots_103_main.yaml` 촬영.
        ⚠️ 시뮬 빌드는 반드시 ad-hoc 서명으로 (그냥 빌드하면 Keychain 막혀 로그인 불가 — `scripts/shot-devices.sh` 참고)
-3. [ ] **1.0.3 빌드·제출** — ▶ 지금 여기. `app.json` version 을 **1.0.3 으로 올려 커밋 완료**(`fd145f1`).
+3. [x] **1.0.3 빌드·제출** ✅2026-10-01
+       - 빌드 완료: iOS `1.0.3 (build 11)` / Android `1.0.3 (vc10)`, 둘 다 커밋 `50bce78`
+       - iOS = ASC 업로드 완료 → 스크린샷·빌드 선택·출시노트 입력 → **심사 제출 완료**
+       - Android = 서비스 계정 키 미설정이라 `eas submit` 비대화형 불가 →
+         AAB 직접 업로드 경로 안내(Play Console 프로덕션 → 새 버전 만들기)
+       - 아이패드 스크린샷 = `shots/appstore-ipad/` 5장(2064×2752, 13" 규격).
+         `.maestro/shots_store_ipad.yaml` 로 촬영. 데이터가 빈 계정으로 찍으면 스토어용으로
+         못 쓰므로, 테스트 계정에 시간표·과제·댓글을 넣고 닉네임·푸시토큰까지 맞춘 뒤 촬영했다
+       - ⚠️ 촬영용 데이터가 운영 DB의 테스트 계정에 남아 있다(정리 대상):
+         `courses` 8건(fall) / `assignments` 3건 / `course_review_comments` 2건 /
+         `push_tokens` 1건(`ExponentPushToken[SHOT-ONLY-DO-NOT-SEND]`) / 닉네임 `ユウ` /
+         `mail_subscriptions.verified_at`. 전부 테스트 계정 소유라 실사용자에겐 안 보인다
+
+### (이전 기록) 1.0.3 빌드 준비 메모 `app.json` version 을 **1.0.3 으로 올려 커밋 완료**(`fd145f1`).
        `runtimeVersion` 이 appVersion 정책이라 OTA 채널이 갈라진다 = 기존 1.0.2 설치본에는 OTA 전달 불가.
        ✅ **1.0.2 는 이미 심사 승인·출시 완료**(2026-09-30 사용자 확인) → 1.0.3 은 새 버전으로 정상 제출하면 되고,
        심사 취소 같은 처리는 필요 없다. EAS 로그인 상태 정상, 최신 빌드=1.0.2(iOS build 10 / Android vc9).
