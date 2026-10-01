@@ -102,6 +102,25 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 
 # 커뮤니티 시딩 / 큰 화면 대응 (1.0.3 트랙)
 
+## 講義評価 댓글 (2026-10-01 신규, 1.0.3 포함)
+
+- [x] 평가마다 댓글을 달 수 있다. 게시판 댓글(`post_comments`)과 **같은 규칙**을 따른다
+      (같은 학교만 / 차단 반영 / 본인만 삭제 / 수정 없음 / 신고 가능)
+- [x] 테이블 = `course_review_comments`, 신고 = `course_review_comment_reports`.
+      RLS 는 `course_reviews` 를 거쳐 `university = get_my_university()` 를 확인한다
+- [x] 화면 = `CourseReviewDetailScreen` 의 평가 카드 안. **기본은 접어 둔다** —
+      평가 여러 개를 비교하며 훑는 화면이라 전부 펼치면 정작 평가를 읽기 어렵다
+- [x] 입력 판정은 `utils/courseReviewComments.js` 의 `validateComment()` 순수 함수
+      (공백만 입력 차단 / 300자 / 전송 중 중복 차단). 조회는 평가 id 를 모아 한 번에(N+1 방지)
+- [x] 이 화면도 `KeyboardAwareScrollView` 적용 — 댓글 입력칸이 키보드에 가리지 않는다
+- [x] 일부러 뺀 것: 댓글 좋아요 / 대댓글 / 댓글 수정 (현 이용자 규모에 과하고, 기존 게시판과도 일관)
+- [x] 검증: Jest 688, `check:bundle` OK, iPhone SE 실기 촬영으로 작성→표시→삭제 전 과정 확인
+- [x] ⚠️ **E2E 테스트 계정 대학명 오타 발견·수정** — `e2e/helpers/supabaseHelper.js` 가
+      `国士館大学`(館)을 쓰고 있었다. 실제 표기는 `国士舘大学`(舘, 이체자)라 RLS 의 "같은 학교"
+      조건에 걸려 **그동안 E2E 가 게시판 글·강의평가를 하나도 못 보고 있었다**. 운영 DB 의
+      테스트 계정 프로필도 함께 정정. 앱 소스에는 館 표기가 없어 실사용자 영향은 없다
+
+
 - [x] 講義評価 빈 상태 → 평가 작성 유도 버튼 (검색어를 과목명으로 자동 입력해 `CourseReviewCreate`로 이동)
 - [ ] 講義評価 시딩 22건 — 확정본 `docs/seed-course-reviews.md`, **DB 미투입**. 시드계정 8개(`*@unione.local`) 생성 → SQL 작성 순
 - [ ] 게시판 글 시딩 — 사용자가 글 목록 직접 정리 예정 (국사관대학만)

@@ -42,6 +42,8 @@ describe('수정한 화면 모듈 로드 스모크', () => {
     ['WideScreenContainer', '../src/components/WideScreenContainer'],
     // ↓ 2026-09-30 작은 화면 키패드 가림 수정으로 손댄 파일
     ['OtpVerificationScreen', '../src/screens/auth/OtpVerificationScreen'],
+    // ↓ 2026-10-01 강의평가 댓글 기능
+    ['CourseReviewDetailScreen', '../src/screens/timetable/CourseReviewDetailScreen'],
   ])('%s 가 로드된다', (name, path) => {
     const mod = require(path);
     expect(typeof mod.default).toBe('function');

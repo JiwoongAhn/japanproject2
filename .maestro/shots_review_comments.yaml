@@ -1,0 +1,71 @@
+# 강의평가 댓글 기능 확인 (2026-10-01 신규).
+#
+# 전제: shots_103_login.yaml + shots_103_main.yaml 로 로그인까지 끝나 홈에 있어야 한다.
+# 확인 항목:
+#   1) 평가 카드에 "💬 コメント" 줄이 보이고, 탭하면 펼쳐진다
+#   2) 입력칸에 쓰고 送信 하면 목록에 바로 붙는다
+#   3) 남의 평가에 단 내 댓글은 "自分" 으로 표시된다
+appId: com.jiwoongahn.unione
+---
+- tapOn: "時間割"
+- extendedWaitUntil:
+    visible: ".*学期.*"
+    timeout: 30000
+
+# 授業関連 → 講義評価
+# ⚠️ 카드가 "講義評価, 授業の評判を確認・投稿, ›" 한 덩어리 라벨로 노출된다 → 부분 일치
+# ⚠️ centerElement 가 없으면 카드가 하단 탭바에 가린 채로 "보인다"고 판정돼
+#    탭 좌표가 탭바에 떨어진다(2026-10-01 실측). 가운데로 올린 뒤 누른다.
+- scrollUntilVisible:
+    element: ".*講義評価.*"
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
+- tapOn: ".*講義評価.*"
+# ⚠️ ".*評価.*" 로 기다리면 시간표에 있는 "講義評価" 카드에도 걸려 화면 전환 전에 통과해 버린다.
+#    강의평가 화면에만 있는 과목 카드가 뜰 때까지 기다린다.
+- extendedWaitUntil:
+    visible: ".*経営学概論.*"
+    timeout: 30000
+- takeScreenshot: 10_review_list
+
+# 데모 계정이 남긴 평가가 있는 과목으로 들어간다
+- tapOn: ".*経営学概論.*"
+- extendedWaitUntil:
+    visible: "みんなの評価"
+    timeout: 30000
+- takeScreenshot: 11_review_detail_collapsed
+
+# 접혀 있던 댓글을 펼친다
+- tapOn: ".*コメント.*"
+- takeScreenshot: 12_comment_expanded
+
+# 댓글 작성
+- tapOn:
+    below: ".*コメント.*"
+- inputText: "テストコメントです"
+- tapOn:
+    text: "붙여넣기 허용|ペーストを許可|Allow Paste"
+    optional: true
+- takeScreenshot: 13_comment_typed
+- tapOn: "送信"
+- extendedWaitUntil:
+    visible: "自分"
+    timeout: 20000
+- takeScreenshot: 14_comment_posted
+
+# ── 내 댓글 삭제 (⋯ → 削除する) ──
+# 삭제는 되돌릴 수 없는 동작이라 확인 다이얼로그를 거친다.
+- tapOn:
+    text: "コメントを削除"
+- extendedWaitUntil:
+    visible: "削除する"
+    timeout: 10000
+- tapOn: "削除する"
+# 확인 다이얼로그가 닫히는 애니메이션이 끝나기 전에 보면 아직 옛 화면이 잡힌다
+- waitForAnimationToEnd:
+    timeout: 8000
+- extendedWaitUntil:
+    visible: ".*コメントする.*"
+    timeout: 20000
+- takeScreenshot: 15_comment_deleted

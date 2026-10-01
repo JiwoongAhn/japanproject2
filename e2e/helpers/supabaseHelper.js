@@ -16,7 +16,7 @@ const SERVICE_ROLE_KEY = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
 
 const TEST_USER_EMAIL    = 'e2etest@kokushikan.ac.jp';
 const TEST_USER_PASSWORD = 'Unipas-E2E-2024!';
-const TEST_UNIVERSITY    = '国士館大学';
+const TEST_UNIVERSITY    = '国士舘大学'; // ⚠️ 舘(이체자) — 館 로 쓰면 RLS 의 "같은 학교" 조건에 걸려 글·평가가 하나도 안 보인다
 const TEST_NICKNAME      = 'e2eテスター';
 
 function getAdminClient() {

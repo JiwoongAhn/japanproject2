@@ -11,10 +11,10 @@
 | **Identifiers → User ID** | 계정 ID(Supabase), 닉네임 | App Functionality | 예 | 아니오 |
 | **Identifiers → Device ID** | Expo 푸시 토큰 | App Functionality (푸시 알림 전송) | 예 | 아니오 |
 | **User Content → Photos or Videos** | 게시판 첨부 사진 | App Functionality | 예 | 아니오 |
-| **User Content → Other User Content** | 시간표(과목·교수·메모), 과제, 게시글·댓글, 수업평가, manaba 통지 내용 | App Functionality | 예 | 아니오 |
+| **User Content → Other User Content** | 시간표(과목·교수·메모), 과제, 게시글·댓글, 수업평가·수업평가 댓글, manaba 통지 내용 | App Functionality | 예 | 아니오 |
 | **Identifiers → User ID** (추가) | manaba 알림 전달용 앱 발급 주소(`{토큰}@unipas.app`) | App Functionality (학교 알림 → 푸시) | 예 | 아니오 |
 
-- 출처 테이블: `profiles`(이메일·닉네임·대학) / `push_tokens`(토큰) / `posts`·`post_comments`·`course_reviews`·`courses`·`assignments`·`manaba_notices`(사용자 콘텐츠) / `mail_subscriptions`(알림 전달 토큰 주소) / `push_delivery_logs`(푸시 전송 로그, 내부 운영용) / `post-images` 버킷(사진).
+- 출처 테이블: `profiles`(이메일·닉네임·대학) / `push_tokens`(토큰) / `posts`·`post_comments`·`course_reviews`·`course_review_comments`·`courses`·`assignments`·`manaba_notices`(사용자 콘텐츠) / `mail_subscriptions`(알림 전달 토큰 주소) / `push_delivery_logs`(푸시 전송 로그, 내부 운영용) / `post-images` 버킷(사진).
 - 신고·차단(`*_reports`, `user_blocks`)은 위 User ID/User Content 범주에 포함되어 별도 신고 불필요.
 
 ### 마나바 알림→푸시 데이터 흐름 (2026-07 추가 기능)
