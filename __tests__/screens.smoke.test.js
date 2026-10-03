@@ -44,6 +44,9 @@ describe('수정한 화면 모듈 로드 스모크', () => {
     ['OtpVerificationScreen', '../src/screens/auth/OtpVerificationScreen'],
     // ↓ 2026-10-01 강의평가 댓글 기능
     ['CourseReviewDetailScreen', '../src/screens/timetable/CourseReviewDetailScreen'],
+    // ↓ 2026-10-03 인앱 업데이트 안내
+    ['UpdateBanner', '../src/components/UpdateBanner'],
+    ['StoreUpdateModal', '../src/components/StoreUpdateModal'],
   ])('%s 가 로드된다', (name, path) => {
     const mod = require(path);
     expect(typeof mod.default).toBe('function');
@@ -53,5 +56,10 @@ describe('수정한 화면 모듈 로드 스모크', () => {
   it('useAutoRelogin 훅이 로드된다', () => {
     const mod = require('../src/hooks/useAutoRelogin');
     expect(typeof mod.useAutoRelogin).toBe('function');
+  });
+
+  it('useAppUpdate 훅이 로드된다', () => {
+    const mod = require('../src/hooks/useAppUpdate');
+    expect(typeof mod.useAppUpdate).toBe('function');
   });
 });

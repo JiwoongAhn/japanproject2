@@ -5,7 +5,7 @@
     "scheme": "unione",
     "version": "1.0.3",
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "updates": {
       "url": "https://u.expo.dev/1f321891-59b2-4b9d-8d7d-79e341aa29cb"

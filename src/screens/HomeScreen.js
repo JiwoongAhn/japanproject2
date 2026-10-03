@@ -27,6 +27,9 @@ import {
   shouldShowSetupBanner,
   getSetupBannerCopy,
 } from '../utils/manabaSetupStatus';
+import { useAppUpdate } from '../hooks/useAppUpdate';
+import UpdateBanner from '../components/UpdateBanner';
+import StoreUpdateModal from '../components/StoreUpdateModal';
 import { universities } from '../constants/universities';
 import ManabaNoticePreview from '../components/ManabaNoticePreview';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
@@ -245,6 +248,18 @@ export default function HomeScreen({ navigation }) {
     pushTokenCount: manabaSetup?.pushTokenCount,
   });
   // manabaSetup이 아직 null(조회 전)이면 배너를 띄우지 않는다 — 깜빡임 방지
+  // 업데이트 안내 (OTA = 앱 안에서 즉시 / store = App Store 로 이동)
+  const {
+    updateKind,
+    storeVersion,
+    releaseNotes,
+    applying: updateApplying,
+    error: updateError,
+    applyOtaUpdate,
+    openStore,
+    dismiss: dismissUpdate,
+  } = useAppUpdate();
+
   const setupBanner = manabaSetup && shouldShowSetupBanner(setupStage)
     ? getSetupBannerCopy(setupStage)
     : null;
@@ -290,6 +305,16 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.avatarText}>{avatarLetter}</Text>
           </View>
         </View>
+
+        {/* ── 🎉 업데이트 안내 배너 (OTA: 앱 안에서 바로 적용) ── */}
+        {updateKind === 'ota' && (
+          <UpdateBanner
+            onUpdate={applyOtaUpdate}
+            onDismiss={dismissUpdate}
+            applying={updateApplying}
+            error={updateError}
+          />
+        )}
 
         {/* ── ⚠️ manaba 통지 설정 미완료 배너 ── */}
         {setupBanner && (
@@ -502,6 +527,15 @@ export default function HomeScreen({ navigation }) {
 
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* ── 📦 네이티브 업데이트 모달 (App Store 로 이동) ── */}
+      <StoreUpdateModal
+        visible={updateKind === 'store'}
+        storeVersion={storeVersion}
+        releaseNotes={releaseNotes}
+        onOpenStore={openStore}
+        onDismiss={dismissUpdate}
+      />
     </SafeAreaView>
   );
 }

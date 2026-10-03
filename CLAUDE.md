@@ -185,7 +185,22 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
       7/25 OTA 옛 번들 사건 같은 오판을 막는 용도. Jest 694
 - [ ] 게시판 본문 URL 탭 가능하게
 - [ ] 遅延証明 장소 한 줄
-- [ ] 인앱 업데이트 안내(설계 중) — 아래 함정 때문에 유저가 업데이트를 못 받고 있다
+- [x] **인앱 업데이트 안내** ✅2026-10-03 — 유저가 「업데이트가 있다」는 걸 알 방법이 없던 문제.
+      OTA 배선(`updates.url`)은 있었지만 **그걸 쓰는 코드가 0곳**이었다.
+      - `runtimeVersion` 정책 `appVersion` → **`fingerprint`** 변경.
+        appVersion 정책이면 버전을 올리는 순간 OTA 채널이 갈라져 기존 유저에게 OTA 가 안 간다
+        (1.0.3 유저가 딱 그 상태였다). fingerprint 는 네이티브가 바뀔 때만 갈라진다
+      - `hooks/useAppUpdate.js` — OTA 우선, 없으면 스토어 확인. **앱 실행당 1회**(모듈 레벨 캐시로
+        탭 전환 재마운트 시 중복 호출 방지). `Updates.isUpdatePending` 도 함께 봐야 한다
+        (expo-updates 기본 ON_LOAD 가 이미 받아둔 경우 `checkForUpdateAsync` 는 false 를 준다)
+      - `components/UpdateBanner.js` — 홈 상단 파란 배너 → 「今すぐ更新」 = 앱 안에서 즉시 적용
+      - `components/StoreUpdateModal.js` — 네이티브 업데이트 시 모달 → 「App Store へ」 = `itms-apps://` 딥링크.
+        **iOS 는 앱이 자기 바이너리를 설치할 수 없다**(OS 제약) → 제품 페이지 열어주는 게 한계
+      - `utils/storeVersion.js` — Apple 공개 API(`itunes.apple.com/lookup`)로 라이브 버전 조회. 서버 불필요.
+        ⚠️ 버전 비교는 숫자 단위로 (문자열이면 `'1.0.10' < '1.0.9'` 가 되어 안내가 안 뜬다)
+      - Android(Play)는 공개 조회 API 가 없어 스토어 확인은 **iOS 전용**. 안드는 OTA 배너 + Play 자동 업데이트
+      - ⚠️ **이 기능은 1.0.4 를 설치한 뒤부터 작동한다.** 1.0.3 이하 유저는 한 번은 수동으로 받아야 한다
+      - Jest 711
 
 ### ⚠️ 반복된 함정: TestFlight 로 받은 앱은 App Store 업데이트가 영구히 안 온다
 iOS 는 앱마다 **설치 출처**를 기억한다. 번들 ID 가 같아도 TestFlight·Xcode 로 설치된 앱은
