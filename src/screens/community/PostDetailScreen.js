@@ -29,6 +29,7 @@ import { isBookmarked, addBookmark, removeBookmark } from '../../utils/bookmarks
 import { deleteImagesFromStorage } from '../../utils/imageUpload';
 import { findProfanity } from '../../utils/profanity';
 import { reportContent, blockUser } from '../../utils/moderation';
+import LinkifiedText from '../../components/LinkifiedText';
 
 // 시간 경과 표시
 function formatTimeAgo(timestamp) {
@@ -417,7 +418,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
             {/* 본문 */}
             {post.body ? (
-              <Text style={styles.postBody}>{post.body}</Text>
+              <LinkifiedText style={styles.postBody}>{post.body}</LinkifiedText>
             ) : null}
 
             {/* 첨부 이미지 */}
@@ -514,7 +515,7 @@ export default function PostDetailScreen({ navigation, route }) {
                         )}
                       </View>
                     </View>
-                    <Text style={styles.commentBody}>{comment.body}</Text>
+                    <LinkifiedText style={styles.commentBody}>{comment.body}</LinkifiedText>
                     {/* 댓글 좋아요 버튼 */}
                     <TouchableOpacity
                       style={styles.commentLikeButton}

@@ -47,6 +47,7 @@ describe('수정한 화면 모듈 로드 스모크', () => {
     // ↓ 2026-10-03 인앱 업데이트 안내
     ['UpdateBanner', '../src/components/UpdateBanner'],
     ['StoreUpdateModal', '../src/components/StoreUpdateModal'],
+    ['LinkifiedText', '../src/components/LinkifiedText'],
   ])('%s 가 로드된다', (name, path) => {
     const mod = require(path);
     expect(typeof mod.default).toBe('function');
