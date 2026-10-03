@@ -28,8 +28,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cookieKeyForUrl, credKeyForUrl, clearCookies, clearCredentials } from '../utils/schoolCookies';
 import { readLoginFailures, getFailureCopy } from '../utils/loginDiagnostics';
 import { getCategoryInfo } from '../constants/boardCategories';
+import { getAppVersionLabel } from '../utils/appVersion';
 import { formatTimeAgo } from '../utils/community';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
+
+// 네이티브 버전은 앱 실행 중 바뀌지 않으므로 모듈 로드 시 1회만 읽는다
+const APP_VERSION_LABEL = getAppVersionLabel();
 
 export default function ProfileScreen({ navigation }) {
   const { refreshProfile } = useAuth();
@@ -755,6 +759,10 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {APP_VERSION_LABEL && (
+          <Text style={styles.versionText}>{APP_VERSION_LABEL}</Text>
+        )}
+
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
@@ -1115,6 +1123,12 @@ const styles = StyleSheet.create({
   },
 
   // 개인정보처리방침 + 탈퇴 링크
+  versionText: {
+    ...typography.small,
+    color: colors.textDisabled,
+    textAlign: 'center',
+    marginTop: -spacing.md,
+  },
   footerLinks: {
     flexDirection: 'row',
     justifyContent: 'center',
