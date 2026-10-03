@@ -36,6 +36,7 @@
     "@supabase/supabase-js": "^2.102.1",
     "aes-js": "^3.1.2",
     "expo": "~54.0.34",
+    "expo-application": "~7.0.8",
     "expo-auth-session": "~7.0.11",
     "expo-clipboard": "~8.0.8",
     "expo-crypto": "~15.0.9",
