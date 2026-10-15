@@ -15,6 +15,35 @@
 | **Open LMS(Moodle)** | 東海 | 링크만 | Microsoft SSO |
 | 자체·기타 | 日本(학부별 상이) / 駒澤 KONECO / 専修 教務Web / 帝京 LMS | 링크만 | 후순위 |
 
+## 0-1. 지금 앱에서 학교별로 되는 것 (코드 기준 자동 생성)
+
+`npm run school:features` 로 갱신. 설정(`universities.js`/`universityLinks.js`)만 바꾸고 이 표를 안 고치면 Jest 가 실패한다.
+- 자동 로그인: `ON`=실기 검증 완료 / `검증대기`=폼 구조만 확인(꺼짐) / `⛔차단`=학교가 공식 반대(`docs/university-tos-review.md`)
+- 교시: `공식`=학교 시간표 반영 / `기본값`=국사관 시간 사용
+
+<!-- school-features:begin (자동 생성 — 직접 고치지 말 것: node scripts/school-features.mjs --write) -->
+| 학교 | 게시판·講義評価 | 시간표 一括 | 자동 로그인 | manaba 통지 | LMS(앱 내) | 포털 | 시라바스 | 교시 |
+|---|---|---|---|---|---|---|---|---|
+| 国士舘大学 `kokushikan` | ✅ | ✅ | ON | ✅ | manaba | kaede-i | ✅ | 공식 |
+| 日本大学 `nihon-u` | ✅ | — | — | — | — | — | — | 공식 |
+| 東洋大学 `toyo` | ✅ | — | 검증대기 | ✅ | manaba | — | ✅ | 공식 |
+| 駒澤大学 `komazawa-u` | ✅ | — | ⛔차단 | — | KONECO | — | ✅ | 공식 |
+| 専修大学 `senshu-u` | ✅ | — | 검증대기 | — | 教務システム | — | ✅ | 공식 |
+| 帝京大学 `teikyo-u` | ✅ | — | 검증대기 | — | LMS | — | ✅ | 공식 |
+| 神奈川大学 `kanagawa-u` | ✅ | — | 검증대기 | — | WebClass | — | ✅ | 공식 |
+| 東海大学 `tokai` | ✅ | — | — | — | Open LMS | — | — | 공식 |
+| 大東文化大学 `daito` | ✅ | — | — | ✅ | manaba | — | — | 공식 |
+| 亜細亜大学 `asia-u` | ✅ | — | 검증대기 | ✅ | manaba | — | ✅ | 공식 |
+| 拓殖大学 `takushoku-u` | ✅ | — | 검증대기 | — | ポータル | — | ✅ | 공식 |
+| 東京電機大学 `dendai` | ✅ | — | 검증대기 | — | UNIPA | — | ✅ | 공식 |
+| 玉川大学 `tamagawa` | ✅ | — | 검증대기 | — | UNITAMA | — | ✅ | 공식 |
+| 東京農業大学 `nodai` | ✅ | — | 검증대기 | — | WebClass | — | ✅ | 공식 |
+| 東京都市大学 `tcu` | ✅ | — | ⛔차단 | — | WebClass | — | ✅ | 공식 |
+| 大阪国際大学 `oiu` | ✅ | — | — | — | ポータル | — | — | 기본값 |
+| 日本文理大学 `nbu` | ✅ | — | — | — | UNIPA | — | — | 공식 |
+| 同志社大学 `doshisha` | ✅ | — | ⛔차단 | — | e-class | DUET | ✅ | 공식 |
+<!-- school-features:end -->
+
 ## 1. 학교별 상세
 
 ### 1-1. manaba 4교 (①로그인 유지 → ②시간표 → ③게시판 우선순위상 최우선)
