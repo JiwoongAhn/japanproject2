@@ -11,6 +11,11 @@
 //   autoLoginHosts  ID/PW 기기 저장 + 자동입력을 허용하는 로그인 폼 호스트 목록.
 //                   SSO 학교는 IdP 호스트를 명시. 없거나 빈 배열 = 쿠키 영속만(자동입력 없음).
 //                   ⚠️ 오타로 엉뚱한 사이트에 비밀번호가 들어가지 않도록 테스트가 형식·소속을 검증한다.
+//                   ⚠️ **실기 검증(재학생 실제 로그인)을 마친 학교만** 넣는다. 기본값은 OFF (2026-10-14 방침)
+//   autoLoginCandidates  공개 로그인 페이지 폼 구조만 확인된 호스트(검증 대기). 앱은 읽지 않는다.
+//                   재학생 실기 확인 후 autoLoginHosts 로 옮기면 켜진다
+//   autoLoginBlocked  학교가 비공식 앱의 ID/PW 입력에 공식 반대 → 자동입력 금지(사유 문자열).
+//                   이 값이 있으면 autoLoginHosts 를 넣을 수 없다(테스트가 막음). 근거 = docs/university-tos-review.md
 export const universityLinks = {
 
   // ── 국사관대학 ────────────────────────────────────────────────────────────
@@ -37,7 +42,7 @@ export const universityLinks = {
     manabaUrl:   'https://www.ace.toyo.ac.jp/ct/login', // ToyoNet-ACE = manaba 2.98 (www. 필수, ace.toyo.ac.jp 는 DNS 없음). 로그인은 secioss SAML SSO 로 리다이렉트
     // secioss IdP 폼: 맨 앞 display:none dummy 칸 + username + password (2026-09-20 curl 실측, 스크립트가 함정 칸 회피)
     // www.ace.toyo.ac.jp 는 /local/login 자체 폼(manaba 표준 폼으로 추정, 미실측) 대비
-    autoLoginHosts: ['slink.secioss.com', 'www.ace.toyo.ac.jp'],
+    autoLoginCandidates: ['slink.secioss.com', 'www.ace.toyo.ac.jp'],
     syllabusUrl: 'https://g-sys.toyo.ac.jp/syllabus/',
     portalUrl:   '',
   },
@@ -46,7 +51,8 @@ export const universityLinks = {
     manabaUrl:   '', // KONECO 자체 LMS 사용
     lmsUrl:      'https://koneco.komazawa-u.ac.jp/',
     lmsLabel:    'KONECO',
-    autoLoginHosts: ['koneco.komazawa-u.ac.jp'], // Drupal 폼(text+password+image 버튼) 2026-09-20 curl 실측
+    autoLoginCandidates: ['koneco.komazawa-u.ac.jp'], // Drupal 폼(text+password+image 버튼) 2026-09-20 curl 실측
+    autoLoginBlocked: '2020-04 時間割アプリへのKOMAnet ID/PW入力に注意喚起',
     syllabusUrl: 'https://koneco.komazawa-u.ac.jp/',
     portalUrl:   '',
   },
@@ -55,7 +61,7 @@ export const universityLinks = {
     manabaUrl:   '', // 자체 LMS 사용 (教務Webサービス)
     lmsUrl:      'https://ris.acc.senshu-u.ac.jp/kyougaku/indexSP.jsp',
     lmsLabel:    '教務システム',
-    autoLoginHosts: ['ris.acc.senshu-u.ac.jp'], // 폼 밖 <a onclick=goLogin()> 제출 — 스크립트가 문서 전체에서 ログイン 링크 탐색 (2026-09-20 실측)
+    autoLoginCandidates: ['ris.acc.senshu-u.ac.jp'], // 폼 밖 <a onclick=goLogin()> 제출 — 스크립트가 문서 전체에서 ログイン 링크 탐색 (2026-09-20 실측)
     syllabusUrl: 'https://syllabus.acc.senshu-u.ac.jp/syllsenshu/slbssrch.do',
     portalUrl:   '',
   },
@@ -64,7 +70,7 @@ export const universityLinks = {
     manabaUrl:   '', // 자체 LMS 사용
     lmsUrl:      'https://lms2017.teikyo-u.ac.jp/',
     lmsLabel:    'LMS',
-    autoLoginHosts: ['lms2017.teikyo-u.ac.jp'], // text+password+submit (2026-09-20 curl 실측)
+    autoLoginCandidates: ['lms2017.teikyo-u.ac.jp'], // text+password+submit (2026-09-20 curl 실측)
     syllabusUrl: 'https://activeacademy.ita.teikyo-u.ac.jp/aa_web/syllabus/faculties.aspx', // 板橋キャンパス
     portalUrl:   '',
   },
@@ -75,7 +81,7 @@ export const universityLinks = {
     manabaUrl:   '', // WebClass 사용
     lmsUrl:      'https://kulms.kanagawa-u.ac.jp/webclass/login.php', // 루트는 "ログイン画面を表示する" 클릭이 새창(window.open)이라 WebView에서 막힘 → 로그인 페이지 직행
     lmsLabel:    'WebClass',
-    autoLoginHosts: ['kulms.kanagawa-u.ac.jp'], // WebClass 표준 폼 (2026-09-20 Chrome 실측)
+    autoLoginCandidates: ['kulms.kanagawa-u.ac.jp'], // WebClass 표준 폼 (2026-09-20 Chrome 실측)
     syllabusUrl: 'https://webstation-koukai.kanagawa-u.ac.jp',
     portalUrl:   '',
   },
@@ -97,7 +103,7 @@ export const universityLinks = {
     homepageUrl: 'https://www.asia-u.ac.jp',
     manabaUrl:   'https://asia-u.manaba.jp/ct/login', // manaba 사용 확인
     // ex-tic IdP 폼: identifier + password + submit 단일 폼 (2026-09-20 curl 실측). manaba 자체 폼도 대비
-    autoLoginHosts: ['asia.ex-tic.com', 'asia-u.manaba.jp'],
+    autoLoginCandidates: ['asia.ex-tic.com', 'asia-u.manaba.jp'],
     syllabusUrl: 'https://cx.asia-u.ac.jp/campusweb/slbssrch.do', // portal.asia-u.ac.jp → cx.asia-u.ac.jp 로 이전(2026-09 확인)
     portalUrl:   '',
   },
@@ -106,7 +112,7 @@ export const universityLinks = {
     manabaUrl:   '',
     lmsUrl:      'https://portal.takushoku-u.ac.jp/campusweb/top.do',
     lmsLabel:    'ポータル',
-    autoLoginHosts: ['portal.takushoku-u.ac.jp'], // CampusSquare: type=button+exec('login') JS 제출 — 스크립트가 ログイン 버튼 click (2026-09-20 실측)
+    autoLoginCandidates: ['portal.takushoku-u.ac.jp'], // CampusSquare: type=button+exec('login') JS 제출 — 스크립트가 ログイン 버튼 click (2026-09-20 실측)
     syllabusUrl: 'https://syllabus.takushoku-u.ac.jp/',
     portalUrl:   '',
   },
@@ -117,7 +123,7 @@ export const universityLinks = {
     manabaUrl:   '', // DENDAI-UNIPA 자체 LMS 사용
     lmsUrl:      'https://portal.sa.dendai.ac.jp/uprx/up/pk/pky501/Pky50101.xhtml',
     lmsLabel:    'UNIPA',
-    autoLoginHosts: ['portal.sa.dendai.ac.jp'], // UNIPA(PrimeFaces) text+password+button[type=submit] (2026-09-20 curl 실측)
+    autoLoginCandidates: ['portal.sa.dendai.ac.jp'], // UNIPA(PrimeFaces) text+password+button[type=submit] (2026-09-20 curl 실측)
     syllabusUrl: 'https://www.dendai.ac.jp/about/campuslife/syllabus/',
     portalUrl:   '',
   },
@@ -126,7 +132,7 @@ export const universityLinks = {
     manabaUrl:   '', // Blackboard(수업) + UNITAMA(포털) 사용. 포털을 대표 링크로
     lmsUrl:      'https://unitama.tamagawa.ac.jp/uprx/', // 루트는 meta refresh → /uprx/ (UNIPA 로그인 폼)
     lmsLabel:    'UNITAMA',
-    autoLoginHosts: ['unitama.tamagawa.ac.jp'], // UNIPA 폼, 電機와 동일 (2026-09-20 curl 실측)
+    autoLoginCandidates: ['unitama.tamagawa.ac.jp'], // UNIPA 폼, 電機와 동일 (2026-09-20 curl 실측)
     syllabusUrl: 'http://acweb01.adm.tamagawa.ac.jp/Syllabus.nsf',
     portalUrl:   '',
   },
@@ -135,7 +141,7 @@ export const universityLinks = {
     manabaUrl:   '', // WebClass 사용
     lmsUrl:      'https://lms.nodai.ac.jp/webclass/login.php', // 루트는 새창 런처 → 로그인 페이지 직행
     lmsLabel:    'WebClass',
-    autoLoginHosts: ['lms.nodai.ac.jp'], // WebClass 표준 폼 (2026-09-20 curl 실측)
+    autoLoginCandidates: ['lms.nodai.ac.jp'], // WebClass 표준 폼 (2026-09-20 curl 실측)
     syllabusUrl: 'https://ngp.nodai.ac.jp/portalv3/slbsscmr.do',
     portalUrl:   '',
   },
@@ -144,7 +150,8 @@ export const universityLinks = {
     manabaUrl:   '', // WebClass 사용
     lmsUrl:      'https://webclass.tcu.ac.jp/webclass/login.php', // 루트는 새창 런처 → 로그인 페이지 직행
     lmsLabel:    'WebClass',
-    autoLoginHosts: ['webclass.tcu.ac.jp'], // WebClass 표준 폼 (2026-09-20 curl 실측)
+    autoLoginCandidates: ['webclass.tcu.ac.jp'], // WebClass 표준 폼 (2026-09-20 curl 실측)
+    autoLoginBlocked: '公式アプリ以外へのID/PW入力を禁止（情報システム利用規則 第4条2項）',
     syllabusUrl: 'https://websrv.tcu.ac.jp/tcu_web_v3/slbsskgr.do',
     portalUrl:   '',
   },
@@ -177,6 +184,7 @@ export const universityLinks = {
     portalLabel: 'DUET',
     syllabusUrl: 'https://syllabus.doshisha.ac.jp/', // 공개 시라바스 검색 (2026-09-20 생존 확인)
     // ex-tic IdP 폼 = 亜細亜와 동일 구조 (2026-09-20 curl 실측)
-    autoLoginHosts: ['doshisha.ex-tic.com'],
+    autoLoginCandidates: ['doshisha.ex-tic.com'],
+    autoLoginBlocked: '2017 ID/PW入力が必要な時間割アプリに注意喚起',
   },
 };

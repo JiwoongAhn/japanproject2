@@ -93,7 +93,8 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - [ ] `manabaUrl`: manaba.jp 도메인 확인된 경우에만 → お知らせ/리마인더 기능 자동 활성
 - [ ] `lmsUrl` + `lmsLabel`: manaba 미사용 시 (WebClass, UNIPA 등). 앱 내 브라우저(쿠키 유지)로 열림
 - [ ] `portalUrl` + `portalLabel`: 학사 포털이 LMS와 별도일 때 (국사관 kaede-i)
-- [ ] `autoLoginHosts`: ID/PW 자동입력을 허용할 로그인 폼 호스트(SSO IdP 포함). **공개 로그인 페이지 폼 구조를 `__tests__/utils/loginFormScripts.test.js`에 넣어 검증 후에만** 추가. 없으면 쿠키 유지만(안전)
+- [ ] `autoLoginCandidates`: 공개 로그인 페이지 폼 구조를 `__tests__/utils/loginFormScripts.test.js`로 검증한 호스트(SSO IdP 포함). **앱은 안 읽음 = 자동입력 OFF**
+- [ ] `autoLoginHosts`(실제 자동입력 ON): **재학생 실기 로그인 확인 + `docs/university-tos-review.md` 에서 학교가 반대하지 않음을 확인한 뒤에만** 후보를 옮긴다. 테스트 `L-05` 의 VERIFIED 목록에도 추가. 학교가 비공식 앱 ID/PW 입력에 반대하면 `autoLoginBlocked: '사유'` (2026-10-14, 현재 ON = 国士舘뿐 / 차단 = 東京都市·同志社·駒澤)
 - [ ] `timetableUrl`: 一括取り込み 전용 파서가 있을 때만 (없으면 一括 버튼 자동 숨김)
 - [ ] `syllabusUrl`: 외부 공개 URL만 (로그인 필요 URL 생략)
 - [ ] manaba 학교면 `supabase/functions/mail-inbound` `ALLOWED_SENDERS`에 발신 도메인 추가

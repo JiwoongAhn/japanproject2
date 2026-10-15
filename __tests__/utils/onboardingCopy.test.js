@@ -30,11 +30,14 @@ describe('buildOnboardingCopy', () => {
     expect(c.summaryItems.join()).not.toContain('manaba');
   });
 
-  it('O-02b: WebClass 학교(kanagawa-u, autoLoginHosts 있음) = "최초 1회 로그인" 문구', () => {
+  it('O-02b: 자동입력 검증 대기 학교(kanagawa-u, autoLoginCandidates 만) = "자동" 약속 안 함', () => {
+    // 2026-10-14 방침: 실기 검증 전 학교는 자동입력 OFF → 쿠키 유지 문구
     const c = buildOnboardingCopy(universityLinks['kanagawa-u']);
     const last = c.slides[c.slides.length - 1];
-    expect(last.title).toBe('最初の1回だけ、ログイン');
+    expect(last.title).toBe('学校のシステムに、アプリからそのまま');
     expect(last.subtitle).toContain('WebClassは');
+    expect(last.subtitle).not.toContain('自動');
+    expect(c.summaryLead).not.toContain('おまかせ');
     expect(c.showMailConnectCta).toBe(false);
   });
 

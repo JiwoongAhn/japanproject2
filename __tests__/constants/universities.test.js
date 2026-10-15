@@ -116,19 +116,45 @@ describe('universities ↔ universityLinks 교차 정합', () => {
       expect(link.kaedeUrl).toBeUndefined();
     });
 
-    it('autoLoginHosts가 있으면 호스트명 배열이고, 이 학교의 URL 호스트이거나 허용된 SSO IdP 다', () => {
-      // 오타로 엉뚱한 사이트의 로그인 폼에 비밀번호를 넣는 사고를 막는 안전망.
-      if (link.autoLoginHosts === undefined) return;
-      expect(Array.isArray(link.autoLoginHosts)).toBe(true);
-      const ownHosts = ['manabaUrl', 'lmsUrl', 'portalUrl', 'timetableUrl']
-        .map((f) => hostOf(link[f]))
-        .filter(Boolean);
-      link.autoLoginHosts.forEach((h) => {
-        expect(h).toMatch(/^[a-z0-9.-]+$/); // 프로토콜·경로 없음, 소문자
-        const ok = ownHosts.includes(h) || ALLOWED_IDP_SUFFIXES.some((sfx) => h.endsWith(sfx));
-        expect(ok).toBe(true);
-      });
+    it.each(['autoLoginHosts', 'autoLoginCandidates'])(
+      '%s가 있으면 호스트명 배열이고, 이 학교의 URL 호스트이거나 허용된 SSO IdP 다',
+      (field) => {
+        // 오타로 엉뚱한 사이트의 로그인 폼에 비밀번호를 넣는 사고를 막는 안전망.
+        // 후보(candidates)도 같은 검사 — 나중에 autoLoginHosts 로 옮길 때 그대로 안전하도록
+        if (link[field] === undefined) return;
+        expect(Array.isArray(link[field])).toBe(true);
+        const ownHosts = ['manabaUrl', 'lmsUrl', 'portalUrl', 'timetableUrl']
+          .map((f) => hostOf(link[f]))
+          .filter(Boolean);
+        link[field].forEach((h) => {
+          expect(h).toMatch(/^[a-z0-9.-]+$/); // 프로토콜·경로 없음, 소문자
+          const ok = ownHosts.includes(h) || ALLOWED_IDP_SUFFIXES.some((sfx) => h.endsWith(sfx));
+          expect(ok).toBe(true);
+        });
+      }
+    );
+
+    it('autoLoginBlocked 학교에는 autoLoginHosts 를 넣을 수 없다 (학교가 공식 반대)', () => {
+      if (link.autoLoginBlocked === undefined) return;
+      expect(typeof link.autoLoginBlocked).toBe('string');
+      expect(link.autoLoginBlocked.trim().length).toBeGreaterThan(0); // 사유 필수
+      expect(link.autoLoginHosts ?? []).toEqual([]);
     });
+  });
+
+  it('L-04: 비공식 앱 ID/PW 입력에 공식 반대한 3교는 차단 상태다 (docs/university-tos-review.md)', () => {
+    ['tcu', 'doshisha', 'komazawa-u'].forEach((id) => {
+      expect(universityLinks[id].autoLoginBlocked).toBeTruthy();
+    });
+  });
+
+  it('L-05: 자동입력은 실기 검증을 마친 학교만 켠다 (현재 국사관뿐)', () => {
+    // 새 학교를 켤 때 = 재학생 실제 로그인 확인 후 이 목록에 추가
+    const VERIFIED = ['kokushikan'];
+    const enabled = Object.entries(universityLinks)
+      .filter(([, l]) => (l.autoLoginHosts ?? []).length > 0)
+      .map(([id]) => id);
+    expect(enabled).toEqual(VERIFIED);
   });
 
   it('L-03: 국사관은 manaba 자체 폼과 kaede-i 둘 다 자동입력 대상이다 (회귀 방지)', () => {

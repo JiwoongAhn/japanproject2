@@ -78,7 +78,7 @@ UNIPA는 `/uprx/up/pk/pky501/…` 경로 체계가 제품 공통. 시간표(`時
 
 ## 1-6. 로그인 폼 자동입력 호환성 — 2026-09-20 공개 페이지 실측 (계정 없이 curl/Chrome)
 
-`autoLoginHosts` 는 여기서 ✅인 호스트만 넣는다. 폼 골격은 `__tests__/utils/loginFormScripts.test.js` 에 스냅샷으로 보존.
+`autoLoginCandidates`(검증 대기)는 여기서 ✅인 호스트만 넣는다. **실제 자동입력(`autoLoginHosts`)은 재학생 실기 로그인 확인 후에만** 옮긴다(2026-10-14 방침, 현재 国士舘만 ON). 東京都市·同志社·駒澤는 `autoLoginBlocked`(학교 공식 반대, `docs/university-tos-review.md`). 폼 골격은 `__tests__/utils/loginFormScripts.test.js` 에 스냅샷으로 보존.
 
 | 제품 | 학교 | 폼 구조 | 스크립트 대응 | autoLoginHosts |
 |---|---|---|---|---|
