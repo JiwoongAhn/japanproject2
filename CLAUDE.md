@@ -84,6 +84,11 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 
 > 17개교 LMS 조사 결과·개통 우선순위는 `docs/university-lms-profiles.md` 참조 (2026-09-18)
 
+**도구 (2026-10-15)**
+- [ ] 이용규정 1차 스캔: `npm run tos:scan -- <홈페이지URL>` → 출력 끝의 사이트 검색(주의 공지)은 사람이 → `docs/university-tos-review.md` 등급표에 기록
+- [ ] 역할 지도: `docs/schools/_template.md` 를 `docs/schools/{id}.md` 로 복사해 채움 (시간표·성적·과제·공지를 어느 시스템이 맡는지 + 역할별 연결 방법 A~E)
+- [ ] 설정 수정 후 `npm run school:features` (학교별 기능 표 갱신 — 안 하면 Jest `SF-DOC` 실패)
+
 **`src/constants/universities.js`**
 - [ ] `id`, `name`, `location`, `emailDomain`, `campuses`
 - [ ] `periodRanges`: 학교 공식 홈페이지에서 "時限 時間割" 검색 → 없으면 생략 (국사관 기본값 자동 사용)
