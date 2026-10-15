@@ -129,6 +129,30 @@ describe('matchRoom', () => {
     expect(matchRoom({ name: '特講', professor: '佐藤', day: 0, period: 1 }, rows)).toBe('A101 B202 C303');
   });
 
+  test('같은 방이 반복되면 1개만 (실사용자 신고 2026-10-16)', () => {
+    const rows = [row('ヨーロッパの歴史と文化', '廣瀬 方美', '木／2', '町田', '34B303 34B303 34B303 34B303 34B303')];
+    expect(matchRoom({ name: 'ヨーロッパの歴史と文化', professor: '廣瀬 方美', day: 3, period: 2 }, rows)).toBe('34B303');
+  });
+
+  test('학기로 행을 고른다 — 春期/秋期 같은 요일교시에 캠퍼스가 다름 (실데이터 2026-10-16)', () => {
+    // 실제 시라바스 검색결과 일부. 秋期 木2는 町田 13304, 春期 木2는 世田谷 34B303
+    const rows = [
+      ['ヨーロッパの歴史と文化', '廣瀬 方美', '経営学部…', '春期', '木／2', '世田谷', '34B303 34B303 34B303 34B303 34B303'],
+      ['ヨーロッパの歴史と文化', '廣瀬 方美', '経営学部…', '春期', '金／2', '世田谷', '34B201 34B201 34B201 34B201 34B201'],
+      ['ヨーロッパの歴史と文化', '廣瀬 方美', '２１世紀アジア学部…', '秋期', '木／2', '町田', '13304'],
+      ['ヨーロッパの歴史と文化', '廣瀬 方美', '経営学部…', '秋期', '金／2', '世田谷', '34B201 34B201 34B201 34B201 34B201'],
+    ];
+    const base = { name: 'ヨーロッパの歴史と文化', professor: '廣瀬　方美' };
+    expect(matchRoom({ ...base, day: 3, period: 2, term: 'fall' }, rows)).toBe('13304');
+    expect(matchRoom({ ...base, day: 3, period: 2, term: 'spring' }, rows)).toBe('34B303');
+    expect(matchRoom({ ...base, day: 4, period: 2, term: 'fall' }, rows)).toBe('34B201');
+  });
+
+  test('같은 방 2번 + 슬롯 1개 → 1개만', () => {
+    const rows = [row('人と宇宙', '山田', '水／1', '町田', '13304 13304')];
+    expect(matchRoom({ name: '人と宇宙', professor: '山田', day: 2, period: 1 }, rows)).toBe('13304');
+  });
+
   test('교실 빈칸(집중강의) → null', () => {
     const course = { name: 'グローバルアジア論', professor: '高橋 伸子', day: null, period: null };
     const rows = [row('グローバルアジア論', '高橋 伸子', '集中', '町田', '')];

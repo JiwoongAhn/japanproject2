@@ -162,7 +162,8 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
         setItems((prev) =>
           prev.map((it, idx) => {
             if (idx !== msg.index) return it;
-            const room = matchRoom(it, msg.rows || []);
+            // 저장될 학기(defaultTerm)로 시라바스 행을 고른다 — 春/秋 교실이 다를 수 있음
+            const room = matchRoom({ ...it, term: defaultTerm }, msg.rows || []);
             return room ? { ...it, room } : it;
           })
         );

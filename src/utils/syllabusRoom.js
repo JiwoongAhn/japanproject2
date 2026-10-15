@@ -17,6 +17,9 @@ const WEEKDAY_TO_DAY = { 月: 0, 火: 1, 水: 2, 木: 3, 金: 4, 土: 5, 日: 6 
 // 0 授業科目名 | 1 教員名 | 2 対象 | 3 期 | 4 曜日時限 | 5 キャンパス | 6 教室 | 7 詳細
 const COL = { name: 0, professor: 1, term: 3, dayPeriod: 4, campus: 5, room: 6 };
 
+// 앱의 학기 값(courses.term) → 결과표 「期」 칸 표기
+const TERM_TO_LABELS = { spring: ['春期', '前期'], fall: ['秋期', '後期'] };
+
 // 교실 조회를 지원하는 학교 → 그 학교의 시라바스 URL
 // ⚠️ 이 파서는 카에데(국사관) ASP.NET 폼 구조 전용이다. 폼 필드명·결과표 컬럼이
 //    아래 FIELD_*/COL 상수와 동일한 학교만 추가할 것. 다른 구조의 학교를 여기에
@@ -76,9 +79,12 @@ export function parseResultRow(cells = []) {
 // 시라바스는 曜日時限과 教室을 같은 순서(이른 요일부터)로 나열하므로,
 // 방 개수와 슬롯 개수가 정확히 같을 때만 요청한 요일·교시 위치의 방을 골라준다.
 // 개수가 안 맞으면(방1개=양일 공용, 방3개≠슬롯2개 등) 헷갈릴 수 있으니 통째로 반환한다.
+// ⚠️ 같은 방이 반복되어 오는 경우가 있다(2026-10-16 실사용자 신고: 주1회 수업인데
+//    "34B303 34B303 34B303 34B303 34B303"). 전부 같은 방이면 개수와 상관없이 1개만 반환.
 function pickRoomForSlot(row, course) {
   const rooms = String(row.room || '').trim().split(/\s+/).filter(Boolean);
-  if (rooms.length <= 1) return row.room || null;              // 방 1개 → 그대로
+  if (rooms.length === 0) return null;
+  if (new Set(rooms).size === 1) return rooms[0];              // 방 1종류 → 1개만
   if (course.day == null || course.period == null) return row.room;
   if (rooms.length !== (row.slots || []).length) return row.room; // 개수 불일치 → 안전하게 통째로
   const idx = row.slots.findIndex(
@@ -89,7 +95,7 @@ function pickRoomForSlot(row, course) {
 }
 
 // 수업 1개에 대한 최적 교실 선택
-//   course : { name, professor, day, period, campus? }
+//   course : { name, professor, day, period, term?('spring'|'fall'), campus? }
 //   rows   : 시라바스 검색결과 raw 행 배열(문자열 배열의 배열)
 //   반환   : 교실 문자열 / 못 찾으면 null (집중강의 등 교실 자체가 없으면 null)
 export function matchRoom(course = {}, rows = []) {
@@ -109,6 +115,14 @@ export function matchRoom(course = {}, rows = []) {
   if (nameKey) {
     const byName = cands.filter((r) => normalizeJa(r.name) === nameKey);
     if (byName.length) cands = byName;
+  }
+  // 2.5) 학기 일치 우선 — 같은 교수·같은 요일교시라도 春期/秋期에 캠퍼스·교실이 다를 수 있다
+  //   (2026-10-16 실사용자 신고: ヨーロッパの歴史と文化 秋期 木2 = 町田 13304 인데
+  //    春期 木2 행(世田谷 34B303)이 먼저 나와서 엉뚱한 교실이 들어갔다)
+  const termLabels = TERM_TO_LABELS[course.term];
+  if (termLabels) {
+    const byTerm = cands.filter((r) => termLabels.some((l) => r.term.includes(l)));
+    if (byTerm.length) cands = byTerm;
   }
   // 3) 요일·교시 일치 우선
   if (course.day != null && course.period != null) {
