@@ -323,6 +323,15 @@ App Store 입장에서 「내가 배달하지 않은 앱」이라서, 새 버전
 - [x] 정확도 실측(스크린샷): 日本文理 11/11·国士舘 25/25 = 100%. 재측정 `node scripts/eval-ai-timetable.js <정답지> <이미지…>` (정답지·이미지는 실제 학생 데이터라 gitignore)
 - ⚠️ Anthropic API 키 `unione-supabase` **2028-08-18 만료** → 그 전에 새 키로 Supabase 시크릿 교체 (만료되면 「AIで要約」까지 같이 멈춘다)
 - [ ] 日本文理 실기: 앱 브라우저에서 UNIPA 학외 Basic 인증이 통과되는지 / 페이지 읽기 결과
+- [x] **첫 OTA 배포 성공** (2026-10-19, iOS group `3e5c2f51` / Android `5e457e68`, runtime = 1.0.4 빌드 지문 일치)
+
+### ⚠️ OTA 보내는 법 (fingerprint 정책)
+- 로컬 `ios/`(prebuild, gitignore) 가 있으면 지문이 빌드와 달라져 **OTA 가 1.0.4 폰에 도착하지 않는다** → 잠깐 치우고 보낸다
+- 루트 `.gitignore` 도 지문에 들어간다 — 고치지 말 것 (하위 폴더 `.gitignore` 사용)
+```bash
+mv ios /tmp/ios-bak && npx eas fingerprint:compare --build-id <최근 빌드 id>   # ✅ matches 확인
+npx eas update --channel production --message "…" && mv /tmp/ios-bak ios
+```
 
 ---
 
