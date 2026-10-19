@@ -313,6 +313,19 @@ App Store 입장에서 「내가 배달하지 않은 앱」이라서, 새 버전
 
 ---
 
+# AI 시간표 읽기 (2026-10-19) — 国士舘 외 학교용
+
+- [x] **国士舘은 기존 kaede 자동 추출 그대로** (사용자 방침 — `timetableUrl` 있는 학교는 AI 를 쓰지 않는다)
+- [x] 그 외 학교: 「一括」 → `AiImportSheet` 3가지 — ① 학교 시스템에서 읽기(`SchoolWeb` `aiTimetable` 모드: 안내 띠 + 왼쪽 아래 「時間割を読み取る」, 페이지 HTML 을 `CAPTURE_PAGE_JS` 로 가져와 `cleanPageHtml`) ② 스크린샷 최대 3장 ③ 붙여넣기(`BulkAddInput` `aiMode`)
+- [x] 공통 흐름 `hooks/useAiTimetableImport` → Edge Function `parse-timetable`(Claude **Haiku 5.5**, 구조화 출력, 사용자당 하루 10회 = `ai_usage` 테이블) → `normalizeAiCourses` → 학기 선택 → 기존 `BulkAddPreview`(확인 필요 수업 맨 위)
+- [x] 처음 1회 동의 `AiConsentModal`(해외 이전 고지, 기기 저장 `ai_timetable_consent_v1`). privacy(앱·웹)에 Anthropic 항목 추가
+- [x] 학교별 시작점 `universityLinks.aiTimetableUrl/Label/Guide` (16교, 근거 `docs/university-lms-profiles.md` §4). ❓ 메뉴 경로는 재학생 확인 전 추정
+- [x] 정확도 실측(스크린샷): 日本文理 11/11·国士舘 25/25 = 100%. 재측정 `node scripts/eval-ai-timetable.js <정답지> <이미지…>` (정답지·이미지는 실제 학생 데이터라 gitignore)
+- ⚠️ Anthropic API 키 `unione-supabase` **2028-08-18 만료** → 그 전에 새 키로 Supabase 시크릿 교체 (만료되면 「AIで要約」까지 같이 멈춘다)
+- [ ] 日本文理 실기: 앱 브라우저에서 UNIPA 학외 Basic 인증이 통과되는지 / 페이지 읽기 결과
+
+---
+
 # 향후 예정 작업
 
 ## 묶음 4 잔여 (모바일 UI 최적화)

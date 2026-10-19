@@ -7,7 +7,11 @@
 //   manabaUrl     manaba 로그인 URL (manaba 학교만). 있으면 お知らせ 자동취득·리마인더 기능 활성
 //   lmsUrl/lmsLabel   manaba 미사용 학교의 LMS (쌍으로). 앱 내 브라우저(쿠키 유지)로 연다
 //   portalUrl/portalLabel  학사 포털 (쌍으로). 국사관 kaede-i 등. 앱 내 브라우저로 연다
-//   timetableUrl  一括取り込み 전용 파서가 있는 학교만 (현재 국사관 kaede-i). 없으면 一括 버튼 숨김
+//   timetableUrl  一括取り込み 전용 파서가 있는 학교만 (현재 국사관 kaede-i). 있으면 기존 kaede 자동 추출, AI 읽기는 쓰지 않는다
+//   aiTimetableUrl   전용 파서가 없는 학교의 「大学のサイトから読み取る」 시작 주소 = 시간표가 있는 학무 시스템
+//                    (LMS 가 아님에 주의 — 근거·등급은 docs/university-lms-profiles.md §4). 없으면 그 선택지만 숨김
+//   aiTimetableLabel 그 시스템의 이름 (선택 시트에 「○○を開きます」로 표시)
+//   aiTimetableGuide 학교 사이트 위쪽 안내 띠에 보일 時間割까지의 메뉴 경로 (일본어). 재학생 미확인이면 일반 문구
 //   autoLoginHosts  ID/PW 기기 저장 + 자동입력을 허용하는 로그인 폼 호스트 목록.
 //                   SSO 학교는 IdP 호스트를 명시. 없거나 빈 배열 = 쿠키 영속만(자동입력 없음).
 //                   ⚠️ 오타로 엉뚱한 사이트에 비밀번호가 들어가지 않도록 테스트가 형식·소속을 검증한다.
@@ -39,6 +43,8 @@ export const universityLinks = {
   },
   toyo: {
     homepageUrl: 'https://www.toyo.ac.jp',
+    aiTimetableUrl:   'https://g-sys.toyo.ac.jp/portal/', // AI 시간표 읽기 시작점: ToyoNet-G (secioss SSO)
+    aiTimetableLabel: 'ToyoNet-G',
     manabaUrl:   'https://www.ace.toyo.ac.jp/ct/login', // ToyoNet-ACE = manaba 2.98 (www. 필수, ace.toyo.ac.jp 는 DNS 없음). 로그인은 secioss SAML SSO 로 리다이렉트
     // secioss IdP 폼: 맨 앞 display:none dummy 칸 + username + password (2026-09-20 curl 실측, 스크립트가 함정 칸 회피)
     // www.ace.toyo.ac.jp 는 /local/login 자체 폼(manaba 표준 폼으로 추정, 미실측) 대비
@@ -48,6 +54,9 @@ export const universityLinks = {
   },
   'komazawa-u': {
     homepageUrl: 'https://www.komazawa-u.ac.jp',
+    aiTimetableUrl:   'https://koneco.komazawa-u.ac.jp/', // AI 시간표 읽기 시작점: KONECO
+    aiTimetableLabel: 'KONECO',
+    aiTimetableGuide: '【履修】',
     manabaUrl:   '', // KONECO 자체 LMS 사용
     lmsUrl:      'https://koneco.komazawa-u.ac.jp/',
     lmsLabel:    'KONECO',
@@ -58,6 +67,8 @@ export const universityLinks = {
   },
   'senshu-u': {
     homepageUrl: 'https://www.senshu-u.ac.jp',
+    aiTimetableUrl:   'https://ris.acc.senshu-u.ac.jp/kyougaku/indexSP.jsp', // AI 시간표 읽기 시작점: 教務Webサービス
+    aiTimetableLabel: '教務Webサービス',
     manabaUrl:   '', // 자체 LMS 사용 (教務Webサービス)
     lmsUrl:      'https://ris.acc.senshu-u.ac.jp/kyougaku/indexSP.jsp',
     lmsLabel:    '教務システム',
@@ -67,6 +78,9 @@ export const universityLinks = {
   },
   'teikyo-u': {
     homepageUrl: 'https://www.teikyo-u.ac.jp',
+    aiTimetableUrl:   'https://portal.cs.teikyo-u.ac.jp/campusweb', // AI 시간표 읽기 시작점: CampusSquare (Extic SSO)
+    aiTimetableLabel: 'CampusSquare',
+    aiTimetableGuide: '履修 → 履修登録・登録状況照会',
     manabaUrl:   '', // 자체 LMS 사용
     lmsUrl:      'https://lms2017.teikyo-u.ac.jp/',
     lmsLabel:    'LMS',
@@ -78,6 +92,9 @@ export const universityLinks = {
   // ── 배치 2 ────────────────────────────────────────────────────────────────
   'kanagawa-u': {
     homepageUrl: 'https://www.kanagawa-u.ac.jp',
+    aiTimetableUrl:   'https://webstation.kanagawa-u.ac.jp/campusweb/portal.do', // AI 시간표 읽기 시작점: WeB St@tion = CampusSquare (MNS SSO)
+    aiTimetableLabel: 'WeB St@tion',
+    aiTimetableGuide: '教務／授業関連 → 履修',
     manabaUrl:   '', // WebClass 사용
     lmsUrl:      'https://kulms.kanagawa-u.ac.jp/webclass/login.php', // 루트는 "ログイン画面を表示する" 클릭이 새창(window.open)이라 WebView에서 막힘 → 로그인 페이지 직행
     lmsLabel:    'WebClass',
@@ -87,6 +104,9 @@ export const universityLinks = {
   },
   tokai: {
     homepageUrl: 'https://www.u-tokai.ac.jp',
+    aiTimetableUrl:   'https://cleweb.tsc.u-tokai.ac.jp/campusweb/top.do', // AI 시간표 읽기 시작점: キャンパスライフエンジン = CampusSquare
+    aiTimetableLabel: 'キャンパスライフエンジン',
+    aiTimetableGuide: '学修 → Web履修登録',
     manabaUrl:   '', // Open LMS 사용
     lmsUrl:      'https://tlms.tsc.u-tokai.ac.jp/', // 2025-05 이전 주소(lms.u-tokai.ac.jp)에서 변경. Microsoft SSO(2단계 폼) → 자동입력 미지원, 쿠키 유지만
     lmsLabel:    'Open LMS',
@@ -95,12 +115,17 @@ export const universityLinks = {
   },
   daito: {
     homepageUrl: 'https://www.daito.ac.jp',
+    aiTimetableUrl:   'https://dbp.mypage.daito.ac.jp/', // AI 시간표 읽기 시작점: DBポータル
+    aiTimetableLabel: 'DBポータル',
     manabaUrl:   'https://daito.manaba.jp', // manaba 사용 확인. 로그인은 Microsoft Entra SSO(2단계 폼) → 자동입력 미지원, 쿠키 유지만
     syllabusUrl: '', // 포털 로그인 필요
     portalUrl:   '',
   },
   'asia-u': {
     homepageUrl: 'https://www.asia-u.ac.jp',
+    aiTimetableUrl:   'https://cx.asia-u.ac.jp/campusweb/top.do', // AI 시간표 읽기 시작점: Campus-Xs = CampusSquare
+    aiTimetableLabel: 'Campus-Xs',
+    aiTimetableGuide: '履修 → 履修登録・登録状況照会',
     manabaUrl:   'https://asia-u.manaba.jp/ct/login', // manaba 사용 확인
     // ex-tic IdP 폼: identifier + password + submit 단일 폼 (2026-09-20 curl 실측). manaba 자체 폼도 대비
     autoLoginCandidates: ['asia.ex-tic.com', 'asia-u.manaba.jp'],
@@ -109,6 +134,9 @@ export const universityLinks = {
   },
   'takushoku-u': {
     homepageUrl: 'https://www.takushoku-u.ac.jp',
+    aiTimetableUrl:   'https://portal.takushoku-u.ac.jp/campusweb/top.do', // AI 시간표 읽기 시작점: CampusSquare
+    aiTimetableLabel: 'CampusSquare',
+    aiTimetableGuide: '履修 → 履修登録・登録状況照会',
     manabaUrl:   '',
     lmsUrl:      'https://portal.takushoku-u.ac.jp/campusweb/top.do',
     lmsLabel:    'ポータル',
@@ -120,6 +148,9 @@ export const universityLinks = {
   // ── 배치 3 ────────────────────────────────────────────────────────────────
   dendai: {
     homepageUrl: 'https://www.dendai.ac.jp',
+    aiTimetableUrl:   'https://portal.sa.dendai.ac.jp/uprx/', // AI 시간표 읽기 시작점: UNIPA RX
+    aiTimetableLabel: 'DENDAI-UNIPA',
+    aiTimetableGuide: '時間割表 → 本人',
     manabaUrl:   '', // DENDAI-UNIPA 자체 LMS 사용
     lmsUrl:      'https://portal.sa.dendai.ac.jp/uprx/up/pk/pky501/Pky50101.xhtml',
     lmsLabel:    'UNIPA',
@@ -129,6 +160,9 @@ export const universityLinks = {
   },
   tamagawa: {
     homepageUrl: 'https://www.tamagawa.jp/university/',
+    aiTimetableUrl:   'https://unitama.tamagawa.ac.jp/uprx/', // AI 시간표 읽기 시작점: UNITAMA = UNIPA RX
+    aiTimetableLabel: 'UNITAMA',
+    aiTimetableGuide: '時間割表 → 本人',
     manabaUrl:   '', // Blackboard(수업) + UNITAMA(포털) 사용. 포털을 대표 링크로
     lmsUrl:      'https://unitama.tamagawa.ac.jp/uprx/', // 루트는 meta refresh → /uprx/ (UNIPA 로그인 폼)
     lmsLabel:    'UNITAMA',
@@ -138,6 +172,9 @@ export const universityLinks = {
   },
   nodai: {
     homepageUrl: 'https://www.nodai.ac.jp',
+    aiTimetableUrl:   'https://ngp.nodai.ac.jp/portalv3/sptop.do', // AI 시간표 읽기 시작점: 農大ポータル
+    aiTimetableLabel: '農大ポータル',
+    aiTimetableGuide: 'My時間割',
     manabaUrl:   '', // WebClass 사용
     lmsUrl:      'https://lms.nodai.ac.jp/webclass/login.php', // 루트는 새창 런처 → 로그인 페이지 직행
     lmsLabel:    'WebClass',
@@ -147,6 +184,9 @@ export const universityLinks = {
   },
   tcu: {
     homepageUrl: 'https://www.tcu.ac.jp',
+    aiTimetableUrl:   'https://websrv.tcu.ac.jp/tcu_web_v3/', // AI 시간표 읽기 시작점: Campusmate-J
+    aiTimetableLabel: 'Campusmate-J',
+    aiTimetableGuide: '履修登録・確認・変更',
     manabaUrl:   '', // WebClass 사용
     lmsUrl:      'https://webclass.tcu.ac.jp/webclass/login.php', // 루트는 새창 런처 → 로그인 페이지 직행
     lmsLabel:    'WebClass',
@@ -159,6 +199,9 @@ export const universityLinks = {
   // ── 배치 4 ────────────────────────────────────────────────────────────────
   oiu: {
     homepageUrl: 'https://www.oiu.ac.jp',
+    aiTimetableUrl:   'https://portal.oiu.ac.jp/uprx/', // AI 시간표 읽기 시작점: OIU UNIPA = UNIPA RX
+    aiTimetableLabel: 'OIU UNIPA',
+    aiTimetableGuide: '時間割表 → 本人',
     manabaUrl:   '', // manaba 미사용 (Moodle + OIU UNIPA)
     lmsUrl:      'https://www6.oiu.ac.jp/share/htdocs/',
     lmsLabel:    'ポータル',
@@ -167,6 +210,9 @@ export const universityLinks = {
   },
   nbu: {
     homepageUrl: 'https://www.nbu.ac.jp',
+    aiTimetableUrl:   'https://www.nbu.ac.jp/upx-login.html', // AI 시간표 읽기 시작점: UNIPA RX(✅재학생 확인 2026-10-19). unipax 직행은 학외 HTTP Basic 인증(401)이라 앱 브라우저에서 막힐 수 있어 안내 페이지부터
+    aiTimetableLabel: 'ユニバーサルパスポート',
+    aiTimetableGuide: '時間割表 → 本人',
     manabaUrl:   '', // manaba 미사용 (UNIVERSAL PASSPORT)
     lmsUrl:      'https://www.nbu.ac.jp/upx-login.html', // 안내 페이지. 실제 unipax.nbu.ac.jp 는 HTTP Basic 인증(401) → 폼이 아니라 자동입력 불가, 쿠키 유지만
     lmsLabel:    'UNIPA',
@@ -177,6 +223,8 @@ export const universityLinks = {
   // ── 배치 5 (2026-09-20) ─────────────────────────────────────────────────
   doshisha: {
     homepageUrl: 'https://www.doshisha.ac.jp',
+    aiTimetableUrl:   'https://duet.doshisha.ac.jp/gakusei/html/fb/fb010/FB01001G.html', // AI 시간표 읽기 시작점: DUET (ex-tic SSO)
+    aiTimetableLabel: 'DUET',
     manabaUrl:   '', // manaba 미사용. e-class(WebClass) + DUET(학사 포털), 로그인은 전부 ex-tic SSO
     lmsUrl:      'https://eclass.doshisha.ac.jp/webclass/singlesignon.php?auth_mode=SHIB&auth_only=1', // 루트는 JS 리다이렉트 톱페이지 → SSO 진입 URL 직행(2026-09-20 curl: doshisha.ex-tic.com/auth/session 도착 확인)
     lmsLabel:    'e-class',

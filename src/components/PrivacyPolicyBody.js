@@ -14,7 +14,7 @@ export default function PrivacyPolicyBody() {
       {/* 상단 안내 카드 */}
       <Card padding="lg" radius="lg" style={styles.intro}>
         <Text style={styles.introTitle}>個人情報の取り扱いについて</Text>
-        <Text style={styles.updated}>最終更新日：2026年7月9日</Text>
+        <Text style={styles.updated}>最終更新日：2026年10月19日</Text>
       </Card>
 
       <Section title="1. はじめに">
@@ -34,7 +34,7 @@ export default function PrivacyPolicyBody() {
       </Section>
 
       <Section title="5. 利用するサービス">
-        {`本アプリは以下の外部サービス（業務委託先）を利用しています。いずれも第三者への「提供」ではなく、サービス提供に必要な範囲での処理委託です。\n\n・Supabase（データベース・認証）\n  プライバシーポリシー: supabase.com/privacy\n\n・Expo（アプリ基盤・プッシュ通知）\n  プライバシーポリシー: expo.dev/privacy\n\n・Resend（メール配信：認証コードなど）\n  プライバシーポリシー: resend.com/legal/privacy-policy\n\n・Cloudflare（メール転送：manaba通知のプッシュ配信）\n  プライバシーポリシー: cloudflare.com/privacypolicy\n\n※ manaba通知のプッシュ配信機能では、学生ごとの専用転送アドレス宛に届くmanabaの通知メールのみを受信・解析します。学校のパスワード・認証情報をサーバーに保存することはありません。`}
+        {`本アプリは以下の外部サービス（業務委託先）を利用しています。いずれも第三者への「提供」ではなく、サービス提供に必要な範囲での処理委託です。\n\n・Supabase（データベース・認証）\n  プライバシーポリシー: supabase.com/privacy\n\n・Expo（アプリ基盤・プッシュ通知）\n  プライバシーポリシー: expo.dev/privacy\n\n・Resend（メール配信：認証コードなど）\n  プライバシーポリシー: resend.com/legal/privacy-policy\n\n・Cloudflare（メール転送：manaba通知のプッシュ配信）\n  プライバシーポリシー: cloudflare.com/privacypolicy\n\n・Anthropic, PBC（米国）（AI処理：時間割の読み取り・お知らせの要約）\n  ご利用者が「時間割を読み取る」「AIで要約」などを操作した時に限り、画面に表示された時間割の内容またはお知らせの本文を送信します。送信した内容はUniOneのサーバーには保存しません。Anthropic社はAPI経由で受け取ったデータを自社AIモデルの学習に使用しないと定めており、同社の規約に従って取り扱われます。\n  プライバシーポリシー: anthropic.com/legal/privacy\n  ※ 外国（米国）にある事業者への提供となるため、ご利用前にアプリ内で同意を確認します。米国の個人情報保護制度については個人情報保護委員会（ppc.go.jp）の公表資料をご覧ください。\n\n※ manaba通知のプッシュ配信機能では、学生ごとの専用転送アドレス宛に届くmanabaの通知メールのみを受信・解析します。学校のパスワード・認証情報をサーバーに保存することはありません。`}
       </Section>
 
       <Section title="6. データの保管期間">

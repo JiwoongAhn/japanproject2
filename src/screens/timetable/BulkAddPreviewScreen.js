@@ -375,7 +375,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
                       )}
 
                       <Text style={[styles.editHint, isLow && styles.editHintWarn]}>
-                        {isLow ? '⚠ タップで修正' : '✎ 編集'}
+                        {!hasSlot ? '⚠ タップして曜日・時限を選択' : isLow ? '⚠ タップで修正' : '✎ 編集'}
                       </Text>
                     </View>
 

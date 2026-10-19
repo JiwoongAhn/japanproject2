@@ -22,6 +22,13 @@ import { getPeriodStartTimeStr, getCurrentTerm, termLabel, semesterLabel } from 
 import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 import { useTabBarScroll } from '../../navigation/TabBarScrollContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import AiImportSheet from '../../components/AiImportSheet';
+import AiConsentModal from '../../components/AiConsentModal';
+import AiReadingOverlay from '../../components/AiReadingOverlay';
+import { useAiTimetableImport } from '../../hooks/useAiTimetableImport';
+import { pickTimetableImages } from '../../utils/aiTimetableClient';
+import { AI_CONSENT_KEY } from '../../utils/aiTimetable';
 
 // 요일 레이블 (일본어)
 const DAYS = ['月', '火', '水', '木', '金'];
@@ -104,12 +111,62 @@ export default function TimetableScreen({ navigation }) {
     [courses]
   );
 
-  // 一括取り込み: 전용 파서가 있는 학교(timetableUrl, 현재 국사관 kaede-i)만.
-  // 그 외 학교는 버튼 자체를 숨긴다 (텍스트 붙여넣기 폴백은 기대와 달라 노출하지 않음 — 2026-09-20 결정).
-  const canBulkImport = !!links.timetableUrl;
+  // 一括取り込み — 모든 학교에 표시 (2026-10-19)
+  //   国士舘(timetableUrl = 전용 파서) → 기존 kaede 자동 추출 그대로 (사용자 방침: 바꾸지 않는다)
+  //   그 외 학교 → AI 읽기 방법 선택 시트 (학교 사이트 / 스크린샷 / 붙여넣기)
+  const canBulkImport = true;
+  const hasDedicatedImport = !!links.timetableUrl;
   const portalLabel = links.portalLabel ?? '学校のシステム';
+  const aiImport = useAiTimetableImport({ navigation, universityName: universityInfo.name });
+  const [aiSheetVisible, setAiSheetVisible] = useState(false);
+  const [pendingAiAction, setPendingAiAction] = useState(null); // 동의 후 이어서 할 동작
+
+  // 처음 한 번만 AI 안내·동의를 받고 나서 실행
+  const runWithAiConsent = async (action) => {
+    setAiSheetVisible(false);
+    let agreed = false;
+    try {
+      agreed = (await AsyncStorage.getItem(AI_CONSENT_KEY)) === 'yes';
+    } catch {
+      // 읽기 실패 = 미동의로 취급 (안내를 한 번 더 보여줄 뿐)
+    }
+    // 시트가 닫히는 애니메이션이 끝난 뒤 다음 화면(사진첩 등)을 연다 — iOS 는 모달이 겹치면 열리지 않는다
+    if (agreed) setTimeout(action, 400);
+    else setPendingAiAction(() => action);
+  };
+  const handleAiConsentAgree = async () => {
+    const action = pendingAiAction;
+    setPendingAiAction(null);
+    try {
+      await AsyncStorage.setItem(AI_CONSENT_KEY, 'yes');
+    } catch {
+      // 저장 실패해도 진행 (다음에 안내가 한 번 더 나올 뿐)
+    }
+    if (action) setTimeout(action, 400);
+  };
+
+  const openAiSite = () =>
+    navigation.navigate('SchoolWeb', {
+      url: links.aiTimetableUrl,
+      title: '時間割の読み取り',
+      aiTimetable: true,
+      aiTimetableGuide: links.aiTimetableGuide ?? null,
+    });
+  const readAiImages = async () => {
+    try {
+      const images = await pickTimetableImages();
+      if (images) aiImport.run({ images });
+    } catch (e) {
+      Alert.alert('お知らせ', e.message);
+    }
+  };
+  const openAiText = () => navigation.navigate('BulkAddInput', { aiMode: true });
+
   const handleBulkImport = () => {
-    if (!canBulkImport) return;
+    if (!hasDedicatedImport) {
+      setAiSheetVisible(true);
+      return;
+    }
     Alert.alert(
       '時間割の一括取り込み',
       `${portalLabel} にログインして時間割を自動で取り込みます。よろしいですか?`,
@@ -502,6 +559,20 @@ export default function TimetableScreen({ navigation }) {
           params: { courseName: course.name },
         })}
       />
+      <AiImportSheet
+        visible={aiSheetVisible}
+        siteLabel={links.aiTimetableUrl ? (links.aiTimetableLabel ?? '大学のシステム') : null}
+        onSite={() => runWithAiConsent(openAiSite)}
+        onImages={() => runWithAiConsent(readAiImages)}
+        onText={() => runWithAiConsent(openAiText)}
+        onClose={() => setAiSheetVisible(false)}
+      />
+      <AiConsentModal
+        visible={!!pendingAiAction}
+        onAgree={handleAiConsentAgree}
+        onCancel={() => setPendingAiAction(null)}
+      />
+      <AiReadingOverlay visible={aiImport.reading} />
     </SafeAreaView>
   );
 }

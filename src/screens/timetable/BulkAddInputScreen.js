@@ -21,6 +21,8 @@ import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 import { parseTimetable } from '../../utils/timetableRouter';
 import { getCurrentTerm } from '../../utils/timetable';
+import { useAiTimetableImport } from '../../hooks/useAiTimetableImport';
+import AiReadingOverlay from '../../components/AiReadingOverlay';
 
 // 학기 선택 칩 옵션
 const TERMS = [
@@ -31,12 +33,20 @@ const TERMS = [
 
 export default function BulkAddInputScreen({ navigation, route }) {
   const { session } = useAuth();
+  // aiMode: 전용 파서가 없는 학교의 「テキストを貼り付ける」 → AI 가 읽는다 (학기도 AI 가 판단)
+  const aiMode = !!route?.params?.aiMode;
+  const aiImport = useAiTimetableImport({
+    navigation,
+    universityName: getUniversityInfo(session?.user?.email)?.name,
+  });
   // 학교 id — 텍스트 경로는 학교 무관이지만 라우터 시그니처 일관성 위해 전달
   const universityId = getUniversityInfo(session?.user?.email)?.id;
   // 안내 문구는 학교별로 다르게. timetableUrl이 있는 학교(=전용 시간표 페이지가 확인된 곳)만
   // 그 포털명을 추천하고, 나머지 학교엔 국사관 전용 포털명(kaedei)을 노출하지 않는다.
   const universityLinksForHint = getUniversityLinks(universityId);
-  const pasteHint = universityLinksForHint.timetableUrl
+  const pasteHint = route?.params?.aiMode
+    ? '大学のサイトの時間割ページを全部選択してコピー / 週の表が入っていればOK'
+    : universityLinksForHint.timetableUrl
     ? `${universityLinksForHint.portalLabel ?? '学校のシステム'} → 推奨 / 一度に貼れない場合は分けて貼り付けOK`
     : `${universityLinksForHint.lmsLabel ?? '学校のシステム'}の時間割ページからコピー / 一度に貼れない場合は分けて貼り付けOK`;
 
@@ -47,6 +57,10 @@ export default function BulkAddInputScreen({ navigation, route }) {
   const existingResult = route?.params?.existingResult ?? null;
 
   const handleParse = () => {
+    if (aiMode) {
+      aiImport.run({ text: text.trim() });
+      return;
+    }
     // 붙여넣은 텍스트를 파서 라우터로 해석 → 미리보기로 전달
     const parseResult = parseTimetable({
       universityId,
@@ -101,9 +115,9 @@ export default function BulkAddInputScreen({ navigation, route }) {
             <Text style={styles.guideSub}>{pasteHint}</Text>
           </Card>
 
-          {/* ── 학기 선택 ── */}
-          <Text style={styles.sectionLabel}>学期</Text>
-          <View style={styles.chipRow}>
+          {/* ── 학기 선택 (AI 모드는 AI 가 판단하므로 숨김) ── */}
+          {!aiMode && <Text style={styles.sectionLabel}>学期</Text>}
+          {!aiMode && <View style={styles.chipRow}>
             {TERMS.map((t) => {
               const active = term === t.key;
               return (
@@ -119,7 +133,7 @@ export default function BulkAddInputScreen({ navigation, route }) {
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </View>}
 
           {/* ── 텍스트 입력 ── */}
           <Text style={styles.sectionLabel}>貼り付けエリア</Text>
@@ -154,10 +168,11 @@ export default function BulkAddInputScreen({ navigation, route }) {
             disabled={!canParse}
             style={[styles.primaryButton, !canParse && styles.primaryButtonDisabled]}
           >
-            <Text style={styles.primaryButtonText}>解析する</Text>
+            <Text style={styles.primaryButtonText}>{aiMode ? 'AIで読み取る' : '解析する'}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+      <AiReadingOverlay visible={aiImport.reading} />
     </SafeAreaView>
   );
 }

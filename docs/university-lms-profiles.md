@@ -143,3 +143,35 @@ UNIPA는 `/uprx/up/pk/pky501/…` 경로 체계가 제품 공통. 시간표(`時
 3. **UNIPA 파서**(4교) — 동일. 東京電機는 교시까지 확정돼 있어 첫 후보.
 4. 大阪国際 교시(`periodRanges`) — 학생편람/재학생 확인 후 추가.
 5. 정기 점검: `bash scripts/check-links.sh --dead`를 학기 시작 전 1회.
+
+## 4. 시간표 시스템 조사 (2026-10-19, AI 시간표 읽기용)
+
+> 목적: 「一括追加 → 학교 시스템 자동 진입 → 時間割 화면 → 「時間割を読み取る」 버튼 → AI」 흐름의 **시작 주소**와 **時間割 화면까지의 메뉴 경로**.
+> ⚠️ 지금 `universityLinks` 의 `lmsUrl`/`manabaUrl` 은 대부분 **과제·공지용 LMS** 다. 시간표는 보통 **학무 시스템(履修登録 화면)** 에 있다 — 아래가 그 주소.
+> 등급: ✅ 재학생 실기 / 🔎 공식 자료·응답 확인 / ❓ 추정
+
+| 학교 | 시간표 시스템 (제품) | 시작 주소 | 로그인 | 時間割까지 메뉴 | 등급 |
+|---|---|---|---|---|---|
+| 国士舘 | kaede-i (자체) | `kaedei.kokushikan.ac.jp/Main/MyTimeTable.aspx` | 폼 | 직행 (전용 파서 있음) | ✅ |
+| 日本文理 | **UNIPA RX** | `unipax.nbu.ac.jp` (학외=Basic 인증 → 폼) | 2단계 | 【時間割表】→「本人」 | ✅ |
+| 東京電機 | **UNIPA RX** | `portal.sa.dendai.ac.jp/uprx/` | 폼 | 【時間割表】→「本人」 (RX 공통 추정) | 🔎/❓ |
+| 玉川 | **UNIPA RX** (UNITAMA) | `unitama.tamagawa.ac.jp/uprx/` | 폼 | 同上 | 🔎/❓ |
+| 大阪国際 | **UNIPA RX** (OIU UNIPA) | `portal.oiu.ac.jp/uprx/` | 폼 | 同上 | 🔎/❓ |
+| 亜細亜 | **CampusSquare** (Campus-Xs) | `cx.asia-u.ac.jp/campusweb/top.do` | 폼 | 「履修」→「履修登録・登録状況照会」 (CS 공통 추정) | 🔎/❓ |
+| 拓殖 | **CampusSquare** | `portal.takushoku-u.ac.jp/campusweb/top.do` | 폼 | 同上 | 🔎/❓ |
+| 帝京 | **CampusSquare** | `portal.cs.teikyo-u.ac.jp/campusweb` | Extic SSO | 同上 | 🔎/❓ |
+| 神奈川 | **CampusSquare** (WeB St@tion) | `webstation.kanagawa-u.ac.jp/campusweb/portal.do` | MNS SSO | 「教務／授業関連」→「履修」 (공식 가이드) | 🔎 |
+| 東海 | **CampusSquare** (キャンパスライフエンジン) | `cleweb.tsc.u-tokai.ac.jp/campusweb/top.do` (스마트폰 `/sp/`) | 폼 | 「学修」→「Web履修登録」 (공식 가이드) | 🔎 (해외 IP 무응답) |
+| 東京都市 | **Campusmate-J** | `websrv.tcu.ac.jp/tcu_web_v3/` | TCU 계정 | 「履修登録・確認・変更」 (공식 매뉴얼) | 🔎 |
+| 東京農業 | 農大ポータル (portalv3) | `ngp.nodai.ac.jp/portalv3/sptop.do` | 학번 | 「My時間割」 (履修のてびき) | 🔎 |
+| 東洋 | ToyoNet-G (자체) | `g-sys.toyo.ac.jp/portal/` | secioss SSO | ❓ | 🔎 |
+| 大東文化 | DBポータル (자체) | `dbp.mypage.daito.ac.jp` | `s+학번` | ❓ | 🔎 |
+| 駒澤 | KONECO (자체) | `koneco.komazawa-u.ac.jp` | KOMAnet ID | 【履修】 → 개인 시간표 (공식 안내) | 🔎 |
+| 専修 | 教務Webサービス (자체) | `ris.acc.senshu-u.ac.jp/kyougaku/indexSP.jsp` | 폼 | ❓ (履修登録 기간 외 이용 시간 제한 있음) | 🔎 |
+| 同志社 | DUET (자체) | `duet.doshisha.ac.jp/gakusei/html/fb/fb010/FB01001G.html` | ex-tic SSO | ❓ | 🔎 |
+| 日本 | 학부별 상이 | — | — | 학부마다 다름 → 홈페이지만 | ❓ |
+
+**제품별로 묶으면** — UNIPA RX 4교 / CampusSquare 5교 / 자체 7교 / 학부별 1교.
+같은 제품은 메뉴 이름이 같으므로 「메뉴 글자로 찾아 누르기」 스크립트 1개가 여러 학교를 커버한다. 단 ❓ 는 **재학생 1명 확인 전까지 자동 이동을 켜지 않는다**(실패하면 학생이 직접 메뉴를 누르면 되므로 기능은 동작).
+
+출처: [ToyoNet](https://www.toyo.ac.jp/toyonet/) · [帝京 統合認証](https://www.main.teikyo-u.ac.jp/~kym-sys/onepoint.html) · [神奈川 学修スタートガイド2026](https://assets.kanagawa-u.ac.jp/articles/2818/193ffa85-108a-4816-9e6d-247ca3823436.pdf) · [東海 CLE](https://cleweb.tsc.u-tokai.ac.jp/top.html) · [大東 DBポータル](https://www.daito.ac.jp/itc/other/freshman2026.html) · [東京都市 Web履修登録マニュアル](https://www.asc.tcu.ac.jp/2267/) · [駒澤 履修登録](https://www.komazawa-u.ac.jp/campuslife/studies/undergraduate/registration/registration.html) · [農大 在学生](https://www.nodai.ac.jp/portal/) · [大阪国際 在学生](https://www.oiu.ac.jp/zaigakusei/) · [同志社 在学生](https://www.doshisha.ac.jp/students/)

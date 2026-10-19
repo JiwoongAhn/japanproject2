@@ -33,6 +33,9 @@ import { parseTimetable } from '../utils/timetableRouter';
 import { getCurrentTerm, termLabel } from '../utils/timetable';
 import { shouldShowExtractButton } from '../utils/timetableImport';
 import { buildKaedeCellId, buildSyllabusClickJS } from '../utils/syllabusLink';
+import { CAPTURE_PAGE_JS, buildSiteGuide } from '../utils/aiTimetable';
+import { useAiTimetableImport } from '../hooks/useAiTimetableImport';
+import AiReadingOverlay from '../components/AiReadingOverlay';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   classifyLoginFailure,
@@ -71,7 +74,9 @@ const KAEDE_EXTRACT_JS = `(function(){
 })();`;
 
 // 범용 학교 사이트 WebView 화면 (kaede-i, 타교 LMS/포털 등 재사용)
-// route.params: { url, title, autoLogin?, forTimetableImport?, syllabusTarget? }
+// route.params: { url, title, autoLogin?, forTimetableImport?, syllabusTarget?, aiTimetable?, aiTimetableGuide? }
+//   aiTimetable: 전용 파서가 없는 학교의 AI 시간표 읽기 모드 — 위쪽 안내 띠 + 왼쪽 아래 「時間割を読み取る」 버튼.
+//                ID/PW 는 저장하지 않는다(autoLogin 기본 false). 학생이 직접 로그인하고 時間割 화면을 연다.
 //
 // syllabusTarget={ day, period, term } 이면 과목별 시라바스 모드:
 //   MY時間割 페이지에 도착하는 즉시 해당 셀의 シラバス 링크(onclick=OpenSyllabusWindow(uid))에서
@@ -87,6 +92,7 @@ const KAEDE_EXTRACT_JS = `(function(){
 export default function SchoolWebViewScreen({ navigation, route }) {
   const {
     url, title, autoLogin = false, forTimetableImport = false, syllabusTarget = null,
+    aiTimetable = false, aiTimetableGuide = null,
   } = route.params ?? {};
   // 과목별 시라바스 모드: 클릭할 kaede 셀 id (형식이 안 맞으면 null → 일반 모드처럼 동작)
   const syllabusCellId = syllabusTarget ? buildKaedeCellId(syllabusTarget) : null;
@@ -103,6 +109,10 @@ export default function SchoolWebViewScreen({ navigation, route }) {
   const cookieKey = useMemo(() => cookieKeyForUrl(url), [url]);
   const webViewRef = useRef(null);
   const relogin = useAutoRelogin({ webViewRef, links, enabled: autoLogin });
+  const aiImport = useAiTimetableImport({
+    navigation,
+    universityName: getUniversityInfo(session?.user?.email)?.name,
+  });
   // #3: 로그인 후 MY時間割 페이지로 자동 이동시키기 위한 상태
   const sawLoginPageRef = useRef(false);          // 비밀번호 칸이 있는 로그인 페이지를 본 적 있는지
   const redirectedToTimetableRef = useRef(false); // 시간표 페이지로 1회만 자동 이동
@@ -167,6 +177,8 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         handleExtractedCells(msg);
       } else if (msg.type === 'syllabusClick') {
         handleSyllabusClickResult(msg);
+      } else if (msg.type === 'pageCapture') {
+        handlePageCapture(msg);
       }
     } catch (_) {}
   };
@@ -214,6 +226,15 @@ export default function SchoolWebViewScreen({ navigation, route }) {
       redirectedToTimetableRef.current = true;
       webViewRef.current?.injectJavaScript(`location.href=${JSON.stringify(url)}; true;`);
     }
+  };
+
+  // 「時間割を読み取る」 — 가져온 페이지 내용을 AI 로 읽는다 (정리·호출·미리보기 이동은 훅이 담당)
+  const handlePageCapture = (msg) => {
+    if (msg.error || !msg.html) {
+      Alert.alert('読み取れませんでした', 'この画面の内容を取得できませんでした。「スクショから読み取る」もお試しください。');
+      return;
+    }
+    aiImport.run({ page: msg.html });
   };
 
   // 과목별 시라바스 자동 클릭 결과. 실패해도 시간표 페이지는 그대로 보이므로
@@ -353,6 +374,13 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         </View>
       </View>
 
+      {/* AI 시간표 읽기 안내 띠 */}
+      {aiTimetable && (
+        <View style={styles.aiGuide}>
+          <Text style={styles.aiGuideText}>{buildSiteGuide(aiTimetableGuide)}</Text>
+        </View>
+      )}
+
       {/* 세션 만료 시 자동 재로그인 오버레이 */}
       {relogin.autoRelogging && (
         <View style={styles.reloginOverlay}>
@@ -407,8 +435,21 @@ export default function SchoolWebViewScreen({ navigation, route }) {
         </TouchableOpacity>
       )}
 
+      {/* AI 시간표 읽기 버튼 — 왼쪽 아래 고정 (사용자 결정 2026-10-19) */}
+      {ready && aiTimetable && (
+        <TouchableOpacity
+          style={[styles.extractFab, styles.aiFab]}
+          onPress={() => webViewRef.current?.injectJavaScript(CAPTURE_PAGE_JS)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+        >
+          <Text style={styles.extractFabText}>📷 時間割を読み取る</Text>
+        </TouchableOpacity>
+      )}
+
       {/* 비공식 앱 면책 고지 — 로그인 전(처음 로그인 화면)에만 표시, 로그인 후 숨김 */}
       {!loggedIn && <UnofficialNotice />}
+      <AiReadingOverlay visible={aiImport.reading} />
     </SafeAreaView>
   );
 }
@@ -505,6 +546,21 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 4,
+  },
+  aiFab: {
+    right: undefined,
+    left: 16,
+  },
+  aiGuide: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  aiGuideText: {
+    color: colors.white,
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 19,
   },
   extractFabText: {
     color: colors.white,

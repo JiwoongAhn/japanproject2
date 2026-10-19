@@ -1,6 +1,7 @@
 import { parseTimetable, hasDedicatedParser } from '../../src/utils/timetableRouter';
 import { parseKaedeTimetable } from '../../src/utils/timetable';
 import { parseTimetableText } from '../../src/utils/timetableParser';
+import { normalizeAiCourses } from '../../src/utils/aiTimetable';
 
 describe('hasDedicatedParser', () => {
   test('국사관(kokushikan)은 전용 파서 보유', () => {
@@ -39,11 +40,21 @@ describe('parseTimetable 라우팅', () => {
     expect(routed).toEqual(direct);
   });
 
-  // R-03: html → AI 미구현 throw
-  test('R-03: html → 미구현 에러', () => {
+  // R-03: ai → normalizeAiCourses에 위임 (직접 호출 결과와 동일)
+  test('R-03: ai → AI 결과 정규화 위임', () => {
+    const courses = [
+      { name: '企業戦略実習', professor: '小久保 雄介', room: '', day: 'tue', period: 5, term: 'fall' },
+    ];
+    const routed = parseTimetable({ universityId: 'nbu', payload: { kind: 'ai', data: courses, term: 'fall' } });
+    expect(routed).toEqual(normalizeAiCourses(courses, { term: 'fall' }));
+    expect(routed.parsed).toHaveLength(1);
+  });
+
+  // R-03b: 예전 html 분기는 없어졌다 → 알 수 없는 kind
+  test('R-03b: html → 알 수 없는 kind', () => {
     expect(() =>
       parseTimetable({ universityId: 'toyo', payload: { kind: 'html', data: '<table></table>' } })
-    ).toThrow('まだ対応していません');
+    ).toThrow('unknown payload kind');
   });
 
   // R-04: 알 수 없는 kind → throw
