@@ -1,0 +1,3 @@
+# 실제 학생 시간표 (AI 파서 정답 대조용) — 개인정보라 공개 저장소에 올리지 않는다
+# (루트 .gitignore 는 앱 지문(fingerprint)에 포함돼 OTA 호환을 깨므로 여기에 둔다)
+ai-timetable/

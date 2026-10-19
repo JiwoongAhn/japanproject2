@@ -52,6 +52,3 @@ google-services.json.bak
 
 # 시뮬레이터 스크린샷 대조 시트 (scripts/shot-devices.sh)
 /shots
-
-# 실제 학생 시간표 (AI 파서 정답 대조용) — 개인정보라 공개 저장소에 올리지 않는다
-__tests__/fixtures/ai-timetable/
