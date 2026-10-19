@@ -42,6 +42,7 @@
 | 大阪国際大学 `oiu` | ✅ | — | — | — | ポータル | — | — | 기본값 |
 | 日本文理大学 `nbu` | ✅ | — | — | — | UNIPA | — | — | 공식 |
 | 同志社大学 `doshisha` | ✅ | — | ⛔차단 | — | e-class | DUET | ✅ | 공식 |
+| 明治大学 `meiji` | ✅ | — | — | — | Oh-o! Meiji | — | — | 공식 |
 <!-- school-features:end -->
 
 ## 1. 학교별 상세
@@ -170,8 +171,9 @@ UNIPA는 `/uprx/up/pk/pky501/…` 경로 체계가 제품 공통. 시간표(`時
 | 専修 | 教務Webサービス (자체) | `ris.acc.senshu-u.ac.jp/kyougaku/indexSP.jsp` | 폼 | ❓ (履修登録 기간 외 이용 시간 제한 있음) | 🔎 |
 | 同志社 | DUET (자체) | `duet.doshisha.ac.jp/gakusei/html/fb/fb010/FB01001G.html` | ex-tic SSO | ❓ | 🔎 |
 | 日本 | 학부별 상이 | — | — | 학부마다 다름 → 홈페이지만 | ❓ |
+| 明治 | **CampusSquare** (Campus-Xs, 教務システム) | `meiji-kyomu.mind.meiji.ac.jp/campusweb/top.do` | 共通認証(학외 MFA) | 履修成績 → My時間割 (공식 안내) | 🔎 원문 재검증 → `docs/schools/meiji.md` |
 
-**제품별로 묶으면** — UNIPA RX 4교 / CampusSquare 5교 / 자체 7교 / 학부별 1교.
+**제품별로 묶으면** — UNIPA RX 4교 / CampusSquare 6교(明治 포함) / 자체 7교 / 학부별 1교.
 같은 제품은 메뉴 이름이 같으므로 「메뉴 글자로 찾아 누르기」 스크립트 1개가 여러 학교를 커버한다. 단 ❓ 는 **재학생 1명 확인 전까지 자동 이동을 켜지 않는다**(실패하면 학생이 직접 메뉴를 누르면 되므로 기능은 동작).
 
 출처: [ToyoNet](https://www.toyo.ac.jp/toyonet/) · [帝京 統合認証](https://www.main.teikyo-u.ac.jp/~kym-sys/onepoint.html) · [神奈川 学修スタートガイド2026](https://assets.kanagawa-u.ac.jp/articles/2818/193ffa85-108a-4816-9e6d-247ca3823436.pdf) · [東海 CLE](https://cleweb.tsc.u-tokai.ac.jp/top.html) · [大東 DBポータル](https://www.daito.ac.jp/itc/other/freshman2026.html) · [東京都市 Web履修登録マニュアル](https://www.asc.tcu.ac.jp/2267/) · [駒澤 履修登録](https://www.komazawa-u.ac.jp/campuslife/studies/undergraduate/registration/registration.html) · [農大 在学生](https://www.nodai.ac.jp/portal/) · [大阪国際 在学生](https://www.oiu.ac.jp/zaigakusei/) · [同志社 在学生](https://www.doshisha.ac.jp/students/)

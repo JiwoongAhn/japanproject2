@@ -84,6 +84,8 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 
 > 17개교 LMS 조사 결과·개통 우선순위는 `docs/university-lms-profiles.md` 참조 (2026-09-18)
 
+**⚠️ 조사 원칙 (2026-10-19 明治 교훈)** — 검색 요약을 믿지 말고 **항목마다 공식 원문을 직접 열고**, 시간표는 **LMS 로그인 화면의 「教務·My時間割」 링크까지** 따라가 확인. 근거 URL·확인일을 `docs/schools/{id}.md` 에 표로 남긴다 (明治 1차 조사는 旧 시스템 도움말·대학원 페이지를 근거로 써서 틀렸다)
+
 **도구 (2026-10-15)**
 - [ ] 이용규정 1차 스캔: `npm run tos:scan -- <홈페이지URL>` → 출력 끝의 사이트 검색(주의 공지)은 사람이 → `docs/university-tos-review.md` 등급표에 기록
 - [ ] 역할 지도: `docs/schools/_template.md` 를 `docs/schools/{id}.md` 로 복사해 채움 (시간표·성적·과제·공지를 어느 시스템이 맡는지 + 역할별 연결 방법 A~E)
@@ -92,6 +94,7 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 **`src/constants/universities.js`**
 - [ ] `id`, `name`, `location`, `emailDomain`, `campuses`
 - [ ] `periodRanges`: 학교 공식 홈페이지에서 "時限 時間割" 검색 → 없으면 생략 (국사관 기본값 자동 사용)
+- [ ] `emailLocalHint`/`emailNote`: 로그인 ID 와 메일 주소가 다른 학교만 (예: 明治 = 학번@ 은 메일 안 옴)
 
 **`src/constants/universityLinks.js`** (필드 설명은 파일 헤더 주석)
 - [ ] `homepageUrl`: 필수
@@ -100,7 +103,8 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - [ ] `portalUrl` + `portalLabel`: 학사 포털이 LMS와 별도일 때 (국사관 kaede-i)
 - [ ] `autoLoginCandidates`: 공개 로그인 페이지 폼 구조를 `__tests__/utils/loginFormScripts.test.js`로 검증한 호스트(SSO IdP 포함). **앱은 안 읽음 = 자동입력 OFF**
 - [ ] `autoLoginHosts`(실제 자동입력 ON): **재학생 실기 로그인 확인 + `docs/university-tos-review.md` 에서 학교가 반대하지 않음을 확인한 뒤에만** 후보를 옮긴다. 테스트 `L-05` 의 VERIFIED 목록에도 추가. 학교가 비공식 앱 ID/PW 입력에 반대하면 `autoLoginBlocked: '사유'` (2026-10-14, 현재 ON = 国士舘뿐 / 차단 = 東京都市·同志社·駒澤)
-- [ ] `timetableUrl`: 一括取り込み 전용 파서가 있을 때만 (없으면 一括 버튼 자동 숨김)
+- [ ] `timetableUrl`: 전용 파서(国士舘 kaede)만. 그 외 학교는 아래 AI 3종
+- [ ] `aiTimetableUrl`/`aiTimetableLabel`/`aiTimetableGuide`: 시간표가 있는 **학무 시스템**(LMS 아님) 시작 주소·이름·時間割까지 메뉴 경로
 - [ ] `syllabusUrl`: 외부 공개 URL만 (로그인 필요 URL 생략)
 - [ ] manaba 학교면 `supabase/functions/mail-inbound` `ALLOWED_SENDERS`에 발신 도메인 추가
 
@@ -323,6 +327,7 @@ App Store 입장에서 「내가 배달하지 않은 앱」이라서, 새 버전
 - [x] 정확도 실측(스크린샷): 日本文理 11/11·国士舘 25/25 = 100%. 재측정 `node scripts/eval-ai-timetable.js <정답지> <이미지…>` (정답지·이미지는 실제 학생 데이터라 gitignore)
 - ⚠️ Anthropic API 키 `unione-supabase` **2028-08-18 만료** → 그 전에 새 키로 Supabase 시크릿 교체 (만료되면 「AIで要約」까지 같이 멈춘다)
 - [ ] 日本文理 실기: 앱 브라우저에서 UNIPA 학외 Basic 인증이 통과되는지 / 페이지 읽기 결과
+- [x] **明治大学 추가** (2026-10-19) — 教務システム(Campus-Xs) 「履修成績 → My時間割」, 100분×6교시, 가입 메일 안내. 근거 `docs/schools/meiji.md`
 - [x] **첫 OTA 배포 성공** (2026-10-19, iOS group `3e5c2f51` / Android `5e457e68`, runtime = 1.0.4 빌드 지문 일치)
 
 ### ⚠️ OTA 보내는 법 (fingerprint 정책)

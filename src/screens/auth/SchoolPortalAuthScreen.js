@@ -111,7 +111,7 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
               <Text style={styles.label}>学校メールアドレス</Text>
               <AppTextInput
                 style={styles.input}
-                placeholder={university?.emailDomain ? `学籍番号@${university.emailDomain}` : '学籍番号@university.ac.jp'}
+                placeholder={university?.emailDomain ? `${university.emailLocalHint ?? '学籍番号'}@${university.emailDomain}` : '学籍番号@university.ac.jp'}
                 placeholderTextColor={colors.textDisabled}
                 value={email}
                 onChangeText={setEmail}
@@ -122,6 +122,10 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
               {university?.emailDomain && (
                 <Text style={styles.hint}>@{university.emailDomain} のアドレスのみ使用可能</Text>
               )}
+              {/* 학교별 주의 — 로그인 ID 와 메일 주소가 다른 학교(明治 등)에서 인증코드를 못 받는 실수 방지 */}
+              {university?.emailNote ? (
+                <Text style={[styles.hint, styles.hintWarn]}>{university.emailNote}</Text>
+              ) : null}
             </View>
           </View>
 
@@ -219,6 +223,10 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.primary,
     marginTop: spacing.xs,
+  },
+  hintWarn: {
+    color: colors.warning,
+    marginTop: 4,
   },
 
   infoBox: {

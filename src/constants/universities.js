@@ -285,4 +285,25 @@ export const universities = [
       7: { start: 20*60+10,  end: 21*60+40 },
     },
   },
+
+  // ── 배치 6 (2026-10-19) ─────────────────────────────────────────────────
+  // 근거·확인일 = docs/schools/meiji.md (공식 원문 재검증)
+  {
+    id: 'meiji',
+    name: '明治大学',
+    location: '東京都千代田区',
+    emailDomain: 'meiji.ac.jp', // Meiji Mail「7〜8桁の英数字@meiji.ac.jp」. ⚠️「学生番号@meiji.ac.jp」はMeiji ID(ログイン用)でメールは届かない
+    emailLocalHint: 'Meiji Mailのアドレス', // 입력칸 예시 (기본 「学籍番号」 은 明治에선 메일이 안 오는 주소)
+    emailNote: '学生番号ではなく、Oh-o! Meiji右上に表示されるMeiji Mail（7〜8桁の英数字）を入力してください',
+    campuses: ['駿河台キャンパス', '和泉キャンパス', '生田キャンパス', '中野キャンパス'],
+    // 学部・4キャンパス共通 100分×6時限 (経営学部・政治経済学部の公式時限表で確認 2026-10-19)
+    periodRanges: {
+      1: { start: 9*60,      end: 10*60+40 },
+      2: { start: 10*60+50,  end: 12*60+30 },
+      3: { start: 13*60+30,  end: 15*60+10 },
+      4: { start: 15*60+20,  end: 17*60 },
+      5: { start: 17*60+10,  end: 18*60+50 },
+      6: { start: 19*60,     end: 20*60+40 },
+    },
+  },
 ];

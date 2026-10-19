@@ -235,4 +235,19 @@ export const universityLinks = {
     autoLoginCandidates: ['doshisha.ex-tic.com'],
     autoLoginBlocked: '2017 ID/PW入力が必要な時間割アプリに注意喚起',
   },
+
+  // ── 明治大学 (2026-10-19) — 근거·확인일 docs/schools/meiji.md ──────────────
+  meiji: {
+    homepageUrl: 'https://www.meiji.ac.jp',
+    // 시간표는 LMS(Oh-o! Meiji)가 아니라 教務システム(Campus-Xs) 「履修成績 → My時間割」. 학생은 「共通認証」으로 로그인(학외 2단계 인증)
+    aiTimetableUrl:   'https://meiji-kyomu.mind.meiji.ac.jp/campusweb/top.do', // AI 시간표 읽기 시작점: 教務システム = Campus-Xs
+    aiTimetableLabel: '教務システム',
+    aiTimetableGuide: '共通認証でログイン → 履修成績 → My時間割',
+    manabaUrl:   '', // manaba 미사용
+    lmsUrl:      'https://www.oh-o.meiji.ac.jp/', // Oh-o! Meiji (2025 리뉴얼판. 旧 oh-o2.meiji.ac.jp 는 2024년도 이전 수업용)
+    lmsLabel:    'Oh-o! Meiji',
+    portalUrl:   '',
+    syllabusUrl: '', // 공개 시라바스 주소 미확인
+    // 자동입력 OFF — 대학이 "パスワードは家族や友人にも教えない" 안내, 학외 2단계 인증 필수
+  },
 };

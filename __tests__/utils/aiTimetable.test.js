@@ -164,3 +164,28 @@ describe('학교 설정', () => {
     }
   });
 });
+
+describe('明治大学 (2026-10-19 원문 재검증 결과 고정)', () => {
+  const { universities } = require('../../src/constants/universities');
+  const { universityLinks } = require('../../src/constants/universityLinks');
+  const meiji = universities.find((u) => u.id === 'meiji');
+
+  test('MJ-01: 시간표는 LMS(Oh-o! Meiji)가 아니라 教務システム(Campus-Xs)에서 읽는다', () => {
+    expect(universityLinks.meiji.aiTimetableUrl).toBe('https://meiji-kyomu.mind.meiji.ac.jp/campusweb/top.do');
+    expect(universityLinks.meiji.aiTimetableGuide).toContain('My時間割');
+    // 旧 Oh-o! Meiji(oh-o2)는 2024년도 이전 수업용 — 다시 들어오지 않게
+    expect(JSON.stringify(universityLinks.meiji)).not.toContain('oh-o2');
+  });
+
+  test('MJ-02: 학번 주소(메일 안 옴)로 가입하지 않도록 입력 예시·안내가 있다', () => {
+    expect(meiji.emailDomain).toBe('meiji.ac.jp');
+    expect(meiji.emailLocalHint).not.toBe('学籍番号');
+    expect(meiji.emailNote).toContain('学生番号ではなく');
+  });
+
+  test('MJ-03: 100분×6교시, 자동로그인 OFF', () => {
+    expect(meiji.periodRanges[1]).toEqual({ start: 540, end: 640 });
+    expect(meiji.periodRanges[6]).toEqual({ start: 1140, end: 1240 });
+    expect(universityLinks.meiji.autoLoginHosts ?? []).toEqual([]);
+  });
+});
