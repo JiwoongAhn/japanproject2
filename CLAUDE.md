@@ -60,6 +60,7 @@ japanproject/
 - **Project ID:** `rexnpusrxezuztxmkaex`
 - **인증 방식:** 학교 이메일 → `signInWithOtp()` → `verifyOtp()`
 - **SMTP:** Resend (`noreply@unipas.app`), 도메인 Cloudflare 관리
+- **게시판 첫 화면(2026-10-21):** 가로 칩 + 「リアルタイム人気 HOT」(`utils/boardHot`: 최근 7일(없으면 30일) 좋아요+댓글 상위 2, 반응 0 제외·없으면 숨김, 검색 중 숨김. 시뮬 실검증 2026-10-21) + 「新着」 평평한 목록·자동 추가 로딩. 반응 아이콘 `components/PostReactions`(하트 `colors.like`·댓글 `colors.comment`). 글에서 돌아오면 위치 유지(focus 시 `refreshLoaded`)
 - **Storage:** `post-images` 버킷 (게시판 사진, public read, 5MB 제한)
 - **MCP:** `~/.claude.json` 에 등록됨
 

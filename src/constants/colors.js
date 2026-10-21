@@ -18,6 +18,8 @@ export const colors = {
   // 게시판 반응 (2026-10-21 사용자: 좋아요=빨강, 댓글=다른 색 — 파랑(primary)·빨강과 겹치지 않는 청록)
   like:          '#F04452',
   comment:       '#0BA5B8',
+  hot:           '#FF5A36',   // 게시판 「リアルタイム人気」 HOT 배지
+  hotSoft:       '#FFF0EB',
 
   // 배경
   background:    '#F2F4F6',   // 앱 전체 배경

@@ -22,6 +22,7 @@ import { supabase } from '../../lib/supabase';
 import { formatTimeAgo } from '../../utils/community';
 import { getUniversityInfo } from '../../utils/university';
 import { useTabBarScroll } from '../../navigation/TabBarScrollContext';
+import { pickHotWithFallback, formatHotTime, HOT_DAYS, HOT_FALLBACK_DAYS } from '../../utils/boardHot';
 
 // 한 번에 로드하는 게시글 수
 const PAGE_SIZE = 20;
@@ -43,6 +44,8 @@ export default function PostListScreen({ navigation }) {
   const [hasMore, setHasMore] = useState(true);
   const [universityName, setUniversityName] = useState('');
   const [authorMap, setAuthorMap] = useState({}); // { userId: nickname } 실명 게시 작성자 맵
+  const [hotPosts, setHotPosts] = useState([]);   // 「リアルタイム人気」 (최근 7일 반응 상위 2개, 없으면 30일)
+  const [hotDays, setHotDays] = useState(HOT_DAYS);
 
   // 로그인 유저의 대학 이름 가져오기
   useEffect(() => {
@@ -117,9 +120,32 @@ export default function PostListScreen({ navigation }) {
     setRefreshing(false);
   }, [selectedCategory, searchText, universityName]);
 
+  // 게시판 첫 화면 「リアルタイム人気」 — 최근 7일 글을 받아 좋아요+댓글 순으로 고른다 (utils/boardHot)
+  //   칩을 고르면 그 게시판 안에서만. 검색 중에는 칸 자체를 숨기므로 부르지 않는다
+  const fetchHot = useCallback(async () => {
+    if (!universityName || searchText.trim()) return; // 검색 중엔 화면에서 칸을 숨긴다
+    let query = supabase
+      .from('posts')
+      .select('*, post_comments(count)')
+      .eq('university', universityName)
+      .gte('created_at', new Date(Date.now() - HOT_FALLBACK_DAYS * 86400000).toISOString())
+      .order('created_at', { ascending: false })
+      .limit(100);
+    if (selectedCategory !== 'all') query = query.eq('category', selectedCategory);
+    const { data, error } = await query;
+    if (error) return;
+    const hot = pickHotWithFallback(data);
+    setHotPosts(hot.posts);
+    setHotDays(hot.days);
+  }, [selectedCategory, searchText, universityName]);
+
   useEffect(() => {
     fetchPosts({ reset: true });
   }, [selectedCategory, searchText, universityName]);
+
+  useEffect(() => {
+    fetchHot();
+  }, [fetchHot]);
 
   // 글을 보고 돌아왔을 때 — 목록을 처음부터 다시 그리지 않고(=스크롤 위치 유지),
   // 이미 불러온 범위만 조용히 다시 읽어 좋아요·댓글 수와 새 글을 반영한다 (2026-10-21 사용자 요청)
@@ -161,21 +187,55 @@ export default function PostListScreen({ navigation }) {
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       // 처음 진입은 위 useEffect 가 불러온다. 돌아왔을 때만 조용히 갱신
-      if (postsCountRef.current > 0) refreshLoaded();
+      if (postsCountRef.current > 0) {
+        refreshLoaded();
+        fetchHot();
+      }
     });
     return unsubscribe;
-  }, [navigation, refreshLoaded]);
+  }, [navigation, refreshLoaded, fetchHot]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchPosts({ reset: true });
-  }, [fetchPosts]);
+    fetchHot();
+  }, [fetchPosts, fetchHot]);
 
   const loadMore = useCallback(() => {
-    if (!loadingMore && hasMore) {
+    if (!loading && !loadingMore && hasMore && posts.length > 0) {
       fetchPosts({ reset: false });
     }
-  }, [fetchPosts, loadingMore, hasMore]);
+  }, [fetchPosts, loading, loadingMore, hasMore, posts.length]);
+
+  // 실명 글은 닉네임, 익명 글은 「匿名」
+  const authorLabel = (post) => (post.is_anonymous ? '匿名' : (authorMap[post.user_id] ?? '実名'));
+
+  // 「リアルタイム人気」 카드 (목업 https://claude.ai/artifact/QXQ3pjqVznCj7m75Ls57Nq)
+  const renderHotCard = (post) => {
+    const commentCount = post.post_comments?.[0]?.count ?? 0;
+    return (
+      <TouchableOpacity
+        key={post.id}
+        style={styles.hotCard}
+        activeOpacity={0.85}
+        onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
+      >
+        <View style={styles.hotMeta}>
+          <View style={styles.hotWho}>
+            <View style={styles.hotAvatar} />
+            <Text style={styles.hotWhoText} numberOfLines={1}>{authorLabel(post)}</Text>
+          </View>
+          <Text style={styles.hotTime}>{formatHotTime(post.created_at)}</Text>
+        </View>
+        <Text style={styles.hotTitle} numberOfLines={2}>{post.title}</Text>
+        {post.body ? <Text style={styles.hotBody} numberOfLines={2}>{post.body}</Text> : null}
+        <View style={styles.hotFoot}>
+          <Text style={styles.hotCat}>{getCategoryInfo(post.category).label}</Text>
+          <PostReactions likeCount={post.like_count ?? 0} commentCount={commentCount} size={15} />
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -252,6 +312,9 @@ export default function PostListScreen({ navigation }) {
           // 돌아와서 새 글이 위에 추가돼도 보던 글이 밀려나지 않게
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           contentContainerStyle={styles.listContent}
+          // 아래로 내리면 다음 글을 자동으로 불러온다 (「もっと見る」 버튼 대신, 목업 ③)
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
           refreshControl={
             // OS 기본 스피너는 숨기고(투명), 새로고침 중엔 리스트 상단에 점 애니메이션 표시
             <RefreshControl
@@ -276,7 +339,28 @@ export default function PostListScreen({ navigation }) {
                 <Text style={styles.searchResultCount}>
                   「{searchText}」の検索結果
                 </Text>
-              ) : null}
+              ) : (
+                <>
+                  {hotPosts.length > 0 && (
+                    <>
+                      <View style={styles.sectionRow}>
+                        <View style={styles.sectionTitleRow}>
+                          <Text style={styles.sectionTitle}>リアルタイム人気</Text>
+                          <Text style={styles.hotBadge}>HOT</Text>
+                        </View>
+                        <Text style={styles.sectionHint}>直近{hotDays}日</Text>
+                      </View>
+                      <View style={styles.hotList}>{hotPosts.map(renderHotCard)}</View>
+                    </>
+                  )}
+                  {posts.length > 0 && (
+                    <View style={styles.sectionRow}>
+                      <Text style={styles.sectionTitle}>新着</Text>
+                      <Text style={styles.sectionHint}>新しい順</Text>
+                    </View>
+                  )}
+                </>
+              )}
             </>
           }
           // 글이 하나도 없을 때 빈 상태 화면
@@ -294,20 +378,7 @@ export default function PostListScreen({ navigation }) {
           // 더보기 버튼 + 하단 여백 (탭바 가림 방지)
           ListFooterComponent={
             <>
-              {hasMore && posts.length > 0 && (
-                <TouchableOpacity
-                  style={styles.loadMoreButton}
-                  onPress={loadMore}
-                  disabled={loadingMore}
-                  activeOpacity={0.8}
-                >
-                  {loadingMore ? (
-                    <LoadingDots size={7} />
-                  ) : (
-                    <Text style={styles.loadMoreText}>もっと見る</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+              {loadingMore && <LoadingDots size={7} style={{ paddingVertical: spacing.lg }} />}
               <View style={{ height: spacing.xxxl }} />
             </>
           }
@@ -328,7 +399,7 @@ export default function PostListScreen({ navigation }) {
                         <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
                       </View>
                       <Text style={styles.postAnon} numberOfLines={1}>
-                        {post.is_anonymous ? '匿名' : (authorMap[post.user_id] ?? '実名')}
+                        {authorLabel(post)}
                       </Text>
                       <Text style={styles.postTime}>{formatTimeAgo(post.created_at)}</Text>
                     </View>
@@ -475,21 +546,114 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
     marginBottom: spacing.sm,
-    paddingLeft: spacing.xs,
+    paddingHorizontal: spacing.xl,
   },
 
   // ── 게시글 목록 ───────────────────────────────
   listContent: {
-    paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
     paddingBottom: 100,
   },
+  // 새 글 목록 = 흰 바탕에 구분선만 있는 평평한 줄 (목업 ③)
   postCard: {
     backgroundColor: colors.surface,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md + 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+
+  // ── 섹션 제목 (リアルタイム人気 / 新着) ───────────
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sectionTitle: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+  },
+  sectionHint: {
+    ...typography.small,
+    color: colors.textSecondary,
+  },
+  hotBadge: {
+    ...typography.micro,
+    fontWeight: '700',
+    color: colors.hot,
+    backgroundColor: colors.hotSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    overflow: 'hidden',
+  },
+
+  // ── リアルタイム人気 카드 ─────────────────────────
+  hotList: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm + 2,
+    marginBottom: spacing.lg,
+  },
+  hotCard: {
+    backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.sm,
-    ...shadow.card,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md + 2,
+    gap: 6,
+    ...shadow.soft,
+  },
+  hotMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  hotWho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 1,
+  },
+  hotAvatar: {
+    width: 18,
+    height: 18,
+    borderRadius: 6,
+    backgroundColor: colors.gray200,
+  },
+  hotWhoText: {
+    ...typography.small,
+    fontWeight: '600',
+    color: colors.gray700,
+    flexShrink: 1,
+  },
+  hotTime: {
+    ...typography.small,
+    color: colors.textSecondary,
+  },
+  hotTitle: {
+    ...typography.bodyStrong,
+    color: colors.textPrimary,
+  },
+  hotBody: {
+    ...typography.caption,
+    color: colors.gray700,
+  },
+  hotFoot: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  hotCat: {
+    ...typography.small,
+    color: colors.textSecondary,
   },
   postRow: {
     flexDirection: 'row',
