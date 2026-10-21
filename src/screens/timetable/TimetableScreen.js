@@ -113,7 +113,7 @@ export default function TimetableScreen({ navigation }) {
 
   // 一括取り込み — 모든 학교에 표시 (2026-10-19)
   //   国士舘(timetableUrl = 전용 파서) → 기존 kaede 자동 추출 그대로 (사용자 방침: 바꾸지 않는다)
-  //   그 외 학교 → AI 읽기 방법 선택 시트 (학교 사이트 / 스크린샷 / 붙여넣기)
+  //   그 외 학교 → AI 스크린샷 읽기 안내 시트 (2026-10-21: 학교 사이트·붙여넣기는 숨김, AiImportSheet SHOW_OTHER_METHODS)
   const canBulkImport = true;
   const hasDedicatedImport = !!links.timetableUrl;
   const portalLabel = links.portalLabel ?? '学校のシステム';
@@ -561,7 +561,8 @@ export default function TimetableScreen({ navigation }) {
       />
       <AiImportSheet
         visible={aiSheetVisible}
-        siteLabel={links.aiTimetableUrl ? (links.aiTimetableLabel ?? '大学のシステム') : null}
+        siteLabel={links.aiTimetableLabel ?? null}
+        siteGuide={links.aiTimetableGuide ?? null}
         onSite={() => runWithAiConsent(openAiSite)}
         onImages={() => runWithAiConsent(readAiImages)}
         onText={() => runWithAiConsent(openAiText)}

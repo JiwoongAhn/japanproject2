@@ -189,3 +189,25 @@ describe('明治大学 (2026-10-19 원문 재검증 결과 고정)', () => {
     expect(universityLinks.meiji.autoLoginHosts ?? []).toEqual([]);
   });
 });
+
+describe('一括 스크린샷 안내 (2026-10-21: 스크린샷 방법만 안내)', () => {
+  const { buildScreenshotSteps } = require('../../src/utils/aiTimetable');
+  const { SHOW_OTHER_METHODS } = require('../../src/components/AiImportSheet');
+  const { universityLinks } = require('../../src/constants/universityLinks');
+
+  test('SS-01: 학교 시스템 이름·메뉴 경로가 1단계에 들어간다 (日本文理)', () => {
+    const l = universityLinks.nbu;
+    const steps = buildScreenshotSteps(l.aiTimetableLabel, l.aiTimetableGuide);
+    expect(steps).toHaveLength(3);
+    expect(steps[0]).toBe('ユニバーサルパスポートで自分の時間割を開いて、スクショを撮る（時間割表 → 本人）');
+  });
+
+  test('SS-02: 이름·경로가 없는 학교는 일반 문구', () => {
+    expect(buildScreenshotSteps(null, null)[0]).toBe('大学のサイトで自分の時間割を開いて、スクショを撮る');
+    expect(buildScreenshotSteps('DUET', null)[0]).toBe('DUETで自分の時間割を開いて、スクショを撮る');
+  });
+
+  test('SS-03: 학교 사이트·붙여넣기 방법은 숨김 상태 (정보 모은 뒤 수정)', () => {
+    expect(SHOW_OTHER_METHODS).toBe(false);
+  });
+});

@@ -164,3 +164,14 @@ export function decideTerm(counts, currentTerm) {
   if (fall > 0) return { ask: false, term: 'fall' };
   return { ask: false, term: currentTerm };
 }
+
+// 一括 안내 시트의 스크린샷 3단계 문구 (2026-10-21: 스크린샷 방법만 안내)
+//   siteLabel = universityLinks aiTimetableLabel, siteGuide = aiTimetableGuide (없으면 일반 문구)
+export function buildScreenshotSteps(siteLabel, siteGuide) {
+  const where = siteLabel ? `${siteLabel}で` : '大学のサイトで';
+  return [
+    `${where}自分の時間割を開いて、スクショを撮る${siteGuide ? `（${siteGuide}）` : ''}`,
+    '下のボタンからスクショを選ぶ（最大3枚）',
+    'AIが読み取った内容を確認して登録',
+  ];
+}

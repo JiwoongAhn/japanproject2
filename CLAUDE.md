@@ -320,7 +320,7 @@ App Store 입장에서 「내가 배달하지 않은 앱」이라서, 새 버전
 # AI 시간표 읽기 (2026-10-19) — 国士舘 외 학교용
 
 - [x] **国士舘은 기존 kaede 자동 추출 그대로** (사용자 방침 — `timetableUrl` 있는 학교는 AI 를 쓰지 않는다)
-- [x] 그 외 학교: 「一括」 → `AiImportSheet` 3가지 — ① 학교 시스템에서 읽기(`SchoolWeb` `aiTimetable` 모드: 안내 띠 + 왼쪽 아래 「時間割を読み取る」, 페이지 HTML 을 `CAPTURE_PAGE_JS` 로 가져와 `cleanPageHtml`) ② 스크린샷 최대 3장 ③ 붙여넣기(`BulkAddInput` `aiMode`)
+- [x] 그 외 학교: 「一括」 → `AiImportSheet` = **스크린샷 안내만**(2026-10-21, 3단계 문구 `buildScreenshotSteps` + 「スクショを選ぶ」, 최대 3장). 학교 사이트 읽기(`SchoolWeb` `aiTimetable` 모드)·붙여넣기(`BulkAddInput` `aiMode`)는 코드 유지·숨김(`SHOW_OTHER_METHODS=false`) — 日本文理 unipax 학외 Basic 인증 401 등 정보 모은 뒤 수정
 - [x] 공통 흐름 `hooks/useAiTimetableImport` → Edge Function `parse-timetable`(Claude **Haiku 5.5**, 구조화 출력, 사용자당 하루 10회 = `ai_usage` 테이블) → `normalizeAiCourses` → 학기 선택 → 기존 `BulkAddPreview`(확인 필요 수업 맨 위)
 - [x] 처음 1회 동의 `AiConsentModal`(해외 이전 고지, 기기 저장 `ai_timetable_consent_v1`). privacy(앱·웹)에 Anthropic 항목 추가
 - [x] 학교별 시작점 `universityLinks.aiTimetableUrl/Label/Guide` (16교, 근거 `docs/university-lms-profiles.md` §4). ❓ 메뉴 경로는 재학생 확인 전 추정
