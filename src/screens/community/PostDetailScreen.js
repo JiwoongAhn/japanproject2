@@ -443,11 +443,11 @@ export default function PostDetailScreen({ navigation, route }) {
             {/* 좋아요 */}
             <View style={styles.postFooter}>
               <TouchableOpacity style={[styles.likeButton, liked && styles.likeButtonActive]} onPress={handleLike} activeOpacity={0.7}>
-                <Text style={styles.likeIcon}>{liked ? '♥' : '♡'}</Text>
+                <Ionicons name={liked ? 'heart' : 'heart-outline'} size={20} color={colors.like} />
                 <Text style={[styles.likeCount, liked && styles.likeCountActive]}>{post.like_count || 0}</Text>
               </TouchableOpacity>
               <View style={styles.commentCountArea}>
-                <Text style={styles.commentCountIcon}>□</Text>
+                <Ionicons name="chatbubble" size={18} color={colors.comment} />
                 <Text style={styles.commentCountText}>{comments.length}</Text>
               </View>
 
@@ -522,9 +522,11 @@ export default function PostDetailScreen({ navigation, route }) {
                       onPress={() => handleCommentLike(comment.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={[styles.commentLikeIcon, isCommentLiked && styles.commentLikeIconActive]}>
-                        {isCommentLiked ? '♥' : '♡'}
-                      </Text>
+                      <Ionicons
+                        name={isCommentLiked ? 'heart' : 'heart-outline'}
+                        size={15}
+                        color={isCommentLiked ? colors.like : colors.textDisabled}
+                      />
                       {(comment.like_count || 0) > 0 && (
                         <Text style={[styles.commentLikeCount, isCommentLiked && styles.commentLikeCountActive]}>
                           {comment.like_count}
@@ -767,7 +769,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   likeCountActive: {
-    color: colors.danger,
+    color: colors.like,
   },
   commentCountArea: {
     flexDirection: 'row',
@@ -780,8 +782,8 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   commentCountText: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    ...typography.captionStrong,
+    color: colors.comment,
   },
   // 북마크 버튼 (오른쪽 끝)
   bookmarkButton: {
@@ -898,7 +900,7 @@ const styles = StyleSheet.create({
     color: colors.textDisabled,
   },
   commentLikeCountActive: {
-    color: colors.danger,
+    color: colors.like,
   },
 
   // ── 댓글 입력창 ────────────────────────────

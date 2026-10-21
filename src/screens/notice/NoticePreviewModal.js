@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -67,7 +67,28 @@ export default function NoticePreviewModal() {
   const route = useRoute();
   const { clearPendingNotice } = useAuth();
 
-  const { subject, bodyHtml, noticeUrl, noticeId } = route.params ?? {};
+  const params = route.params ?? {};
+  const { subject, noticeUrl, noticeId } = params;
+  // 「通知にAI要約を表示」 ON 이면 통지에 요약이 실려 온다. 통지가 너무 커서 본문·요약이 빠진 경우엔
+  // noticeId 로 DB 에서 다시 읽는다 (mail-inbound 가 manaba_notices 에 저장해 둠)
+  const [bodyHtml, setBodyHtml] = useState(params.bodyHtml ?? null);
+  useEffect(() => {
+    if (!noticeId || (params.bodyHtml && params.aiSummary)) return;
+    let alive = true;
+    supabase
+      .from('manaba_notices')
+      .select('body_html, ai_summary')
+      .eq('id', noticeId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!alive || !data) return;
+        if (!params.bodyHtml && data.body_html) setBodyHtml(data.body_html);
+        if (data.ai_summary) setAiSummary((cur) => cur ?? data.ai_summary);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [noticeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 본문 정규식 파싱으로 과목/요약/마감/첨부 추출.
   // 본문 WebView 위에 한 줄 요약 카드를 띄워 빠른 인지 도움.
@@ -75,7 +96,7 @@ export default function NoticePreviewModal() {
 
   // AI 요약(온디맨드): 사용자가 버튼을 누를 때만 Edge Function 호출 → 비용 통제.
   // PC용 긴 본문을 학생이 읽기 쉬운 일본어 요점으로 정리해 가독성 개선.
-  const [aiSummary, setAiSummary] = useState(null);
+  const [aiSummary, setAiSummary] = useState(params.aiSummary ?? null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(null);
 
@@ -85,7 +106,7 @@ export default function NoticePreviewModal() {
     setAiError(null);
     try {
       const { data, error } = await supabase.functions.invoke('summarize-notice', {
-        body: { subject, bodyHtml },
+        body: { subject, bodyHtml, noticeId }, // noticeId: 서버가 저장된 요약을 재사용·저장
       });
       // invoke는 함수가 4xx/5xx여도 error에 담긴다. 서버가 준 일본어 메시지를 우선 표시.
       const serverMsg = data?.error;

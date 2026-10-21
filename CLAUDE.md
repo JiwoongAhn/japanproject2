@@ -326,7 +326,8 @@ App Store 입장에서 「내가 배달하지 않은 앱」이라서, 새 버전
 - [x] 학교별 시작점 `universityLinks.aiTimetableUrl/Label/Guide` (16교, 근거 `docs/university-lms-profiles.md` §4). ❓ 메뉴 경로는 재학생 확인 전 추정
 - [x] 정확도 실측(스크린샷): 日本文理 11/11·国士舘 25/25 = 100%. 재측정 `node scripts/eval-ai-timetable.js <정답지> <이미지…>` (정답지·이미지는 실제 학생 데이터라 gitignore)
 - ⚠️ Anthropic API 키 `unione-supabase` **2028-08-18 만료** → 그 전에 새 키로 Supabase 시크릿 교체 (만료되면 「AIで要約」까지 같이 멈춘다)
-- [ ] 日本文理 실기: 앱 브라우저에서 UNIPA 학외 Basic 인증이 통과되는지 / 페이지 읽기 결과
+- [x] 日本文理 실기(2026-10-21): 스크린샷 ✅ / 앱 브라우저 unipax = 학외 Basic 인증 401 ❌ → 학교 사이트 경로 숨김
+- [x] **통지 AI 요약** (2026-10-21) — 공용 `supabase/functions/_shared/noticeSummary.ts`(Haiku 5.5) · `noticePush.ts`(푸시 모양·4KB 가드). 「通知にAI要約を表示」(マイページ, 기본 OFF, 켤 때 동의) = `mail_subscriptions.ai_summary_push`(앱은 RPC `set_ai_summary_push`) → `mail-inbound` 가 요약해 푸시 본문에(8초 초과·실패면 기존 통지) + `manaba_notices.ai_summary` 저장 → 미리보기·「AIで要約」 재사용(비용 1회). `send-test-push` 견본 본문=실제 통지 길이. ⚠️ `_shared` 수정 시 쓰는 함수 4개(mail-inbound·summarize-notice·send-test-push·push-retry-worker) 모두 재배포
 - [x] **明治大学 추가** (2026-10-19) — 教務システム(Campus-Xs) 「履修成績 → My時間割」, 100분×6교시, 가입 메일 안내. 근거 `docs/schools/meiji.md`
 - [x] **첫 OTA 배포 성공** (2026-10-19, iOS group `3e5c2f51` / Android `5e457e68`, runtime = 1.0.4 빌드 지문 일치)
 

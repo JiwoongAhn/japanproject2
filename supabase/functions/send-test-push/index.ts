@@ -1,4 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { summarizeNotice } from '../_shared/noticeSummary.ts';
+import { buildNoticePushMessage } from '../_shared/noticePush.ts';
 
 // 개발용 — 특정 user_id에게 테스트 푸시 발송 + push_delivery_logs 적재.
 // 시나리오 1(정상) / 4(잘못된 토큰 = DeviceNotRegistered)를 자동 검증한다.
@@ -8,6 +10,17 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 //   supabase functions invoke send-test-push --body '{"userId":"xxx","scenario":"normal"}'
 //   supabase functions invoke send-test-push --body '{"userId":"xxx","scenario":"invalid_token"}'
 //   supabase functions invoke send-test-push --body '{"userId":"xxx","scenario":"mixed"}'
+
+const TEST_BODY_HTML = `
+<p>情報処理演習 受講者各位</p>
+<p>第5回レポート課題を掲載しました。以下の要領で提出してください。</p>
+<p>■課題内容<br>第5回講義「表計算ソフトによるデータ分析」で扱った売上データを用いて、月別の傾向をグラフにまとめ、気づいた点を800字程度で考察すること。</p>
+<p>■提出形式<br>A4サイズ2枚以内のPDFファイル。ファイル名は「学籍番号_氏名_第5回.pdf」としてください。</p>
+<p>■提出方法・締切<br>manabaの「レポート」から提出してください。<br>締切：10月28日（火）23:59<br>※締切を過ぎた提出は受け付けません。</p>
+<p>■その他<br>次回（10月30日）の授業では、ノートPCを必ず持参してください。質問はmanabaの個別指導コレクションで受け付けます。</p>
+<p>担当：山田</p>
+<p>--------------------------------<br>このメールはmanabaから自動送信されています。返信しないでください。</p>
+`;
 
 const PERMANENT_ERRORS = ['DeviceNotRegistered', 'MessageTooBig', 'MismatchSenderId', 'InvalidCredentials'];
 const FAKE_INVALID_TOKEN = 'ExponentPushToken[XXXXXXXXXXXXXXXXXXXXXX]';
@@ -73,19 +86,25 @@ Deno.serve(async (req: Request) => {
       return json({ error: `알 수 없는 시나리오: ${scenario}` }, 400);
     }
 
-    const payload = {
-      subject:   `[테스트:${scenario}] 情報処理演習 授業資料更新`,
-      bodyHtml:  '<p>テスト本文です。manaba からの通知をシミュレートしています。</p>',
+    // 실제 manaba 통지와 같은 길이·구성의 견본 (2026-10-21: 한 줄 본문은 AI 요약 확인이 안 됨)
+    const payload: Record<string, unknown> = {
+      subject:   '情報処理演習：第5回レポート課題について',
+      bodyHtml:  TEST_BODY_HTML,
       noticeUrl: 'https://kokushikan.manaba.jp/ct/course_notice',
     };
+    // 「通知にAI要約を表示」 ON 이면 실제 통지와 똑같이 요약을 넣는다
+    const { data: sub } = await supabase
+      .from('mail_subscriptions')
+      .select('ai_summary_push')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (sub?.ai_summary_push && scenario === 'normal') {
+      payload.aiSummary = await summarizeNotice({
+        subject: payload.subject as string, bodyHtml: TEST_BODY_HTML, timeoutMs: 8000,
+      });
+    }
 
-    const messages = targets.map(to => ({
-      to,
-      title: '📢 [테스트] manaba 新着通知',
-      body:  payload.subject,
-      data:  payload,
-      sound: 'default',
-    }));
+    const messages = targets.map(to => buildNoticePushMessage(to, payload, '[テスト] '));
 
     const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method:  'POST',

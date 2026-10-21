@@ -68,16 +68,19 @@ export async function countUnreadNotices(userId) {
 export async function markNoticeAsRead(noticeId) {
   if (!noticeId) return false;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('manaba_notices')
     .update({ is_read: true, read_at: new Date().toISOString() })
     .eq('id', noticeId)
-    .eq('is_read', false); // 이미 읽음이면 read_at 덮어쓰지 않음
+    .eq('is_read', false) // 이미 읽음이면 read_at 덮어쓰지 않음
+    .select('id');
 
   if (error) {
     console.error('[manabaNotices] markAsRead 실패:', error.message);
     return false;
   }
+  // 권한(RLS) 문제는 오류 없이 0건으로 끝난다 — 2026-10-21 까지 이 상태라 읽은 통지가 홈에 다시 떴다
+  if (!data?.length) console.warn('[manabaNotices] markAsRead 0건 (이미 읽음이거나 권한 없음)');
   return true;
 }
 

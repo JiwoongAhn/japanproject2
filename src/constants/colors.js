@@ -15,6 +15,10 @@ export const colors = {
   warningSoft:   '#FFF4E5',
   dangerSoft:    '#FEE4E2',
 
+  // 게시판 반응 (2026-10-21 사용자: 좋아요=빨강, 댓글=다른 색 — 파랑(primary)·빨강과 겹치지 않는 청록)
+  like:          '#F04452',
+  comment:       '#0BA5B8',
+
   // 배경
   background:    '#F2F4F6',   // 앱 전체 배경
   surface:       '#FFFFFF',   // 카드 배경

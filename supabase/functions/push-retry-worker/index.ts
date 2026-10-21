@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { buildNoticePushMessage } from '../_shared/noticePush.ts';
 
 // 재시도 워커 — 매시간 cron 실행
 // retry_pending & next_retry_at <= now 행을 모아 다시 Expo로 발송한다.
@@ -54,16 +55,8 @@ Deno.serve(async (_req: Request) => {
   }
 
   // Expo Push API에 한 번에 발송
-  const messages = targets.map(r => {
-    const p = r.payload ?? {};
-    return {
-      to: r.expo_token,
-      title: '📢 manaba 新着通知',
-      body:  p.subject ?? '',
-      data:  p,
-      sound: 'default',
-    };
-  });
+  // mail-inbound 와 같은 모양(AI 요약이 있으면 본문에 요약) — _shared/noticePush
+  const messages = targets.map(r => buildNoticePushMessage(r.expo_token, r.payload ?? {}));
 
   let tickets: any[] = [];
   let httpOk = true;

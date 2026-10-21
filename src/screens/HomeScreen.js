@@ -13,6 +13,7 @@ import * as WebBrowser from 'expo-web-browser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
+import PostReactions from '../components/PostReactions';
 import { OPEN_MAIL_CONNECT_KEY } from '../constants/onboardingFlags';
 import LoadingDots from '../components/LoadingDots';
 import { typography } from '../constants/typography';
@@ -478,10 +479,12 @@ export default function HomeScreen({ navigation }) {
                     <Text style={styles.postAnon}>{post.is_anonymous ? '匿名' : '実名'}</Text>
                   </View>
                   <Text style={styles.postTitle} numberOfLines={1}>{post.title}</Text>
-                  <View style={styles.postFooter}>
-                    <Text style={styles.postReaction}>♡ {post.like_count || 0}</Text>
-                    <Text style={styles.postReaction}>□ {commentCount}</Text>
-                  </View>
+                  <PostReactions
+                    style={styles.postFooter}
+                    likeCount={post.like_count || 0}
+                    commentCount={commentCount}
+                    size={15}
+                  />
                 </TouchableOpacity>
               );
             })

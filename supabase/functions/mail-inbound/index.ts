@@ -1,4 +1,6 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { summarizeNotice } from '../_shared/noticeSummary.ts';
+import { buildNoticePushMessage } from '../_shared/noticePush.ts';
 
 // 메일전달 방식 푸시의 수신 엔드포인트.
 // Cloudflare Email Worker가 학생의 manaba 알림 메일을 파싱한 뒤 이 함수를 호출한다.
@@ -51,7 +53,7 @@ Deno.serve(async (req: Request) => {
     // ② forward_token으로 학생 식별
     const { data: sub } = await supabase
       .from('mail_subscriptions')
-      .select('user_id, verified_at')
+      .select('user_id, verified_at, ai_summary_push')
       .eq('forward_token', token)
       .maybeSingle();
 
@@ -145,6 +147,16 @@ Deno.serve(async (req: Request) => {
       .select('expo_token')
       .eq('user_id', sub.user_id);
 
+    // ⑦.5 「通知にAI要約を表示」 ON 인 학생만 → 요약을 통지 본문에 (앱을 안 열어도 잠금화면에서 읽힘)
+    //      실패·시간초과(8초)면 요약 없이 기존 통지 그대로 보낸다 — 통지가 안 오는 일은 없게
+    let aiSummary: string | null = null;
+    if (sub.ai_summary_push && tokens?.length) {
+      aiSummary = await summarizeNotice({ subject: subject ?? '', bodyHtml: html, timeoutMs: 8000 });
+      if (aiSummary) {
+        await supabase.from('manaba_notices').update({ ai_summary: aiSummary }).eq('id', notice.id);
+      }
+    }
+
     if (tokens?.length) {
       await sendExpoPush(
         supabase,
@@ -154,6 +166,7 @@ Deno.serve(async (req: Request) => {
         subject ?? '',
         html,
         noticeUrl,
+        aiSummary,
       );
     }
 
@@ -230,15 +243,10 @@ async function sendExpoPush(
   subject: string,
   bodyHtml: string,
   noticeUrl: string | null,
+  aiSummary: string | null = null,
 ) {
-  const payloadBase = { noticeId, subject, bodyHtml, noticeUrl };
-  const messages = tokens.map((to) => ({
-    to,
-    title: '📢 manaba 新着通知',
-    body: subject,
-    data: payloadBase,
-    sound: 'default',
-  }));
+  const payloadBase = { noticeId, subject, bodyHtml, noticeUrl, aiSummary };
+  const messages = tokens.map((to) => buildNoticePushMessage(to, payloadBase));
 
   let tickets: any[] = [];
   let httpOk = true;

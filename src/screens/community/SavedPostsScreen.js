@@ -6,6 +6,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
+import PostReactions from '../../components/PostReactions';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -86,18 +87,7 @@ export default function SavedPostsScreen({ navigation }) {
 
         <View style={styles.cardBottom}>
           <View style={styles.metaRow}>
-            {(post.like_count ?? 0) > 0 && (
-              <View style={styles.metaItem}>
-                <Text style={styles.metaIcon}>♡</Text>
-                <Text style={styles.metaText}>{post.like_count}</Text>
-              </View>
-            )}
-            {commentCount > 0 && (
-              <View style={styles.metaItem}>
-                <Text style={styles.metaIcon}>💬</Text>
-                <Text style={styles.metaText}>{commentCount}</Text>
-              </View>
-            )}
+            <PostReactions likeCount={post.like_count ?? 0} commentCount={commentCount} hideZero />
           </View>
           <TouchableOpacity
             style={styles.removeBtn}

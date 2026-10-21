@@ -59,6 +59,9 @@ export default function ProfileScreen({ navigation }) {
   // manaba 통지 메일전달 상태: 'none'(미설정) | 'pending'(주소발급, 전달대기) | 'verified'(전달확인)
   const [forwardStatus, setForwardStatus] = useState('none');
   const [testPushSending, setTestPushSending] = useState(false);
+  // 「通知にAI要約を表示」 — 켜면 manaba 통지 본문을 AI 가 요약해 푸시에 넣는다 (서버 mail_subscriptions.ai_summary_push)
+  const [aiSummaryPush, setAiSummaryPush] = useState(false);
+  const [aiSummarySaving, setAiSummarySaving] = useState(false);
   // 최근 학교 사이트 접속 실패 기록 (④ 재현 어려운 로그인 문제 추적용)
   const [loginFailures, setLoginFailures] = useState([]);
   // 푸시 수신 상태(안전망 정보): 최근 받은 통지 시각 + 최근 7일 미달 건수
@@ -111,11 +114,12 @@ export default function ProfileScreen({ navigation }) {
     if (!userId) return;
     const { data } = await supabase
       .from('mail_subscriptions')
-      .select('verified_at')
+      .select('verified_at, ai_summary_push')
       .eq('user_id', userId)
       .maybeSingle();
     if (!data) setForwardStatus('none');
     else setForwardStatus(data.verified_at ? 'verified' : 'pending');
+    setAiSummaryPush(!!data?.ai_summary_push);
   }, [userId]);
 
   useEffect(() => {
@@ -175,6 +179,37 @@ export default function ProfileScreen({ navigation }) {
       setTestPushSending(false);
     }
   }, []);
+
+  // 「通知にAI要約を表示」 저장 (서버 함수 set_ai_summary_push — 본인 행만 바뀐다)
+  const saveAiSummaryPush = useCallback(async (enabled) => {
+    setAiSummarySaving(true);
+    setAiSummaryPush(enabled); // 먼저 반영, 실패하면 되돌림
+    const { data, error } = await supabase.rpc('set_ai_summary_push', { enabled });
+    setAiSummarySaving(false);
+    if (error || data === null) {
+      setAiSummaryPush(!enabled);
+      Alert.alert('保存できませんでした', 'しばらくしてからもう一度お試しください。');
+    }
+  }, []);
+
+  // 켤 때는 해외(미국) AI 로 보낸다는 사실을 알리고 동의를 받는다 (끌 때는 바로)
+  const handleAiSummaryToggle = useCallback((next) => {
+    if (!next) {
+      saveAiSummaryPush(false);
+      return;
+    }
+    Alert.alert(
+      '通知にAI要約を表示しますか？',
+      '新しいお知らせが届くたびに、本文をAI（Anthropic社・米国）に送信して3〜4行に要約し、通知に表示します。\n\n' +
+        '・要約はお知らせと一緒に保存され、アプリでもすぐ見られます\n' +
+        '・送信した内容はAIの学習には使われません\n' +
+        '・この設定はいつでもオフにできます',
+      [
+        { text: 'キャンセル', style: 'cancel' },
+        { text: '同意してオンにする', onPress: () => saveAiSummaryPush(true) },
+      ],
+    );
+  }, [saveAiSummaryPush]);
 
   // 푸시 수신 상태 조회 (최신 delivered 시각 + 최근 7일 dead/permanent_fail 건수)
   const fetchPushStatus = useCallback(async () => {
@@ -636,6 +671,28 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.pushFailNote}>
                 ⚠️ 一部の通知が届かなかった可能性があります（{recentFailed}件）
               </Text>
+            )}
+
+            {/* 「通知にAI要約を表示」 — 메일 전달을 시작한 사람만 (전달 설정 행이 있어야 저장된다) */}
+            {forwardStatus !== 'none' && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleInfo}>
+                    <Text style={styles.toggleLabel}>通知にAI要約を表示</Text>
+                    <Text style={styles.toggleHint}>
+                      アプリを開かなくても、お知らせの要点（締切・提出物など）を通知で確認できます
+                    </Text>
+                  </View>
+                  <Switch
+                    value={aiSummaryPush}
+                    onValueChange={handleAiSummaryToggle}
+                    disabled={aiSummarySaving}
+                    trackColor={{ false: colors.border, true: colors.primary + '80' }}
+                    thumbColor={aiSummaryPush ? colors.primary : colors.textDisabled}
+                  />
+                </View>
+              </>
             )}
 
             {/* 테스트 통지 — 설정이 실제로 동작하는지 사용자가 직접 확인할 수 있게 한다.

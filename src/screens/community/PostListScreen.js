@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import AppTextInput from '../../components/AppTextInput';
 import { colors } from '../../constants/colors';
+import PostReactions from '../../components/PostReactions';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -120,10 +121,50 @@ export default function PostListScreen({ navigation }) {
     fetchPosts({ reset: true });
   }, [selectedCategory, searchText, universityName]);
 
+  // 글을 보고 돌아왔을 때 — 목록을 처음부터 다시 그리지 않고(=스크롤 위치 유지),
+  // 이미 불러온 범위만 조용히 다시 읽어 좋아요·댓글 수와 새 글을 반영한다 (2026-10-21 사용자 요청)
+  //   이전: focus 마다 reset → 전체 로딩 화면 → 목록이 새로 생겨 맨 위로 돌아갔다
+  const postsCountRef = useRef(0);
+  const authorMapRef = useRef({});
   useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => fetchPosts({ reset: true }));
+    postsCountRef.current = posts.length;
+    authorMapRef.current = authorMap;
+  }, [posts, authorMap]);
+  const refreshLoaded = useCallback(async () => {
+    if (!universityName || postsCountRef.current === 0) return;
+    let query = supabase
+      .from('posts')
+      .select('*, post_comments(count)')
+      .eq('university', universityName)
+      .order('created_at', { ascending: false })
+      .range(0, Math.max(postsCountRef.current, PAGE_SIZE) - 1);
+    if (selectedCategory !== 'all') query = query.eq('category', selectedCategory);
+    const q = searchText.trim();
+    if (q) query = query.or(`title.ilike.%${q}%,body.ilike.%${q}%`);
+    const { data, error } = await query;
+    if (error || !data) return;
+    setPosts(data);
+    pageRef.current = Math.ceil(data.length / PAGE_SIZE);
+    const known = new Set(Object.keys(authorMapRef.current));
+    const missing = [...new Set(data.filter((p) => !p.is_anonymous).map((p) => p.user_id))]
+      .filter((id) => !known.has(id));
+    if (missing.length > 0) {
+      const { data: profilesData } = await supabase.from('profiles').select('id, nickname').in('id', missing);
+      if (profilesData) {
+        const add = {};
+        profilesData.forEach((p) => { add[p.id] = p.nickname; });
+        setAuthorMap((prev) => ({ ...prev, ...add }));
+      }
+    }
+  }, [selectedCategory, searchText, universityName]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // 처음 진입은 위 useEffect 가 불러온다. 돌아왔을 때만 조용히 갱신
+      if (postsCountRef.current > 0) refreshLoaded();
+    });
     return unsubscribe;
-  }, [navigation, fetchPosts]);
+  }, [navigation, refreshLoaded]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -208,6 +249,8 @@ export default function PostListScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          // 돌아와서 새 글이 위에 추가돼도 보던 글이 밀려나지 않게
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           contentContainerStyle={styles.listContent}
           refreshControl={
             // OS 기본 스피너는 숨기고(투명), 새로고침 중엔 리스트 상단에 점 애니메이션 표시
@@ -296,16 +339,11 @@ export default function PostListScreen({ navigation }) {
                       <Text style={styles.postBody} numberOfLines={1}>{post.body}</Text>
                     ) : null}
 
-                    <View style={styles.postFooter}>
-                      <View style={styles.reactionItem}>
-                        <Text style={styles.reactionIcon}>♡</Text>
-                        <Text style={styles.reactionCount}>{post.like_count}</Text>
-                      </View>
-                      <View style={styles.reactionItem}>
-                        <Text style={styles.reactionIcon}>💬</Text>
-                        <Text style={styles.reactionCount}>{commentCount}</Text>
-                      </View>
-                    </View>
+                    <PostReactions
+                      style={styles.postFooter}
+                      likeCount={post.like_count ?? 0}
+                      commentCount={commentCount}
+                    />
                   </View>
 
                   {hasImage && (
