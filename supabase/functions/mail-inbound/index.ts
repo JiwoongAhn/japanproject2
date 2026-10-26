@@ -1,6 +1,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { summarizeNotice } from '../_shared/noticeSummary.ts';
 import { buildNoticePushMessage } from '../_shared/noticePush.ts';
+import { syncAssignmentFromMail } from '../_shared/manabaAssignment.js';
 
 // 메일전달 방식 푸시의 수신 엔드포인트.
 // Cloudflare Email Worker가 학생의 manaba 알림 메일을 파싱한 뒤 이 함수를 호출한다.
@@ -53,7 +54,7 @@ Deno.serve(async (req: Request) => {
     // ② forward_token으로 학생 식별
     const { data: sub } = await supabase
       .from('mail_subscriptions')
-      .select('user_id, verified_at, ai_summary_push')
+      .select('user_id, verified_at, ai_summary_push, auto_assignment')
       .eq('forward_token', token)
       .maybeSingle();
 
@@ -141,6 +142,13 @@ Deno.serve(async (req: Request) => {
       return new Response('insert error', { status: 500 });
     }
 
+    // ⑥.5 課題 메일이면 課題 자동 추가 / 提出済 전환 (「課題を自動で追加」 OFF 면 건너뜀)
+    //      실패해도 통지 푸시는 그대로 보낸다 — 부가 기능이 본 기능을 막지 않게
+    let assignmentNote: string | null = null;
+    if (sub.auto_assignment !== false) {
+      assignmentNote = await syncAssignmentFromMail(supabase, sub.user_id, notice.id, subjectText, html);
+    }
+
     // ⑦ push_tokens 조회 후 Expo Push 발송
     const { data: tokens } = await supabase
       .from('push_tokens')
@@ -167,6 +175,7 @@ Deno.serve(async (req: Request) => {
         html,
         noticeUrl,
         aiSummary,
+        assignmentNote,
       );
     }
 
@@ -244,8 +253,9 @@ async function sendExpoPush(
   bodyHtml: string,
   noticeUrl: string | null,
   aiSummary: string | null = null,
+  assignmentNote: string | null = null,
 ) {
-  const payloadBase = { noticeId, subject, bodyHtml, noticeUrl, aiSummary };
+  const payloadBase = { noticeId, subject, bodyHtml, noticeUrl, aiSummary, assignmentNote };
   const messages = tokens.map((to) => buildNoticePushMessage(to, payloadBase));
 
   let tickets: any[] = [];

@@ -6,10 +6,10 @@ import {
   ScrollView,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   RefreshControl,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, pastel } from '../constants/colors';
 import LoadingDots from '../components/LoadingDots';
@@ -17,7 +17,7 @@ import { spacing, radius, shadow } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
-import { calcDday } from '../utils/assignment';
+import { calcDday, formatDueLabel, isPastDue } from '../utils/assignment';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 // 상태별 디자인 — pastel 토큰으로 부드럽게
@@ -31,11 +31,7 @@ const STATUS_CONFIG = {
 function getDisplayStatus(assignment) {
   if (assignment.status === 'submitted') return 'submitted';
   if (assignment.status === 'overdue') return 'overdue';
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const due = new Date(assignment.due_date);
-  if (due < today) return 'overdue';
-  return 'pending';
+  return isPastDue(assignment) ? 'overdue' : 'pending';
 }
 
 const FILTER_TABS = [
@@ -252,7 +248,9 @@ export default function AssignmentScreen({ navigation }) {
             const displayStatus = getDisplayStatus(assignment);
             const statusCfg = STATUS_CONFIG[displayStatus] ?? STATUS_CONFIG.pending;
             const dday = calcDday(assignment.due_date);
-            const courseName = assignment.courses?.name || '未登録';
+            // 시간표에 없는 과목이면 manaba 메일의 과목명(course_label)
+            const courseName = assignment.courses?.name || assignment.course_label || '未登録';
+            const isAuto = assignment.source === 'manaba';
 
             return (
               <TouchableOpacity
@@ -281,12 +279,18 @@ export default function AssignmentScreen({ navigation }) {
                   </View>
 
                   <Text style={styles.title} numberOfLines={2}>{assignment.title}</Text>
+                  {isAuto && (
+                    <View style={styles.autoBadge}>
+                      <Ionicons name="sparkles-outline" size={11} color={colors.primary} />
+                      <Text style={styles.autoBadgeText}>manabaから自動追加</Text>
+                    </View>
+                  )}
 
                   {/* 하단: 마감일 + D-day */}
                   <View style={styles.cardFooter}>
                     <View style={styles.dueDateWrap}>
                       <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-                      <Text style={styles.dueDate}>{assignment.due_date}</Text>
+                      <Text style={styles.dueDate}>{formatDueLabel(assignment)}</Text>
                     </View>
                     <Text style={[styles.ddayLabel, { color: dday.color }]}>
                       {dday.label}
@@ -457,6 +461,19 @@ const styles = StyleSheet.create({
     ...typography.subtitle,
     color: colors.textPrimary,
     marginBottom: spacing.md,
+  },
+
+  autoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 3,
+    marginTop: -spacing.xs,
+    marginBottom: spacing.md,
+  },
+  autoBadgeText: {
+    ...typography.caption,
+    color: colors.primary,
   },
 
   cardFooter: {

@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -68,6 +68,19 @@ const HIGHLIGHT_KEITAI_JS = `
         input.style.outlineOffset = '2px';
         input.style.backgroundColor = '#EBF3FE';
         input.style.borderRadius = '4px';
+      }
+    }
+    // 「課題提出のお知らせ」 행도 강조 — 켜져 있어야 제출 시 메일이 와서 앱 課題가 「提出済」로 바뀐다
+    var ths = document.querySelectorAll('th, td');
+    for (var j = 0; j < ths.length; j++) {
+      var tt = (ths[j].textContent || '').replace(/\s+/g, '');
+      if (tt.indexOf('課題提出のお知らせ') === 0 && tt.length < 20) {
+        var subRow = ths[j].closest('tr');
+        if (subRow) {
+          subRow.style.outline = '3px solid #3182F6';
+          subRow.style.backgroundColor = '#EBF3FE';
+        }
+        break;
       }
     }
   } catch (e) {}
@@ -415,6 +428,9 @@ export default function ManabaReminderSetupScreen({ navigation, route }) {
             下のアドレスをコピーして、下の画面の
             <Text style={banner.bold}>「携帯メールアドレス」</Text>欄に貼り付け、
             <Text style={banner.bold}>「保存」</Text>を押してください。
+          </Text>
+          <Text style={banner.note}>
+            ※ 画面下の「課題提出のお知らせ」も「受信する」にしておくと、提出した課題がアプリで自動的に「提出済」になります。
           </Text>
           <Text style={banner.note}>
             ※ 通知はアプリに届きます。メールと重複する場合は、manabaの「メールアドレス」欄を空にしてください。

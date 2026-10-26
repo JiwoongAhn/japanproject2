@@ -7,9 +7,10 @@ import { MOCK_ASPECT, MOCK_WIDTH_MAX } from '../utils/layout';
 
 // 온보딩에서 보여주는 폰 프레임 목업
 // children: 폰 화면 안에 들어갈 콘텐츠
+// background: 화면(상태바 포함) 배경색 — 안의 화면과 같은 색이어야 상태바 줄이 따로 떠 보이지 않는다
 // width: 프레임 폭(px). 기본값은 큰 화면 기준 240. 작은 화면에서는 호출부가
 //        computeMockSize()로 가용 공간에 맞춘 폭을 넘긴다 (높이는 항상 폭 × MOCK_ASPECT).
-export default function PhoneMockup({ children, width = MOCK_WIDTH_MAX }) {
+export default function PhoneMockup({ children, width = MOCK_WIDTH_MAX, background }) {
   const height = width * MOCK_ASPECT;
   return (
     <View style={[styles.frame, { width, height, borderRadius: width * 0.13 }]}>
@@ -21,7 +22,7 @@ export default function PhoneMockup({ children, width = MOCK_WIDTH_MAX }) {
         ]}
       />
       {/* 화면 영역 */}
-      <View style={[styles.screen, { borderRadius: width * 0.11 }]}>
+      <View style={[styles.screen, { borderRadius: width * 0.11 }, background && { backgroundColor: background }]}>
         {/* 상태바 (아이폰 기본 스타일) */}
         <View style={styles.statusBar}>
           <Text style={styles.statusTime}>9:41</Text>

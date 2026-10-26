@@ -8,12 +8,12 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   useWindowDimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../../components/AppTextInput';
 
 // 이미지 뷰어 크기는 모듈 로드 시점의 고정값이 아니라 훅으로 계산한다.

@@ -5,8 +5,8 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { colors } from '../../constants/colors';
 import { getDismissedKeys, addDismissedKey, noticeKey } from '../../utils/manabaCache';

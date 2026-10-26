@@ -12,6 +12,7 @@ export type NoticePayload = {
   bodyHtml?: string;
   noticeUrl?: string | null;
   aiSummary?: string | null;
+  assignmentNote?: string | null; // 「📝 課題に追加しました（締切 …）」 — 課題 자동 추가 시 본문 끝에 한 줄
 };
 
 export function buildNoticePushMessage(to: string, payload: NoticePayload, titlePrefix = '') {
@@ -20,6 +21,8 @@ export function buildNoticePushMessage(to: string, payload: NoticePayload, title
   const message: Record<string, unknown> = summary
     ? { to, title: `${titlePrefix}📢 ${subject || 'manaba 新着通知'}`.slice(0, 80), body: summary }
     : { to, title: `${titlePrefix}📢 manaba 新着通知`, body: subject };
+  const note = payload.assignmentNote?.trim();
+  if (note) message.body = message.body ? `${message.body}\n${note}` : note;
   message.data = { ...payload };
   message.sound = 'default';
 

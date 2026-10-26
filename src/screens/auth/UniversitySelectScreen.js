@@ -1,14 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  FlatList, StyleSheet, SafeAreaView,
+  FlatList, StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../../components/AppTextInput';
 import { Ionicons } from '@expo/vector-icons';
 import { universities } from '../../constants/universities';
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import { loadPendingOtp } from '../../utils/pendingOtp';
 
 // 대학 선택 화면 — 앱 첫 실행 시 한 번만 표시
 // 선택한 대학 정보는 로그인 화면으로 전달됨
@@ -18,6 +20,26 @@ export default function UniversitySelectScreen({ navigation }) {
   const handleSelect = (university) => {
     navigation.navigate('SchoolPortalAuth', { university });
   };
+
+  // 인증 코드를 보낸 뒤 앱이 꺼졌다 켜진 경우(안드로이드에서 메일 앱을 여는 사이 등)
+  // → 메일 입력 화면을 거쳐 코드 입력 화면으로 바로 돌려보낸다 (뒤로 가면 메일 입력 화면)
+  useEffect(() => {
+    let cancelled = false;
+    loadPendingOtp().then((pending) => {
+      if (cancelled || !pending) return;
+      const university = universities.find((u) => u.id === pending.universityId);
+      if (!university) return;
+      navigation.navigate('SchoolPortalAuth', { university });
+      navigation.navigate('OtpVerification', {
+        email: pending.email,
+        university,
+        sentAt: pending.sentAt,
+        studentId: '',
+        password: '',
+      });
+    });
+    return () => { cancelled = true; };
+  }, [navigation]);
 
   // 이름·지역 둘 다로 필터 (예: "世田谷" 입력 시 해당 지역 대학들)
   const filtered = useMemo(() => {

@@ -4,9 +4,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { UNIPAS_USER_AGENT } from '../constants/manaba';
 import UnofficialNotice from '../components/UnofficialNotice';

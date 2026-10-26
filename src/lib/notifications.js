@@ -98,6 +98,7 @@ export function setupNotificationListeners(onNotificationTap) {
     const data = response.notification.request.content.data;
     if (data && onNotificationTap) {
       onNotificationTap({
+        type: data.type, // 'assignment_reminder' = 締切前日 알림 → 課題 화면으로 (AppNavigator)
         noticeId: data.noticeId,
         noticeUrl: data.noticeUrl,
         subject: data.subject,
@@ -122,6 +123,7 @@ export async function handleInitialNotification(onNotificationTap) {
     const data = response.notification.request.content.data;
     if (data && onNotificationTap) {
       onNotificationTap({
+        type: data.type, // 'assignment_reminder' = 締切前日 알림 → 課題 화면으로 (AppNavigator)
         noticeId: data.noticeId,
         noticeUrl: data.noticeUrl,
         subject: data.subject,
@@ -129,4 +131,13 @@ export async function handleInitialNotification(onNotificationTap) {
       });
     }
   }
+}
+
+/**
+ * 탭한 푸시 → 이동할 화면 (AppNavigator 가 사용, 테스트: __tests__/utils/pushTapRoute.test.js)
+ *   締切前日 알림(type 'assignment_reminder') → 課題 모달 / 그 외(manaba 통지) → 통지 미리보기
+ */
+export function pushTapRoute(data) {
+  if (data?.type === 'assignment_reminder') return { screen: 'Assignment' };
+  return { screen: 'NoticePreview', params: data };
 }

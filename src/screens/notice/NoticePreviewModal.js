@@ -4,10 +4,10 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../../lib/AuthProvider';
@@ -15,6 +15,8 @@ import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
 import { markNoticeAsRead } from '../../utils/manabaNotices';
 import { summarizeManabaMail } from '../../utils/manabaMailSummary';
+// 서버(mail-inbound)와 같은 파서 — 같은 課題 판별 열쇠(sourceKey)를 그대로 쓴다
+import { parseManabaAssignmentMail } from '../../../supabase/functions/_shared/manabaAssignment';
 
 // 메일 요약의 deadline("MM/DD HH:MM")을 AssignmentAdd가 받는 YYYY-MM-DD로 변환.
 // 메일 본문에는 연도가 없으므로 현재 연도를 사용하되, 결과가 오늘보다 과거면 +1년
@@ -148,6 +150,33 @@ export default function NoticePreviewModal() {
   const canAddAssignment =
     summary.type.key === 'report' || summary.type.key === 'quiz';
 
+  // 서버(mail-inbound)가 이 課題를 이미 자동 추가했으면 「追加済み」 — 같은 課題를 손으로 또 넣지 않게.
+  //   통지 id 가 아니라 「과목|課題名」 열쇠로 찾는다: 같은 課題가 다시 공개되면 서버가 연결 통지를
+  //   새 것으로 바꾸므로, id 로 찾으면 처음 통지에서는 「追加」 버튼이 다시 보였다(2026-10-26 실DB 검증에서 발견)
+  const sourceKey = canAddAssignment ? parseManabaAssignmentMail({ subject, bodyHtml })?.sourceKey : null;
+  const [autoAdded, setAutoAdded] = useState(false);
+  useEffect(() => {
+    if (!sourceKey) return;
+    let alive = true;
+    supabase
+      .from('assignments')
+      .select('id')
+      .eq('source_key', sourceKey)
+      .limit(1)
+      .then(({ data }) => {
+        if (alive && data?.length) setAutoAdded(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [sourceKey]);
+
+  const handleOpenAssignments = () => {
+    markAsReadOnce();
+    clearPendingNotice();
+    navigation.replace('Assignment', { screen: 'AssignmentMain' });
+  };
+
   const handleAddAssignment = () => {
     markAsReadOnce();
     clearPendingNotice();
@@ -263,9 +292,11 @@ export default function NoticePreviewModal() {
           {canAddAssignment && (
             <TouchableOpacity
               style={styles.addAssignmentButton}
-              onPress={handleAddAssignment}
+              onPress={autoAdded ? handleOpenAssignments : handleAddAssignment}
             >
-              <Text style={styles.addAssignmentButtonText}>📝 課題として追加</Text>
+              <Text style={styles.addAssignmentButtonText}>
+                {autoAdded ? '✅ 課題に追加済み（一覧を見る）' : '📝 課題として追加'}
+              </Text>
             </TouchableOpacity>
           )}
           {noticeUrl ? (

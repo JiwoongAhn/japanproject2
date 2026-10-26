@@ -12,9 +12,13 @@ import {
   hasStoredSession,
   raceWithTimeout,
   resolveBootOutcome,
+  isBootFailure,
+  shouldApplyAuthEvent,
   BOOT_TIMEOUT_MS,
   BOOT_MAX_ATTEMPTS,
 } from './sessionKeeper';
+import { clearPendingOtp } from '../utils/pendingOtp';
+import { consumeKeychainReadFailure } from './largeSecureStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AuthContext — 앱 전역 인증 상태를 공유하는 Context
@@ -75,13 +79,16 @@ export function AuthProvider({ children }) {
 
     const restoreSession = async () => {
       for (let attempt = 0; attempt < BOOT_MAX_ATTEMPTS; attempt += 1) {
+        consumeKeychainReadFailure(); // 이번 확인 전의 기록은 버린다
         const result = await raceWithTimeout(supabase.auth.getSession(), BOOT_TIMEOUT_MS);
         if (cancelled) return;
+        // 키체인 잠김으로 저장된 세션을 못 읽었다면(null) "로그아웃"이 아니라 "아직 모름"
+        const readFailed = consumeKeychainReadFailure();
 
-        const stored = result?.data ? false : await hasStoredSession(AsyncStorage);
+        const stored = isBootFailure(result, readFailed) ? await hasStoredSession(AsyncStorage) : false;
         if (cancelled) return;
 
-        const outcome = resolveBootOutcome({ result, stored, attempt });
+        const outcome = resolveBootOutcome({ result, stored, attempt, readFailed });
 
         if (outcome === 'session') {
           const restored = result?.data?.session ?? null;
@@ -113,6 +120,8 @@ export function AuthProvider({ children }) {
 
     // 이후 로그인/로그아웃 이벤트를 실시간으로 감지
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // 앱 시작 시 첫 세션은 위의 restoreSession 이 판단한다 (키체인 잠김 시 null 알림 무시 — sessionKeeper 참고)
+      if (!shouldApplyAuthEvent(event, session)) return;
       // 세션 확인이 늦어져 재시도 안내를 띄웠더라도, 여기서 결과가 오면 즉시 해제한다
       if (session) setBootStalled(false);
       setSession(session ?? null);
@@ -121,6 +130,8 @@ export function AuthProvider({ children }) {
       // 로그인 완료 시 푸시 토큰 등록 (세션 중 1회만)
       // prompt:false — 권한 팝업은 프리퍼미션 화면(PushPrimingScreen)에서 요청한다.
       // 이미 허용한 사용자는 여기서 토큰만 조용히 갱신된다.
+      // 로그인이 끝났으면 "코드 입력 대기" 기록은 필요 없다 (로그아웃 뒤 코드 화면으로 돌아가지 않게)
+      if (event === 'SIGNED_IN') clearPendingOtp();
       if (event === 'SIGNED_IN' && !pushRegistered.current) {
         pushRegistered.current = true;
         registerPushToken({ prompt: false });
@@ -144,6 +155,19 @@ export function AuthProvider({ children }) {
       cleanupListeners();
     };
   }, []);
+
+  // 세션 확인이 멈춘 상태(stalled)에서 앱이 다시 화면에 나오면 자동으로 다시 확인한다.
+  // 폰이 잠긴 동안 앱이 켜져 키체인을 못 읽은 경우, 잠금을 풀고 앱을 열면 그대로 복원된다.
+  useEffect(() => {
+    if (!bootStalled) return undefined;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        setBootStalled(false);
+        setBootAttemptKey((k) => k + 1);
+      }
+    });
+    return () => sub.remove();
+  }, [bootStalled]);
 
   const value = {
     session,                          // 전체 세션 객체 (null이면 비로그인)

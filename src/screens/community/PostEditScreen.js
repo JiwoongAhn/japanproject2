@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, Image, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert,
+  StyleSheet, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../../components/AppTextInput';
 import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
 import { supabase } from '../../lib/supabase';

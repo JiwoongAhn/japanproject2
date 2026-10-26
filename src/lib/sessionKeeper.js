@@ -68,11 +68,27 @@ export function attachAutoRefresh({ appState, auth }) {
 
 // 앱 시작 시 세션 복원 결과를 결정하는 순수 로직.
 //   'session'  : 세션 확인 성공 (session 값을 그대로 사용)
-//   'retry'    : 타임아웃 + 저장된 세션 있음 → 로그아웃시키지 말고 재시도
+//   'retry'    : 타임아웃·읽기 오류 + 저장된 세션 있음 → 로그아웃시키지 말고 재시도
 //   'logout'   : 타임아웃 + 저장된 세션 없음 → 비로그인 확정
 //   'stalled'  : 재시도를 다 썼는데도 실패 + 저장된 세션 있음 → 재시도 안내 화면
-export function resolveBootOutcome({ result, stored, attempt, maxAttempts = BOOT_MAX_ATTEMPTS }) {
-  if (result !== TIMED_OUT) return 'session';
+//   ※ getSession 이 오류를 돌려준 경우(키체인 잠김 등으로 저장된 세션을 못 읽음)도 실패로 본다.
+//     예전엔 이걸 '세션 없음'으로 받아 로그아웃 화면을 보여줬다(2026-10-26 아이폰 로그아웃 버그).
+//   ※ readFailed: 저장소가 "키체인을 못 읽어 null 을 돌려줬다"고 알린 경우. 세션이 없다고 확정하면 안 된다.
+export function isBootFailure(result, readFailed = false) {
+  if (result === TIMED_OUT || !!result?.error) return true;
+  return readFailed && !result?.data?.session;
+}
+
+export function resolveBootOutcome({ result, stored, attempt, readFailed = false, maxAttempts = BOOT_MAX_ATTEMPTS }) {
+  if (!isBootFailure(result, readFailed)) return 'session';
   if (!stored) return 'logout';
   return attempt + 1 < maxAttempts ? 'retry' : 'stalled';
+}
+
+// onAuthStateChange 알림을 화면(로그인 상태)에 반영할지.
+//   앱 시작 시 첫 세션은 AuthProvider.restoreSession 이 판단한다. Supabase 는 저장된 세션을 못 읽어도
+//   (키체인 잠김 등) INITIAL_SESSION 을 null 로 보낼 수 있어, 그대로 받으면 멀쩡한 사용자를
+//   대학 선택 화면으로 보내게 된다(2026-10-26 아이폰 로그아웃 버그). 진짜 로그아웃은 SIGNED_OUT 으로 온다.
+export function shouldApplyAuthEvent(event, session) {
+  return !(event === 'INITIAL_SESSION' && !session);
 }

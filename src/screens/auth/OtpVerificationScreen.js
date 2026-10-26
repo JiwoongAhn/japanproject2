@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert,
+  StyleSheet, Alert,
   KeyboardAvoidingView, AppState,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import AppTextInput from '../../components/AppTextInput';
 import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
@@ -14,16 +15,22 @@ import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { DEMO_EMAIL } from '../../constants/demo';
 import { extractOtpCode, shouldAutoSubmitOtp } from '../../utils/otpCode';
+import {
+  savePendingOtp,
+  clearPendingOtp,
+  resendCooldownSeconds,
+} from '../../utils/pendingOtp';
 
 // 학교 이메일 OTP 인증 화면
 // SchoolPortalAuthScreen에서 OTP 발송 후 이 화면으로 이동
 // 코드 확인 → signUp → 메인 화면 자동 진입
 export default function OtpVerificationScreen({ navigation, route }) {
-  const { email } = route.params ?? {};
+  const { email, university, sentAt } = route.params ?? {};
 
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(60); // 재발송 쿨다운(초)
+  // 재발송 쿨다운(초) — 보낸 시각 기준. 앱이 꺼졌다 켜져 이 화면으로 돌아와도 남은 시간이 정확하다
+  const [resendCooldown, setResendCooldown] = useState(() => (sentAt ? resendCooldownSeconds(sentAt) : 60));
   const [clipboardCode, setClipboardCode] = useState(null); // 클립보드에서 찾은 6자리 코드
   const timerRef = useRef(null);
   const triedCodeRef = useRef(null); // 자동 제출을 이미 시도한 코드(같은 코드 반복 제출 방지)
@@ -79,6 +86,7 @@ export default function OtpVerificationScreen({ navigation, route }) {
         options: { shouldCreateUser: true },
       });
       if (!error) {
+        await savePendingOtp({ email, university });
         Alert.alert('再送信しました', `${email} に新しいコードをお送りしました`);
         setResendCooldown(60);
         clearInterval(timerRef.current);
@@ -147,6 +155,8 @@ export default function OtpVerificationScreen({ navigation, route }) {
         Alert.alert('お知らせ', msg);
         return;
       }
+      // 로그인 성공 → 대기 기록 삭제 (다음에 로그아웃했을 때 이 화면으로 돌아오지 않게)
+      await clearPendingOtp();
     } catch (e) {
       Alert.alert('お知らせ', 'ネットワークの状態をご確認の上、もう一度お試しください');
     } finally {
@@ -174,7 +184,13 @@ export default function OtpVerificationScreen({ navigation, route }) {
         style={{ flex: 1 }}
       >
         {/* 뒤로가기 — 스크롤과 함께 사라지지 않도록 바깥에 고정 */}
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            // 직접 뒤로 가면 메일을 고치려는 것 → 대기 기록을 지운다 (다시 보내기 가능)
+            clearPendingOtp();
+            navigation.goBack();
+          }} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.backText}>‹ 戻る</Text>
         </TouchableOpacity>
 

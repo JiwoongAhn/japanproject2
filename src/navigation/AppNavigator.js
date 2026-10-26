@@ -5,6 +5,7 @@ import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../lib/AuthProvider';
 import { supabase } from '../lib/supabase';
+import { pushTapRoute } from '../lib/notifications';
 import AuthStack from './AuthStack';
 import MainTab from './MainTab';
 import ManabaStack from './ManabaStack';
@@ -102,12 +103,14 @@ export default function AppNavigator() {
     setPushPrimingDone(true);
   };
 
-  // 푸시 알림 탭 감지 → NoticePreviewModal로 이동
+  // 푸시 알림 탭 감지 → 締切前日 알림이면 課題 화면, 그 외(manaba 통지)는 NoticePreviewModal
   useEffect(() => {
-    if (pendingNotice && navigationRef.isReady()) {
-      navigationRef.navigate('NoticePreview', pendingNotice);
-    }
-  }, [pendingNotice]);
+    if (!pendingNotice || !navigationRef.isReady()) return;
+    const route = pushTapRoute(pendingNotice);
+    // 課題 화면은 통지 모달과 달리 pendingNotice 를 스스로 비우지 않는다
+    if (route.screen === 'Assignment') clearPendingNotice();
+    navigationRef.navigate(route.screen, route.params);
+  }, [pendingNotice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     // 이메일 인증 완료 후 앱으로 돌아올 때 URL에서 토큰을 꺼내 세션 설정

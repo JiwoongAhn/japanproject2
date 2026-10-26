@@ -1,200 +1,219 @@
-// LargeSecureStore 유닛 테스트
-// supabase.js에서 export되지 않으므로 클래스와 헬퍼를 직접 정의
+// LargeSecureStore 유닛 테스트 — 실제 모듈(src/lib/largeSecureStore)을 검사한다.
+// (예전 파일은 클래스 복사본을 검사해서 실제 코드가 바뀌어도 잡지 못했다)
+//
+// 키체인(expo-secure-store)·AsyncStorage 는 메모리 가짜로, 암호화(aes-js)는 진짜를 쓴다.
+// 가짜 키체인은 locked=true 로 "폰이 잠겨 키체인을 못 읽는 상태"를 흉내 낸다.
+import aes from 'aes-js';
+import { webcrypto } from 'crypto';
+import {
+  LargeSecureStore,
+  KeychainUnavailableError,
+  KEY_NAME_V1,
+  KEY_NAME_V2,
+} from '../../src/lib/largeSecureStore';
 
-// ─── Mock 설정 ────────────────────────────────────────────────────────────────
-
-let mockSecureStoreData = {};
-
-jest.mock('expo-secure-store', () => ({
-  getItemAsync: jest.fn(async (key) => mockSecureStoreData[key] ?? null),
-  setItemAsync: jest.fn(async (key, value) => {
-    mockSecureStoreData[key] = value;
-  }),
-}));
-
-let mockAsyncStorageData = {};
-
-jest.mock('@react-native-async-storage/async-storage', () => ({
-  getItem: jest.fn(async (key) => mockAsyncStorageData[key] ?? null),
-  setItem: jest.fn(async (key, value) => {
-    mockAsyncStorageData[key] = value;
-  }),
-  removeItem: jest.fn(async (key) => {
-    delete mockAsyncStorageData[key];
-  }),
-}));
-
-// aes-js mock: passthrough (encrypt/decrypt 그대로 반환, PKCS#7 패딩 처리)
-jest.mock('aes-js', () => ({
-  ModeOfOperation: {
-    cbc: jest.fn().mockImplementation(() => ({
-      encrypt: (bytes) => {
-        // PKCS#7 패딩이 이미 붙은 bytes를 그대로 반환
-        return Array.from(bytes);
-      },
-      decrypt: (bytes) => {
-        // encrypt와 동일하게 그대로 반환 (패딩 제거는 LargeSecureStore가 담당)
-        return Array.from(bytes);
-      },
-    })),
-  },
-  utils: {
-    utf8: {
-      toBytes: (str) => Array.from(new TextEncoder().encode(str)),
-      fromBytes: (bytes) => new TextDecoder().decode(new Uint8Array(bytes)),
-    },
-  },
-}));
-
-jest.mock('react-native', () => ({
-  Platform: { OS: 'ios' },
-}));
-
-// crypto.getRandomValues mock: 고정된 bytes 반환
-global.crypto = {
-  getRandomValues: jest.fn((arr) => {
-    arr.fill(1); // 모든 바이트를 1로 고정
-    return arr;
-  }),
-};
-
-// ─── 헬퍼 함수 (supabase.js에서 복사) ────────────────────────────────────────
-
-function bytesToHex(bytes) {
-  return Array.from(bytes)
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
+function fakeKeychain() {
+  const kc = {
+    data: {},
+    accessible: {},
+    locked: false,
+    AFTER_FIRST_UNLOCK: 'AFTER_FIRST_UNLOCK',
+    getItemAsync: jest.fn(async (key) => {
+      if (kc.locked) throw new Error('User interaction is not allowed.');
+      return kc.data[key] ?? null;
+    }),
+    setItemAsync: jest.fn(async (key, value, opts) => {
+      if (kc.locked) throw new Error('User interaction is not allowed.');
+      // 실제 키체인처럼 응답이 늦게 오는 상황(동시 생성 경쟁)을 만든다
+      await new Promise((r) => setTimeout(r, 5));
+      kc.data[key] = value;
+      kc.accessible[key] = opts?.keychainAccessible ?? 'WHEN_UNLOCKED';
+    }),
+  };
+  return kc;
 }
 
-function hexToBytes(hex) {
-  const result = [];
-  for (let i = 0; i < hex.length; i += 2) {
-    result.push(parseInt(hex.substring(i, i + 2), 16));
-  }
-  return new Uint8Array(result);
+function fakeStorage() {
+  const st = {
+    data: {},
+    getItem: jest.fn(async (k) => st.data[k] ?? null),
+    setItem: jest.fn(async (k, v) => { st.data[k] = v; }),
+    removeItem: jest.fn(async (k) => { delete st.data[k]; }),
+  };
+  return st;
 }
 
-// ─── LargeSecureStore 클래스 (supabase.js에서 복사) ──────────────────────────
+const randomBytes = (n) => webcrypto.getRandomValues(new Uint8Array(n));
 
-const SecureStore = require('expo-secure-store');
-const AsyncStorage = require('@react-native-async-storage/async-storage');
-const aesjs = require('aes-js');
-
-const ENCRYPTION_KEY_NAME = 'supabase_encryption_key';
-
-class LargeSecureStore {
-  async _getEncryptionKey() {
-    let keyHex = await SecureStore.getItemAsync(ENCRYPTION_KEY_NAME);
-    if (!keyHex) {
-      const keyBytes = crypto.getRandomValues(new Uint8Array(32));
-      keyHex = bytesToHex(keyBytes);
-      await SecureStore.setItemAsync(ENCRYPTION_KEY_NAME, keyHex);
-    }
-    return hexToBytes(keyHex);
-  }
-
-  async getItem(key) {
-    const encryptedHex = await AsyncStorage.getItem(key);
-    if (!encryptedHex) return null;
-    try {
-      const encKey = await this._getEncryptionKey();
-      const encryptedBytes = hexToBytes(encryptedHex);
-      const iv = encryptedBytes.slice(0, 16);
-      const cipherBytes = encryptedBytes.slice(16);
-      const aesCbc = new aesjs.ModeOfOperation.cbc(encKey, iv);
-      const decryptedBytes = aesCbc.decrypt(cipherBytes);
-      const padLen = decryptedBytes[decryptedBytes.length - 1];
-      const plainBytes = decryptedBytes.slice(0, decryptedBytes.length - padLen);
-      return aesjs.utils.utf8.fromBytes(plainBytes);
-    } catch {
-      await AsyncStorage.removeItem(key);
-      return null;
-    }
-  }
-
-  async setItem(key, value) {
-    const encKey = await this._getEncryptionKey();
-    const plainBytes = aesjs.utils.utf8.toBytes(value);
-    const padLen = 16 - (plainBytes.length % 16);
-    const paddedBytes = new Uint8Array(plainBytes.length + padLen);
-    paddedBytes.set(plainBytes);
-    paddedBytes.fill(padLen, plainBytes.length);
-    const iv = crypto.getRandomValues(new Uint8Array(16));
-    const aesCbc = new aesjs.ModeOfOperation.cbc(encKey, Array.from(iv));
-    const cipherBytes = aesCbc.encrypt(paddedBytes);
-    const combined = new Uint8Array(iv.length + cipherBytes.length);
-    combined.set(iv);
-    combined.set(cipherBytes, iv.length);
-    await AsyncStorage.setItem(key, bytesToHex(combined));
-  }
-
-  async removeItem(key) {
-    await AsyncStorage.removeItem(key);
-  }
+function makeEnv() {
+  const keychain = fakeKeychain();
+  const storage = fakeStorage();
+  const keyState = { key: null, lock: Promise.resolve() };
+  const make = () => new LargeSecureStore({ secureStore: keychain, storage, aes, randomBytes, keyState });
+  return { keychain, storage, keyState, make, store: make() };
 }
 
-// ─── 테스트 ───────────────────────────────────────────────────────────────────
-
-describe('LargeSecureStore', () => {
-  let store;
-
-  beforeEach(() => {
-    mockAsyncStorageData = {};
-    mockSecureStoreData = {};
-    store = new LargeSecureStore();
-    jest.clearAllMocks();
-  });
-
-  // L-01: 기본 왕복
+describe('LargeSecureStore — 기본 저장/읽기', () => {
   test('L-01: setItem 후 getItem → 동일한 값 반환', async () => {
-    await store.setItem('key1', 'v');
-    const result = await store.getItem('key1');
-    expect(result).toBe('v');
+    const { store } = makeEnv();
+    await store.setItem('k', 'hello');
+    expect(await store.getItem('k')).toBe('hello');
   });
 
-  // L-02: 1500자 긴 문자열 (JWT 길이 시뮬레이션)
   test('L-02: 1500자 긴 문자열 setItem/getItem 왕복', async () => {
-    const longValue = 'a'.repeat(1500);
-    await store.setItem('key2', longValue);
-    const result = await store.getItem('key2');
-    expect(result).toBe(longValue);
+    const { store } = makeEnv();
+    const long = 'x'.repeat(1500);
+    await store.setItem('k', long);
+    expect(await store.getItem('k')).toBe(long);
   });
 
-  // L-03: 유니코드 (한국어/일본어)
   test('L-03: 일본어 유니코드 문자열 setItem/getItem 왕복', async () => {
-    await store.setItem('key3', 'テスト値');
-    const result = await store.getItem('key3');
-    expect(result).toBe('テスト値');
+    // ※ aes-js 의 utf8 변환은 이모지(4바이트 문자)를 지원하지 않는다(예전부터 동일). 세션·쿠키엔 이모지가 없다
+    const { store } = makeEnv();
+    await store.setItem('k', '国士舘大学のお知らせ・ｶﾀｶﾅ');
+    expect(await store.getItem('k')).toBe('国士舘大学のお知らせ・ｶﾀｶﾅ');
   });
 
-  // L-04: removeItem 후 getItem → null
   test('L-04: setItem 후 removeItem 하면 getItem → null', async () => {
-    await store.setItem('key4', 'toDelete');
-    await store.removeItem('key4');
-    const result = await store.getItem('key4');
-    expect(result).toBeNull();
+    const { store } = makeEnv();
+    await store.setItem('k', 'v');
+    await store.removeItem('k');
+    expect(await store.getItem('k')).toBeNull();
   });
 
-  // L-05: 저장하지 않은 key → null
-  test('L-05: 존재하지 않는 key getItem → null', async () => {
-    const result = await store.getItem('nonexistent');
-    expect(result).toBeNull();
+  test('L-05: 존재하지 않는 key getItem → null (키체인도 안 건드림)', async () => {
+    const { store, keychain } = makeEnv();
+    expect(await store.getItem('none')).toBeNull();
+    expect(keychain.getItemAsync).not.toHaveBeenCalled();
   });
 
-  // L-06: 덮어쓰기
   test('L-06: 같은 key에 두 번 setItem → 최신 값 반환', async () => {
-    await store.setItem('key6', 'first');
-    await store.setItem('key6', 'second');
-    const result = await store.getItem('key6');
-    expect(result).toBe('second');
+    const { store } = makeEnv();
+    await store.setItem('k', 'a');
+    await store.setItem('k', 'b');
+    expect(await store.getItem('k')).toBe('b');
   });
 
-  // L-07: 다른 key에 영향 없음
   test('L-07: keyA 삭제 후 keyB getItem → 여전히 valueB', async () => {
-    await store.setItem('keyA', 'valueA');
-    await store.setItem('keyB', 'valueB');
-    await store.removeItem('keyA');
-    const result = await store.getItem('keyB');
-    expect(result).toBe('valueB');
+    const { store } = makeEnv();
+    await store.setItem('A', 'valueA');
+    await store.setItem('B', 'valueB');
+    await store.removeItem('A');
+    expect(await store.getItem('B')).toBe('valueB');
+  });
+
+  test('L-08: 새 키는 잠금 중에도 읽히는 설정(AFTER_FIRST_UNLOCK)으로 v2 이름에 저장', async () => {
+    const { store, keychain } = makeEnv();
+    await store.setItem('k', 'v');
+    expect(keychain.data[KEY_NAME_V2]).toMatch(/^[0-9a-f]{64}$/);
+    expect(keychain.accessible[KEY_NAME_V2]).toBe('AFTER_FIRST_UNLOCK');
+  });
+});
+
+describe('LargeSecureStore — 아이폰 로그아웃 버그 회귀 방지 (2026-10-26)', () => {
+  test('L-10: 앱 시작 시 키체인이 잠겨 있으면 null + "못 읽음" 기록 — 저장된 로그인 정보는 지우지 않는다', async () => {
+    const env = makeEnv();
+    await env.store.setItem('sb-x-auth-token', '{"access_token":"a"}');
+    // 앱 재시작(메모리의 키 기억 없음) + 폰 잠김
+    const fresh = makeEnv();
+    Object.assign(fresh.keychain.data, env.keychain.data);
+    Object.assign(fresh.storage.data, env.storage.data);
+    fresh.keychain.locked = true;
+
+    expect(await fresh.store.getItem('sb-x-auth-token')).toBeNull();
+    expect(fresh.store.consumeReadFailure()).toBe(true);
+    expect(fresh.store.consumeReadFailure()).toBe(false); // 한 번 읽으면 기록은 지워진다
+    expect(fresh.storage.removeItem).not.toHaveBeenCalled();
+    expect(fresh.storage.data['sb-x-auth-token']).toBeTruthy();
+
+    // 잠금 해제 후 다시 읽으면 그대로 복원
+    fresh.keychain.locked = false;
+    expect(await fresh.store.getItem('sb-x-auth-token')).toBe('{"access_token":"a"}');
+  });
+
+  test('L-11: 잠긴 동안 새 키를 만들어 덮어쓰지 않는다 (옛 데이터를 못 푸는 일 방지)', async () => {
+    const env = makeEnv();
+    await env.store.setItem('k', 'v');
+    const keyBefore = env.keychain.data[KEY_NAME_V2];
+    const fresh = makeEnv();
+    Object.assign(fresh.keychain.data, env.keychain.data);
+    Object.assign(fresh.storage.data, env.storage.data);
+    fresh.keychain.locked = true;
+    await expect(fresh.store.setItem('k', 'v2')).rejects.toBeInstanceOf(KeychainUnavailableError);
+    fresh.keychain.locked = false;
+    expect(fresh.keychain.data[KEY_NAME_V2]).toBe(keyBefore);
+    expect(await fresh.store.getItem('k')).toBe('v');
+  });
+
+  test('L-12: 한 번 읽은 키는 기억 → 사용 중 폰이 잠겨도(토큰 갱신 등) 읽기·쓰기가 된다', async () => {
+    const { store, keychain } = makeEnv();
+    await store.setItem('k', 'v');
+    keychain.locked = true;
+    await store.setItem('k', 'refreshed');
+    expect(await store.getItem('k')).toBe('refreshed');
+  });
+
+  test('L-13: 처음 설치 직후 세션·쿠키 저장이 동시에 일어나도 키는 하나만 만든다', async () => {
+    const { keychain, make } = makeEnv();
+    const sessionStore = make();
+    const cookieStore = make();
+    await Promise.all([
+      sessionStore.setItem('session', 'S'),
+      cookieStore.setItem('cookie', 'C'),
+      sessionStore.setItem('other', 'O'),
+    ]);
+    const keyWrites = keychain.setItemAsync.mock.calls.filter(([k]) => k === KEY_NAME_V2);
+    expect(keyWrites).toHaveLength(1);
+    // 기억을 비운(=앱 재시작) 새 인스턴스로도 셋 다 풀린다
+    const restarted = new LargeSecureStore({
+      secureStore: keychain, storage: sessionStore.deps.storage, aes, randomBytes,
+    });
+    expect(await restarted.getItem('session')).toBe('S');
+    expect(await restarted.getItem('cookie')).toBe('C');
+    expect(await restarted.getItem('other')).toBe('O');
+  });
+
+  test('L-14: 기존 사용자(옛 키 v1)는 그대로 읽히고, 키가 v2로 복사된다 — v1 은 지우지 않는다', async () => {
+    const { keychain, storage, store } = makeEnv();
+    // 옛 버전 앱이 만든 키·데이터를 재현
+    const v1Hex = '11'.repeat(32);
+    keychain.data[KEY_NAME_V1] = v1Hex;
+    const legacy = new LargeSecureStore({
+      secureStore: { ...keychain, getItemAsync: async (k) => (k === KEY_NAME_V1 ? v1Hex : null) },
+      storage, aes, randomBytes,
+    });
+    await legacy.setItem('sb-x-auth-token', 'legacy-session');
+
+    expect(await store.getItem('sb-x-auth-token')).toBe('legacy-session');
+    expect(keychain.data[KEY_NAME_V2]).toBe(v1Hex);
+    expect(keychain.accessible[KEY_NAME_V2]).toBe('AFTER_FIRST_UNLOCK');
+    expect(keychain.data[KEY_NAME_V1]).toBe(v1Hex);
+  });
+
+  test('L-15: 다른 키로 잠긴(복구 불가) 데이터는 쓰레기 문자열 대신 null — 그리고 지우지 않는다', async () => {
+    const a = makeEnv();
+    await a.store.setItem('k', '{"access_token":"x"}');
+    const b = makeEnv();
+    await b.store.setItem('dummy', 'make-a-different-key');
+    b.storage.data.k = a.storage.data.k;
+    expect(await b.store.getItem('k')).toBeNull();
+    expect(b.storage.data.k).toBeTruthy();
+  });
+
+  test('L-16: 키체인이 잠깐만 막혔다 풀리면(재시도 중 해제) 오류 없이 읽힌다', async () => {
+    const env = makeEnv();
+    await env.store.setItem('k', 'v');
+    const fresh = makeEnv();
+    Object.assign(fresh.keychain.data, env.keychain.data);
+    Object.assign(fresh.storage.data, env.storage.data);
+    let calls = 0;
+    const real = fresh.keychain.getItemAsync.getMockImplementation();
+    fresh.keychain.getItemAsync.mockImplementation(async (...args) => {
+      calls += 1;
+      if (calls === 1) throw new Error('User interaction is not allowed.');
+      return real(...args);
+    });
+    expect(await fresh.store.getItem('k')).toBe('v');
+    expect(fresh.store.consumeReadFailure()).toBe(false);
   });
 });

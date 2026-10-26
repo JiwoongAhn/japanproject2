@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, Alert,
+  StyleSheet, Alert,
   KeyboardAvoidingView, Platform, ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
 import { colors } from '../../constants/colors';
@@ -11,6 +12,12 @@ import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { DEMO_EMAIL } from '../../constants/demo';
+import {
+  loadPendingOtp,
+  savePendingOtp,
+  shouldSkipResend,
+  isOtpRateLimitError,
+} from '../../utils/pendingOtp';
 
 // 학교 포털 인증 화면
 // 학교 이메일로 OTP 발송 → OTP 입력 → 로그인/가입
@@ -53,24 +60,43 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
       return;
     }
 
+    const goToCode = (sentAt) => navigation.navigate('OtpVerification', {
+      email: trimmedEmail,
+      university,
+      sentAt,
+      studentId: '',
+      password: '',
+    });
+
     setLoading(true);
     try {
+      // 방금(60초 안) 같은 메일로 보냈다면 다시 보내지 않는다 — 앱이 꺼졌다 켜진 경우 등.
+      // 다시 보내면 Supabase 가 거절하고, 이미 받은 코드도 헷갈리게 된다.
+      const pending = await loadPendingOtp();
+      if (shouldSkipResend(pending, trimmedEmail)) {
+        goToCode(pending.sentAt);
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
         options: { shouldCreateUser: true },
       });
 
       if (error) {
+        if (isOtpRateLimitError(error)) {
+          // 조금 전에 보낸 코드가 이미 메일함에 있다 → 오류 대신 코드 입력으로 안내
+          Alert.alert('お知らせ', 'さきほど認証コードを送信しました。届いたメールのコードを入力してください');
+          goToCode(pending?.email === trimmedEmail ? pending.sentAt : Date.now());
+          return;
+        }
         Alert.alert('お知らせ', 'コードをうまく送信できませんでした。もう一度お試しください');
         return;
       }
 
-      navigation.navigate('OtpVerification', {
-        email: trimmedEmail,
-        university,
-        studentId: '',
-        password: '',
-      });
+      const sentAt = Date.now();
+      await savePendingOtp({ email: trimmedEmail, university, sentAt });
+      goToCode(sentAt);
     } catch (e) {
       Alert.alert('お知らせ', 'ネットワークの状態をご確認の上、もう一度お試しください');
     } finally {

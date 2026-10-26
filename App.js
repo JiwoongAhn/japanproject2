@@ -4,6 +4,7 @@ import 'react-native-url-polyfill/auto'; // React Native URL 호환
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { LogBox } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/lib/AuthProvider';
 import AppNavigator from './src/navigation/AppNavigator';
 import WideScreenContainer from './src/components/WideScreenContainer';
@@ -18,6 +19,9 @@ export default function App() {
   return (
     // GestureHandlerRootView: 스와이프 등 제스처가 앱 전역에서 동작하도록 최상단을 감싼다
     <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* SafeAreaProvider: 상태바·홈바 높이(안전영역)를 앱 전체에 알려 준다.
+          안드로이드는 화면이 상태바 밑까지 그려지므로(edge-to-edge), 이게 있어야 헤더가 상태바와 겹치지 않는다 */}
+      <SafeAreaProvider>
       {/* AuthProvider가 앱 전체를 감싸므로, 모든 화면에서 useAuth()를 사용할 수 있음 */}
       <AuthProvider>
         <StatusBar style="dark" />
@@ -27,6 +31,7 @@ export default function App() {
           <AppNavigator />
         </WideScreenContainer>
       </AuthProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

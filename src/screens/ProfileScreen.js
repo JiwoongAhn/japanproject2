@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  SafeAreaView,
   Alert,
   Switch,
   TextInput,
@@ -13,6 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../components/AppTextInput';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
@@ -22,7 +22,7 @@ import { spacing, radius, shadow } from '../constants/spacing';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthProvider';
 import { getUniversityInfo, findUniversityByEmail, getUniversityLinks } from '../utils/university';
-import { supportsManaba } from '../constants/manaba';
+import { supportsManaba, manabaUrlsFor, manabaOriginFrom } from '../constants/manaba';
 import { clearCachedNotices } from '../utils/manabaCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { cookieKeyForUrl, credKeyForUrl, clearCookies, clearCredentials } from '../utils/schoolCookies';
@@ -51,6 +51,7 @@ export default function ProfileScreen({ navigation }) {
   const [myPosts, setMyPosts]               = useState([]);
   const [postsLoading, setPostsLoading]     = useState(false);
   const [shareTimetable, setShareTimetable] = useState(false); // 공강맞추기 공개 여부
+  const [deadlineReminder, setDeadlineReminder] = useState(true); // 締切が近づいたら通知 (기본 ON)
   const [userId, setUserId]                 = useState(null);
   // 닉네임 변경 모달
   const [nicknameModalVisible, setNicknameModalVisible] = useState(false);
@@ -61,6 +62,9 @@ export default function ProfileScreen({ navigation }) {
   const [testPushSending, setTestPushSending] = useState(false);
   // 「通知にAI要約を表示」 — 켜면 manaba 통지 본문을 AI 가 요약해 푸시에 넣는다 (서버 mail_subscriptions.ai_summary_push)
   const [aiSummaryPush, setAiSummaryPush] = useState(false);
+  // 「課題を自動で追加」 — manaba 課題 메일이 오면 서버가 課題에 넣는다 (기본 ON, mail_subscriptions.auto_assignment)
+  const [autoAssignment, setAutoAssignment] = useState(true);
+  const [autoAssignmentSaving, setAutoAssignmentSaving] = useState(false);
   const [aiSummarySaving, setAiSummarySaving] = useState(false);
   // 최근 학교 사이트 접속 실패 기록 (④ 재현 어려운 로그인 문제 추적용)
   const [loginFailures, setLoginFailures] = useState([]);
@@ -82,11 +86,12 @@ export default function ProfileScreen({ navigation }) {
       // 닉네임 + 공강 공유 설정 조회
       const { data: profile } = await supabase
         .from('profiles')
-        .select('nickname, share_timetable')
+        .select('nickname, share_timetable, deadline_reminder')
         .eq('id', user.id)
         .maybeSingle();
       setNickname(profile?.nickname ?? '');
       setShareTimetable(profile?.share_timetable ?? false);
+      setDeadlineReminder(profile?.deadline_reminder !== false);
 
       // 내가 올린 게시글 불러오기
       setPostsLoading(true);
@@ -114,12 +119,13 @@ export default function ProfileScreen({ navigation }) {
     if (!userId) return;
     const { data } = await supabase
       .from('mail_subscriptions')
-      .select('verified_at, ai_summary_push')
+      .select('verified_at, ai_summary_push, auto_assignment')
       .eq('user_id', userId)
       .maybeSingle();
     if (!data) setForwardStatus('none');
     else setForwardStatus(data.verified_at ? 'verified' : 'pending');
     setAiSummaryPush(!!data?.ai_summary_push);
+    setAutoAssignment(data?.auto_assignment !== false);
   }, [userId]);
 
   useEffect(() => {
@@ -188,6 +194,18 @@ export default function ProfileScreen({ navigation }) {
     setAiSummarySaving(false);
     if (error || data === null) {
       setAiSummaryPush(!enabled);
+      Alert.alert('保存できませんでした', 'しばらくしてからもう一度お試しください。');
+    }
+  }, []);
+
+  // 「課題を自動で追加」 저장 (서버 함수 set_auto_assignment — 본인 행만). 외부 전송이 없어 동의 확인은 없다
+  const handleAutoAssignmentToggle = useCallback(async (enabled) => {
+    setAutoAssignmentSaving(true);
+    setAutoAssignment(enabled); // 먼저 반영, 실패하면 되돌림
+    const { data, error } = await supabase.rpc('set_auto_assignment', { enabled });
+    setAutoAssignmentSaving(false);
+    if (error || data === null) {
+      setAutoAssignment(!enabled);
       Alert.alert('保存できませんでした', 'しばらくしてからもう一度お試しください。');
     }
   }, []);
@@ -308,6 +326,20 @@ export default function ProfileScreen({ navigation }) {
   };
 
   // 공강맞추기 공개 여부 토글
+  // 「締切が近づいたら通知」 — 매일 18:00 서버가 未提出 課題를 마감 3일 전·전날에 알린다 (profiles.deadline_reminder)
+  const handleDeadlineReminderToggle = async (value) => {
+    if (!userId) return;
+    setDeadlineReminder(value); // 먼저 반영, 실패하면 되돌림
+    const { error } = await supabase
+      .from('profiles')
+      .update({ deadline_reminder: value })
+      .eq('id', userId);
+    if (error) {
+      setDeadlineReminder(!value);
+      Alert.alert('保存できませんでした', 'しばらくしてからもう一度お試しください。');
+    }
+  };
+
   const handleShareTimetableToggle = async (value) => {
     if (!userId) return;
     setShareTimetable(value);
@@ -593,6 +625,27 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        {/* ── 課題 알림 (모든 학교 — 수동 등록 課題에도 적용) ── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>課題の通知</Text>
+          <View style={styles.infoCard}>
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>締切が近づいたら通知</Text>
+                <Text style={styles.toggleHint}>
+                  未提出の課題を、締切の3日前と前日の18時ごろにお知らせします
+                </Text>
+              </View>
+              <Switch
+                value={deadlineReminder}
+                onValueChange={handleDeadlineReminderToggle}
+                trackColor={{ false: colors.border, true: colors.primary + '80' }}
+                thumbColor={deadlineReminder ? colors.primary : colors.textDisabled}
+              />
+            </View>
+          </View>
+        </View>
+
         {/* ── 공강맞추기 공유 설정 ── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>空き時間合わせ設定</Text>
@@ -673,9 +726,44 @@ export default function ProfileScreen({ navigation }) {
               </Text>
             )}
 
-            {/* 「通知にAI要約を表示」 — 메일 전달을 시작한 사람만 (전달 설정 행이 있어야 저장된다) */}
+            {/* 「課題を自動で追加」·「通知にAI要約を表示」 — 메일 전달을 시작한 사람만 (전달 설정 행이 있어야 저장된다) */}
             {forwardStatus !== 'none' && (
               <>
+                <View style={styles.divider} />
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleInfo}>
+                    <Text style={styles.toggleLabel}>課題を自動で追加</Text>
+                    <Text style={styles.toggleHint}>
+                      manabaでレポート・小テスト・授業のアンケートが公開されると、締切つきで課題に追加します。提出すると「提出済」になります
+                    </Text>
+                  </View>
+                  <Switch
+                    value={autoAssignment}
+                    onValueChange={handleAutoAssignmentToggle}
+                    disabled={autoAssignmentSaving}
+                    trackColor={{ false: colors.border, true: colors.primary + '80' }}
+                    thumbColor={autoAssignment ? colors.primary : colors.textDisabled}
+                  />
+                </View>
+                {/* 「提出済」 자동 전환은 manaba 가 제출 메일을 보내야 가능 — 그 설정은 기본으로 꺼져 있는 사람이 많다
+                    (2026-10-26 운영 DB: 課題 공개 메일 수십 건에 제출 메일 1건) */}
+                {autoAssignment && manabaUrlsFor(manabaOriginFrom(links.manabaUrl)) && (
+                  <TouchableOpacity
+                    style={styles.inlineLink}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                      navigation.navigate('SchoolWeb', {
+                        url: manabaUrlsFor(manabaOriginFrom(links.manabaUrl)).reminder,
+                        title: 'リマインダ設定',
+                        autoLogin: true,
+                      })
+                    }
+                  >
+                    <Text style={styles.inlineLinkText}>
+                      提出も自動で反映するには、manabaの「課題提出のお知らせ」を「受信する」に › 設定を開く
+                    </Text>
+                  </TouchableOpacity>
+                )}
                 <View style={styles.divider} />
                 <View style={styles.toggleRow}>
                   <View style={styles.toggleInfo}>
@@ -1030,6 +1118,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
     marginBottom: 3,
+  },
+  inlineLink: {
+    paddingBottom: spacing.sm,
+  },
+  inlineLinkText: {
+    ...typography.caption,
+    color: colors.primary,
   },
   toggleHint: {
     ...typography.small,

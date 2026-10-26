@@ -51,3 +51,23 @@ export function isAssignmentFormValid(courseName, title, dueDate) {
     /^\d{4}-\d{2}-\d{2}$/.test(dueDate.trim())
   );
 }
+
+// 마감 표시 문구 — manaba 자동 추가 課題는 시각까지(due_at), 수동 등록은 날짜만(due_date)
+// 0:00 마감은 "전날 24:00" 으로 보여준다 (due_date 도 전날로 저장돼 있어 D-day 와 맞는다)
+// 반환 예: '2026-10-15 16:25' / '2026-10-26 24:00' / '2026-10-15'
+export function formatDueLabel(assignment) {
+  if (!assignment) return '';
+  if (!assignment.due_at) return assignment.due_date ?? '';
+  const jst = new Date(new Date(assignment.due_at).getTime() + 9 * 3600 * 1000).toISOString();
+  const time = jst.slice(11, 16);
+  if (time === '00:00') return `${assignment.due_date} 24:00`;
+  return `${jst.slice(0, 10)} ${time}`;
+}
+
+// 마감이 지났는가 — 시각이 있으면 시각 기준, 없으면 "마감일 다음 날 0시" 기준 (기존 동작)
+export function isPastDue(assignment, now = new Date()) {
+  if (assignment?.due_at) return now.getTime() > new Date(assignment.due_at).getTime();
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return new Date(assignment?.due_date) < today;
+}

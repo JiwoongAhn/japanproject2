@@ -131,3 +131,19 @@ describe('resolveBootOutcome', () => {
     }
   });
 });
+
+describe('resolveBootOutcome — 키체인 잠김 (2026-10-26 아이폰 로그아웃)', () => {
+  const noSession = { data: { session: null }, error: null };
+  it('저장소가 "못 읽음"을 알렸고 세션이 비어 있으면 실패로 본다 → 저장된 세션이 있으면 retry', () => {
+    expect(resolveBootOutcome({ result: noSession, stored: true, attempt: 0, readFailed: true })).toBe('retry');
+  });
+  it('마지막까지 못 읽어도 logout 이 아니라 stalled (앱이 화면에 다시 나오면 자동 재확인)', () => {
+    expect(resolveBootOutcome({ result: noSession, stored: true, attempt: BOOT_MAX_ATTEMPTS - 1, readFailed: true })).toBe('stalled');
+  });
+  it('getSession 이 오류를 돌려줘도 같은 취급', () => {
+    expect(resolveBootOutcome({ result: { data: { session: null }, error: new Error('x') }, stored: true, attempt: 0 })).toBe('retry');
+  });
+  it('정상적으로 세션이 없는 사람(못 읽음 아님)은 그대로 로그인 화면', () => {
+    expect(resolveBootOutcome({ result: noSession, stored: false, attempt: 0 })).toBe('session');
+  });
+});

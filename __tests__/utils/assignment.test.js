@@ -116,3 +116,30 @@ describe('isAssignmentFormValid', () => {
     expect(isAssignmentFormValid('経営学', 'レポート', '2026-04')).toBe(false);
   });
 });
+
+describe('formatDueLabel / isPastDue — manaba 자동 추가 課題(시각 있음)', () => {
+  const { formatDueLabel, isPastDue } = require('../../src/utils/assignment');
+
+  test('시각이 있으면 JST 날짜+시각', () => {
+    expect(formatDueLabel({ due_date: '2026-10-15', due_at: '2026-10-15T07:25:00+00:00' }))
+      .toBe('2026-10-15 16:25');
+  });
+  test('0:00 마감은 전날 24:00', () => {
+    expect(formatDueLabel({ due_date: '2026-10-26', due_at: '2026-10-26T15:00:00+00:00' }))
+      .toBe('2026-10-26 24:00');
+  });
+  test('수동 등록(시각 없음)은 날짜만 / 빈 값 안전', () => {
+    expect(formatDueLabel({ due_date: '2026-10-15', due_at: null })).toBe('2026-10-15');
+    expect(formatDueLabel(null)).toBe('');
+  });
+  test('시각 기준 마감 판정 — 같은 날이라도 시각이 지나면 초과', () => {
+    const a = { due_date: '2026-10-15', due_at: '2026-10-15T16:25:00+09:00' };
+    expect(isPastDue(a, new Date('2026-10-15T16:24:00+09:00'))).toBe(false);
+    expect(isPastDue(a, new Date('2026-10-15T16:26:00+09:00'))).toBe(true);
+  });
+  test('시각 없으면 마감일 당일까지는 초과 아님 (기존 동작)', () => {
+    const a = { due_date: '2026-10-15', due_at: null };
+    expect(isPastDue(a, new Date(2026, 9, 15, 23, 0))).toBe(false);
+    expect(isPastDue(a, new Date(2026, 9, 16, 0, 1))).toBe(true);
+  });
+});
