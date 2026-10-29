@@ -131,7 +131,7 @@ iOS·Android 출시 중(현재 1.0.4). 가입 사용자 22명(国士舘大学 19
 | 기타 | `ai_usage`(AI 횟수 제한), `email_otps`(옛 방식, 현재 안 씀) |
 
 - **RLS(행 단위 보안):** "이 줄을 누가 볼 수 있나"를 데이터베이스가 직접 막는 규칙이에요. 게시판·평가는 `university = get_my_university()`, 즉 **같은 학교만** 볼 수 있어요. 학교명은 한 글자만 달라도(舘/館) 안 보여요.
-- **서버 함수(Edge Functions) — 지금 쓰는 것 11개:**
+- **서버 함수(Edge Functions) — 지금 쓰는 것 12개:**
 
 | 함수 | 하는 일 | 누가 부르나 |
 |---|---|---|
@@ -146,9 +146,10 @@ iOS·Android 출시 중(현재 1.0.4). 가입 사용자 22명(国士舘大学 19
 | `send-test-push` | 마이페이지 「テスト通知を送る」 | 앱 |
 | `delete-account` | 탈퇴 처리 | 앱 |
 | `demo-login` | App Store 심사용 데모 계정 로그인 | 앱 |
+| `health-check` | 매일 건강검진 → 개발자에게 푸시·요약 메일 | 자동 실행(매일 JST 9시) |
 
   여러 함수가 같이 쓰는 코드는 `supabase/functions/_shared/`에 있어요. **여기를 고치면 그걸 쓰는 함수를 전부 다시 배포해야 해요.**
-- **자동 실행(pg_cron) 4개:** `expo-receipt-poller-15min`, `push-retry-worker-hourly`, `push-cleanup-daily`, `deadline-reminder-daily`(UTC 9시 = 일본 18시)
+- **자동 실행(pg_cron) 5개:** `expo-receipt-poller-15min`, `push-retry-worker-hourly`, `push-cleanup-daily`, `deadline-reminder-daily`(UTC 9시 = 일본 18시), `health-check-daily`(UTC 0시 = 일본 9시)
 - **사진 저장소:** `post-images` 버킷(공개 읽기)
 - **DB 변경 기록:** `supabase/migrations/`, 전체 구조 참고용은 `schema.sql`
 
@@ -240,7 +241,8 @@ manaba 새 공지/과제
   - **학기 시작 직후(4월·9~10월):** 학교가 사이트를 바꾸면 manaba 공지 읽기와 kaede-i 시간표·교실 읽기가 **아무 오류 없이 조용히 깨져요.** 이게 유지보수 1순위예요.
   - **매주:** 서버 함수 오류 기록, Supabase 보안·성능 경고(advisors), 푸시 재시도 쌓임, `support@unipas.app` 문의와 스토어 리뷰
   - **반기:** Expo SDK·라이브러리 업데이트, Apple·Google 정책 변경
-  - 오류 자동 수집 도구(Sentry 등)는 아직 없어요.
+  - **건강검진(매일 자동):** 위 항목 대부분을 `health-check`가 매일 아침 점검해서 요약 메일로 보내요. 🔴는 폰 푸시로 와요. 점검 목록은 `supabase/functions/health-check/checks.js`이고, 새 고장을 겪으면 여기에 하나씩 추가해요.
+  - 앱 오류 자동 수집 도구(Sentry 등)는 아직 없어요.
 - **실기 확인 원칙:** 내 폰 1대로는 검증이 아니에요. iOS와 Android를 각각 최소 1대씩 확인해요. **기기 문제와 학교 문제는 별개**예요. 안드로이드 키보드 문제는 모든 학교에 생기고, 학교 사이트 문제는 그 학교에만 생겨요.
 - **삭제 금지 계정:** `appreview@kokushikan.ac.jp`(App Store 심사 데모), `e2etest@kokushikan.ac.jp`(자동 시험), `seed01~08@unione.local`(게시판 콘텐츠 작성자)
 - **스토어 제출 때 쓰는 문서:** `docs/app-store-listing.md`, `docs/app-store-review-notes.md`, `docs/app-store-privacy.md`, `docs/google-play-listing.md`, `docs/google-play-data-safety.md`

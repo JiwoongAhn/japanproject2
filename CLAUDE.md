@@ -103,6 +103,16 @@ TestFlight·Xcode로 설치한 앱은 App Store 업데이트가 영구히 안 �
 
 ---
 
+# 건강검진 (장애 감지)
+
+- 매일 JST 09:00 `health-check` 함수가 점검 → 🔴는 개발자 폰 푸시, 매일 요약 메일. 점검 목록 = `supabase/functions/health-check/checks.js`, 숫자 = DB 함수 `health_snapshot()`, 기록 = `health_check_runs`
+- 시크릿: `OPS_EMAIL`(요약 메일 받는 곳) · `OPS_USER_ID`(푸시 받을 개발자 계정) · `HEARTBEAT_URL`(선택, UptimeRobot)
+- 호출 확인: pg_cron이 공개 열쇠(anon)로 부르므로 Vault 암호 `health_check_secret`을 `x-health-secret` 헤더로 확인. 시험 실행(저장·알림 없음) = 주소에 `?notify=0`
+- **⚠️ 버그를 고친 뒤 반드시:** 그 고장이 `checks.js`로 잡혔을지 따져 보고, 안 잡혔다면 사용자에게 **"이 고장을 건강검진 점검 목록에 추가할까요?"**라고 먼저 묻는다. 감지 방법(어떤 숫자가 어떻게 되면 🔴/🟠인지)을 한 줄로 함께 제안. 승인되면 `checks.js` 파일 머리말의 「새 점검 추가하는 법」 3단계대로 추가
+- 만료일 처리를 끝내면 `checks.js`의 `DEADLINES`에서 지운다 (안 지우면 매일 🔴)
+
+---
+
 # 새 학교 추가 체크리스트
 
 > 학교별 LMS·시간표 시스템 = `docs/university-lms-profiles.md`, 이용규정 = `docs/university-tos-review.md`
