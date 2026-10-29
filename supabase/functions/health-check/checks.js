@@ -184,6 +184,20 @@ export const CHECKS = [
     },
   },
   {
+    id: 'identity-mismatch',
+    title: '학교 판정 방어 장치',
+    since: '2026-10-29 보안 수정 1 — 학생이 프로필의 학교를 바꿔 다른 학교 게시판·메일을 볼 수 있었다',
+    run(snap) {
+      if (snap.identity_mismatch == null) return ok('확인 불가 (snapshot 에 칸 없음)');
+      const n = num(snap.identity_mismatch);
+      if (n === 0) return ok('모든 계정의 학교가 메일 도메인과 일치');
+      return {
+        level: 'critical',
+        message: `메일 도메인과 학교가 다른 계정 ${n}개 — 다른 학교 열람 방어가 깨졌을 수 있음 (guard_profile_identity 트리거 확인)`,
+      };
+    },
+  },
+  {
     id: 'activity',
     title: '어제 하루 활동',
     since: '2026-10-29 초기 목록 — 참고용',

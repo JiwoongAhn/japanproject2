@@ -27,6 +27,7 @@ const healthy = (over = {}) => ({
   ),
   http_errors_recent: 0,
   reports_24h: 0,
+  identity_mismatch: 0,
   signups_24h: 1,
   posts_24h: 2,
   db_size_mb: 55,
@@ -126,6 +127,10 @@ describe('푸시·신고·용량·만료일', () => {
   });
   test('HC-51 신고가 있으면 🟠', () => {
     expect(levelOf(healthy({ reports_24h: 1 }), 'reports')).toBe('warn');
+  });
+  test('HC-54 메일 도메인과 학교가 다른 계정이 1개라도 생기면 🔴 (보안 수정 1 방어 장치)', () => {
+    expect(levelOf(healthy(), 'identity-mismatch')).toBe('ok');
+    expect(levelOf(healthy({ identity_mismatch: 1 }), 'identity-mismatch')).toBe('critical');
   });
   test('HC-52 용량 400MB 🟠 / 475MB 🔴', () => {
     expect(levelOf(healthy({ db_size_mb: 410 }), 'db-size')).toBe('warn');
