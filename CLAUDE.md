@@ -61,6 +61,8 @@ japanproject/
 - **인증:** 학교 이메일 → `signInWithOtp()` → `verifyOtp()`. SMTP = Resend (`noreply@unipas.app`), 도메인 Cloudflare 관리
 - **Storage:** `post-images` 버킷 (public read, 5MB)
 - **RLS:** 게시판·평가는 `university = get_my_university()` 완전일치 (`国士舘`의 舘/館 한 글자 차이로도 안 보임)
+- **학교 판정(2026-10-29~):** 서버가 가입 메일 도메인으로 정한다(`university_domains`). 지원 안 하는 도메인은 가입 자체를 거절(`handle_new_user`), 프로필의 `university`·`school_email`·`student_id`는 학생이 바꿔도 트리거(`guard_profile_identity`)가 되돌린다
+- **수정 가능한 칸은 허용 목록(column grant):** 글 = 제목·본문·사진, 평가 = 별점·후기·태그, 공지 = 읽음만. 앱에서 새 칸을 저장하게 되면 마이그레이션에서 grant 추가 (안 하면 `permission denied`)
 
 **인증 화면 흐름:**
 ```
@@ -128,6 +130,7 @@ TestFlight·Xcode로 설치한 앱은 App Store 업데이트가 영구히 안 �
 - [ ] `id`, `name`, `location`, `emailDomain`, `campuses`
 - [ ] `periodRanges`: 학교 공식 「時限 時間割」 (없으면 생략 → 국사관 기본값)
 - [ ] `emailLocalHint`/`emailNote`: 로그인 ID와 메일 주소가 다른 학교만 (예: 明治)
+- [ ] **DB `university_domains`에 `('도메인', '학교명')` 추가하는 새 마이그레이션** — 빠뜨리면 그 학교는 가입이 거절된다 (Jest `US-DOM`이 잡음)
 
 **`src/constants/universityLinks.js`** (필드 설명은 파일 헤더 주석)
 - [ ] `homepageUrl`: 필수
