@@ -83,6 +83,21 @@ export async function registerPushToken({ prompt = true } = {}) {
 }
 
 /**
+ * 지금 알림 권한 상태 — { status: 'granted'|'denied'|'undetermined', canAskAgain }
+ * 홈의 「通知がオフ」 안내가 「허용 팝업」과 「설정 앱 열기」 중 무엇을 할지 고르는 데 쓴다.
+ * 실기기가 아니거나 오류면 null.
+ */
+export async function getPushPermission() {
+  if (!Device.isDevice) return null;
+  try {
+    const { status, canAskAgain } = await Notifications.getPermissionsAsync();
+    return { status, canAskAgain };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * 푸시 알림 리스너 등록
  * @param {function} onNotificationTap - 사용자가 푸시를 탭했을 때 콜백 ({ noticeId, noticeUrl, subject, bodyHtml })
  * @returns {function} cleanup 함수 — useEffect return 용

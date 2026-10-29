@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  AppState,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -27,7 +29,13 @@ import {
   resolveManabaSetupStage,
   shouldShowSetupBanner,
   getSetupBannerCopy,
+  getSetupSheetCopy,
+  shouldPromptSetup,
+  resolvePushAction,
 } from '../utils/manabaSetupStatus';
+import SetupPromptSheet from '../components/SetupPromptSheet';
+import { registerPushToken, getPushPermission } from '../lib/notifications';
+import { DEMO_EMAIL } from '../constants/demo';
 import { useAppUpdate } from '../hooks/useAppUpdate';
 import UpdateBanner from '../components/UpdateBanner';
 import StoreUpdateModal from '../components/StoreUpdateModal';
@@ -35,11 +43,29 @@ import { universities } from '../constants/universities';
 import ManabaNoticePreview from '../components/ManabaNoticePreview';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
+// 이번 앱 실행에서 「まだ終わっていない設定」 안내 창을 이미 띄웠는가 (앱을 새로 켜면 false 로 시작)
+let setupPromptShownThisLaunch = false;
+
+// 알림 주소(push token) 등록 — 실패해도 홈은 계속 (getExpoPushTokenAsync 는 네트워크 오류로 throw 할 수 있다)
+async function tryRegisterPush(prompt) {
+  try {
+    return await registerPushToken({ prompt });
+  } catch {
+    return null;
+  }
+}
+
 export default function HomeScreen({ navigation }) {
   const { handleScroll } = useTabBarScroll();
   const [todayCourses, setTodayCourses] = useState([]);
   // manaba 통지 설정 상태 (⑤ 미완료 배너용) — { hasSubscription, verifiedAt, pushTokenCount }
   const [manabaSetup, setManabaSetup] = useState(null);
+  // 알림 권한 { status, canAskAgain } — 「通知をオンにする」가 허용 팝업/설정 앱 중 무엇을 할지 정한다
+  const [pushPermission, setPushPermission] = useState(null);
+  const [setupSheetVisible, setSetupSheetVisible] = useState(false);
+  // 다른 앱에 가 있던 시간 — 30분 이상이면 돌아왔을 때 안내 창을 다시 띄운다
+  const backgroundAtRef = useRef(null);
+  const backgroundedMsRef = useRef(0);
   // 현재 학기가 아닌 학기의 시간표를 보여주는 중이면 그 학기 코드 (② 대응)
   const [termFallback, setTermFallback] = useState(null);
   const [upcomingAssignments, setUpcomingAssignments] = useState([]);
@@ -140,10 +166,18 @@ export default function HomeScreen({ navigation }) {
           supabase.from('mail_subscriptions').select('verified_at').eq('user_id', user.id).maybeSingle(),
           supabase.from('push_tokens').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         ]);
+        let pushTokenCount = tokenRes.count ?? 0;
+        // 알림 주소가 없으면 권한을 확인한다. 이미 허용돼 있으면(설정 앱에서 나중에 켠 경우 등) 여기서 조용히 등록한다.
+        //   예전에는 로그인할 때만 등록해서, 나중에 알림을 켜도 다시 로그인하기 전까지 통지가 오지 않았다.
+        if (pushTokenCount === 0) {
+          const permission = await getPushPermission();
+          setPushPermission(permission);
+          if (permission?.status === 'granted' && (await tryRegisterPush(false))) pushTokenCount = 1;
+        }
         setManabaSetup({
           hasSubscription: !!subRes.data,
           verifiedAt: subRes.data?.verified_at ?? null,
-          pushTokenCount: tokenRes.count ?? 0,
+          pushTokenCount,
         });
       }
     } catch {
@@ -159,6 +193,21 @@ export default function HomeScreen({ navigation }) {
     const unsubscribe = navigation.addListener('focus', fetchAll);
     return unsubscribe;
   }, [navigation, fetchAll]);
+
+  // 앱이 다시 앞으로 오면 설정 상태를 새로 읽는다 (설정 앱에서 알림을 켜고 돌아온 경우 바로 반영)
+  // 30분 이상 비웠다 돌아온 것이면 안내 창도 다시 띄울 수 있게 기록한다
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'background') {
+        backgroundAtRef.current = Date.now();
+      } else if (next === 'active' && backgroundAtRef.current) {
+        backgroundedMsRef.current = Date.now() - backgroundAtRef.current;
+        backgroundAtRef.current = null;
+        fetchAll();
+      }
+    });
+    return () => sub.remove();
+  }, [fetchAll]);
 
   // 온보딩 마지막에 "manaba通知を設定する"를 선택했으면, 홈 최초 진입 시 1회 자동으로
   // manaba 연결 화면을 연다. (플래그는 즉시 지워 재진입 시 반복되지 않게 함)
@@ -177,6 +226,9 @@ export default function HomeScreen({ navigation }) {
       // manaba를 쓰지 않는 학교에서는 열지 않는다.
       // (열면 국사관 manaba 리마인더 설정으로 이어져, 그 학교 학생에게는 무의미하다)
       if (!myLinks.manabaUrl) return;
+      // 설정 화면이 바로 열리므로 「まだ終わっていない設定」 안내 창은 이번 실행에서 띄우지 않는다
+      setupPromptShownThisLaunch = true;
+      setSetupSheetVisible(false);
       navigation.navigate('MailConnectOnboarding', { mode: 'settings' });
     });
     return () => { alive = false; };
@@ -264,6 +316,39 @@ export default function HomeScreen({ navigation }) {
   const setupBanner = manabaSetup && shouldShowSetupBanner(setupStage)
     ? getSetupBannerCopy(setupStage)
     : null;
+  const pushAction = resolvePushAction(pushPermission);
+  const setupSheetCopy = getSetupSheetCopy(setupStage, pushAction);
+
+  // 안내 창: 앱을 새로 켰을 때 / 30분 이상 비웠다 돌아왔을 때만 (탭 이동으로는 안 뜬다)
+  //   심사 데모 계정은 띄우지 않는다 (홈 배너는 그대로) · 스토어 업데이트 창과 겹치지 않게
+  useEffect(() => {
+    if (!manabaSetup || !userEmail || userEmail === DEMO_EMAIL || updateKind === 'store') return;
+    const backgroundedMs = backgroundedMsRef.current;
+    backgroundedMsRef.current = 0;
+    if (shouldPromptSetup({ stage: setupStage, coldStart: !setupPromptShownThisLaunch, backgroundedMs })) {
+      setupPromptShownThisLaunch = true;
+      setSetupSheetVisible(true);
+    }
+  }, [manabaSetup, setupStage, userEmail, updateKind]);
+
+  // 안내 창·홈 배너 공통: 단계에 맞는 곳으로 보낸다
+  //   none → 메일 연결 온보딩(처음부터) / pending → 주소·설정 가이드 / no-push → 허용 팝업 또는 설정 앱
+  //   (예전 no-push 배너는 마이페이지로만 가서, 알림을 켤 방법이 없었다)
+  const handleSetupAction = async () => {
+    setSetupSheetVisible(false);
+    if (setupStage === 'none') {
+      navigation.navigate('MailConnectOnboarding');
+    } else if (setupStage === 'pending') {
+      navigation.navigate('MailConnectOnboarding', { mode: 'settings' });
+    } else if (setupStage === 'no-push') {
+      if (pushAction === 'settings') {
+        Linking.openSettings().catch(() => {});
+        return; // 돌아오면 AppState → fetchAll 이 등록·반영한다
+      }
+      await tryRegisterPush(pushAction === 'ask');
+      fetchAll();
+    }
+  };
 
   // 課題: 마감 임박 과제 수 + 가장 가까운 1개의 D-day
   const nearestAssignment = upcomingAssignments[0] ?? null;
@@ -322,10 +407,7 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity
             style={styles.setupBanner}
             activeOpacity={0.85}
-            onPress={() => {
-              if (setupStage === 'no-push') navigation.navigate('Profile');
-              else navigation.navigate('MailConnectOnboarding', { mode: 'settings' });
-            }}
+            onPress={handleSetupAction}
           >
             <View style={styles.setupBannerIcon}>
               <Ionicons name="alert-circle" size={22} color={colors.warning ?? '#F59E0B'} />
@@ -532,6 +614,12 @@ export default function HomeScreen({ navigation }) {
       </ScrollView>
 
       {/* ── 📦 네이티브 업데이트 모달 (App Store 로 이동) ── */}
+      <SetupPromptSheet
+        visible={setupSheetVisible}
+        copy={setupSheetCopy}
+        onAction={handleSetupAction}
+        onLater={() => setSetupSheetVisible(false)}
+      />
       <StoreUpdateModal
         visible={updateKind === 'store'}
         storeVersion={storeVersion}

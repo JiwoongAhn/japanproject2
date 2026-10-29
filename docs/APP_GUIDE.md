@@ -65,6 +65,7 @@ iOS·Android 출시 중(현재 1.0.4). 가입 사용자 22명(国士舘大学 19
 ### 🏠 ホーム(홈)
 - 하는 일: 오늘 수업, 課題 칸, manaba 새 공지 미리보기, 학교 사이트 바로가기, 업데이트 안내 배너를 보여줘요.
 - 파일: `HomeScreen.js`, 공지 카드 `components/ManabaNoticePreview.js`, 업데이트 배너 `components/UpdateBanner.js`
+- manaba 통지 미완료 안내: 설정을 끝내지 않은 학생(미시작·중간·알림 꺼짐)에게 앱을 새로 켜거나 30분 이상 비웠다 돌아오면 아래에서 안내 창(`components/SetupPromptSheet.js`)을 띄우고, 「あとで」 뒤엔 홈 배너만 남겨요. 단계 판정·문구·빈도는 `utils/manabaSetupStatus.js`. 알림이 꺼진 사람은 허용 팝업 또는 설정 앱으로 바로 보내고, 홈에 올 때 권한이 허용돼 있으면 알림 주소를 조용히 등록해요.
 - 서버: `manaba_notices` 표(받은 공지), `courses` 표(오늘 수업)
 
 ### 📅 時間割(시간표)
