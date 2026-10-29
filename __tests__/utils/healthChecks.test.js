@@ -28,6 +28,7 @@ const healthy = (over = {}) => ({
   http_errors_recent: 0,
   reports_24h: 0,
   identity_mismatch: 0,
+  manaba_setup_stages: { none: 7, pending: 8, no_push: 6, ready: 4 },
   signups_24h: 1,
   posts_24h: 2,
   db_size_mb: 55,
@@ -131,6 +132,14 @@ describe('푸시·신고·용량·만료일', () => {
   test('HC-54 메일 도메인과 학교가 다른 계정이 1개라도 생기면 🔴 (보안 수정 1 방어 장치)', () => {
     expect(levelOf(healthy(), 'identity-mismatch')).toBe('ok');
     expect(levelOf(healthy({ identity_mismatch: 1 }), 'identity-mismatch')).toBe('critical');
+  });
+  test('HC-55 manaba 통지 설정 단계: 10/29 대비 증감을 참고로 보여준다', () => {
+    const r = runChecks(healthy({ manaba_setup_stages: { none: 5, pending: 6, no_push: 3, ready: 11 } }), { now: NOW })
+      .results.find((x) => x.id === 'manaba-setup-funnel');
+    expect(r.level).toBe('info');
+    expect(r.message).toContain('미시작 5 (-2)');
+    expect(r.message).toContain('정상 11 (+7)');
+    expect(r.message).toContain('전체 25명');
   });
   test('HC-52 용량 400MB 🟠 / 475MB 🔴', () => {
     expect(levelOf(healthy({ db_size_mb: 410 }), 'db-size')).toBe('warn');

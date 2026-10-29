@@ -38,6 +38,14 @@ export const DEADLINES = [
   { date: '2028-08-18', what: 'Anthropic API 키 교체 (Supabase 시크릿 ANTHROPIC_API_KEY)' },
 ];
 
+// manaba 통지 설정 단계별 인원의 기준점 — 2026-10-29 안내 창 OTA 직전 (manaba 학교 실사용자 25명)
+export const SETUP_BASELINE = {
+  none: { label: '미시작', count: 7 },
+  pending: { label: '중간', count: 8 },
+  no_push: { label: '알림 꺼짐', count: 6 },
+  ready: { label: '정상', count: 4 },
+};
+
 function jstMonth(now) {
   return new Date(now.getTime() + JST_MS).getUTCMonth() + 1;
 }
@@ -195,6 +203,22 @@ export const CHECKS = [
         level: 'critical',
         message: `메일 도메인과 학교가 다른 계정 ${n}개 — 다른 학교 열람 방어가 깨졌을 수 있음 (guard_profile_identity 트리거 확인)`,
       };
+    },
+  },
+  {
+    id: 'manaba-setup-funnel',
+    title: 'manaba 통지 설정 단계',
+    since: '2026-10-30 — 10/29 OTA 「まだ終わっていない設定」 안내 창의 효과를 매일 본다 (manaba 학교 실사용자)',
+    run(snap) {
+      const st = snap.manaba_setup_stages;
+      if (!st) return ok('확인 불가 (snapshot 에 칸 없음)');
+      const parts = Object.entries(SETUP_BASELINE).map(([key, { label, count }]) => {
+        const n = num(st[key]);
+        const diff = n - count;
+        return `${label} ${n}${diff === 0 ? '' : ` (${diff > 0 ? '+' : ''}${diff})`}`;
+      });
+      const total = Object.keys(SETUP_BASELINE).reduce((sum, k) => sum + num(st[k]), 0);
+      return { level: 'info', message: `${parts.join(' · ')} / 전체 ${total}명 — 괄호는 10/29 대비` };
     },
   },
   {
