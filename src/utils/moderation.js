@@ -17,14 +17,14 @@ export async function reportContent(table, idColumn, contentId, reason) {
   return { ok: true };
 }
 
-// 사용자 차단. 중복(이미 차단)은 성공 취급. 본인은 차단 불가.
-export async function blockUser(blockedId) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'auth' };
-  if (user.id === blockedId) return { ok: false, error: 'self' };
-  const { error } = await supabase
-    .from('user_blocks')
-    .insert({ blocker_id: user.id, blocked_id: blockedId });
-  if (error && error.code !== '23505') return { ok: false, error: error.message };
-  return { ok: true };
+// 「이 글/댓글을 쓴 사람」 차단 (2026-11-18 보안 A1)
+//   익명 작성자의 ID 는 앱에 오지 않으므로, 글 ID 를 넘기면 서버(block_author)가 작성자를 찾아 차단한다.
+//   kind: 'post' | 'post_comment' | 'review' | 'review_comment'
+//   중복(이미 차단)은 성공 취급. 본인 글은 'self'.
+export async function blockAuthor(kind, contentId) {
+  if (!contentId) return { ok: false, error: 'not_found' };
+  const { data, error } = await supabase.rpc('block_author', { p_kind: kind, p_id: contentId });
+  if (error) return { ok: false, error: error.message };
+  if (data === 'ok') return { ok: true };
+  return { ok: false, error: data ?? 'unknown' };
 }

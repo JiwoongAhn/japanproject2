@@ -74,7 +74,7 @@ export default function CourseReviewScreen({ navigation }) {
 
   const fetchReviews = useCallback(async () => {
     const { data, error } = await supabase
-      .from('course_reviews')
+      .from('course_reviews_v') // 가린 창구 (보안 A1)
       .select('*')
       .order('created_at', { ascending: false });
 

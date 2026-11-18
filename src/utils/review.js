@@ -31,7 +31,7 @@ export function addCustomTag(tag, selectedTags) {
 // userId: 현재 로그인 사용자 UUID
 export async function getMyReviews(userId) {
   const { data, error } = await supabase
-    .from('course_reviews')
+    .from('course_reviews_v') // 가린 창구 (보안 A1) — 내 평가는 user_id 가 그대로 와서 eq 가 동작
     .select('id, course_name, professor_name, rating, comment, tags, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });

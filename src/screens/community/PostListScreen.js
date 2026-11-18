@@ -78,7 +78,7 @@ export default function PostListScreen({ navigation }) {
     }
 
     let query = supabase
-      .from('posts')
+      .from('posts_v') // 가린 창구 (보안 A1)
       .select('*, post_comments(count)')
       .eq('university', universityName)
       .order('created_at', { ascending: false })
@@ -130,7 +130,7 @@ export default function PostListScreen({ navigation }) {
   const fetchHot = useCallback(async () => {
     if (!universityName || searchText.trim()) return; // 검색 중엔 화면에서 칸을 숨긴다
     let query = supabase
-      .from('posts')
+      .from('posts_v') // 가린 창구 (보안 A1)
       .select('*, post_comments(count)')
       .eq('university', universityName)
       .gte('created_at', new Date(Date.now() - HOT_FALLBACK_DAYS * 86400000).toISOString())
@@ -164,7 +164,7 @@ export default function PostListScreen({ navigation }) {
   const refreshLoaded = useCallback(async () => {
     if (!universityName || postsCountRef.current === 0) return;
     let query = supabase
-      .from('posts')
+      .from('posts_v') // 가린 창구 (보안 A1)
       .select('*, post_comments(count)')
       .eq('university', universityName)
       .order('created_at', { ascending: false })

@@ -62,6 +62,7 @@ japanproject/
 - **Storage:** `post-images` 버킷 (public read, 5MB)
 - **RLS:** 게시판·평가는 `university = get_my_university()` 완전일치 (`国士舘`의 舘/館 한 글자 차이로도 안 보임)
 - **학교 판정(2026-10-29~):** 서버가 가입 메일 도메인으로 정한다(`university_domains`). 지원 안 하는 도메인은 가입 자체를 거절(`handle_new_user`), 프로필의 `university`는 학생이 바꿔도 트리거(`guard_profile_identity`)가 되돌린다. `school_email`·`student_id`는 같은 학교 학생에게 보이므로 항상 비운다(2026-11-18~, 옛 값은 학생 접근 불가 `profiles_private`에 보관). 로그인 메일이 필요하면 `auth.users`/세션에서 읽을 것
+- **게시판·講義評価 읽기는 「가린 창구」 view로 (2026-11-18~, 보안 A1):** `posts_v`·`post_comments_v`·`course_reviews_v`·`course_review_comments_v`. 익명 글의 남의 `user_id`는 null, 대신 `is_mine`·`is_post_author`. 쓰기(작성·수정·삭제)는 원래 표. 작성자 차단은 `block_author(kind, id)` RPC. 원래 표를 직접 읽는 새 코드 금지 (2단계에서 원래 표의 `user_id` 읽기 권한을 회수함)
 - **수정 가능한 칸은 허용 목록(column grant):** 글 = 제목·본문·사진, 평가 = 별점·후기·태그, 공지 = 읽음만. 앱에서 새 칸을 저장하게 되면 마이그레이션에서 grant 추가 (안 하면 `permission denied`)
 
 **인증 화면 흐름:**

@@ -15,7 +15,7 @@ import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { supabase } from '../../lib/supabase';
 import { deleteReview } from '../../utils/review';
-import { reportContent, blockUser } from '../../utils/moderation';
+import { reportContent, blockAuthor } from '../../utils/moderation';
 import Card from '../../components/Card';
 import AppTextInput from '../../components/AppTextInput';
 import KeyboardAwareScrollView from '../../components/KeyboardAwareScrollView';
@@ -73,7 +73,7 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
       setCurrentUserId(user?.id ?? null);
 
       let query = supabase
-        .from('course_reviews')
+        .from('course_reviews_v') // 가린 창구 (보안 A1) — 내 평가는 is_mine 으로 판정
         .select('*')
         .eq('course_name', courseName)
         .order('created_at', { ascending: false });
@@ -220,7 +220,7 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
         'ユーザーをブロック', 'このユーザーのコメントが表示されなくなります。', [
           { text: 'キャンセル', style: 'cancel' },
           { text: 'ブロック', style: 'destructive', onPress: async () => {
-            const r = await blockUser(comment.user_id);
+            const r = await blockAuthor('review_comment', comment.id);
             if (r.ok) { Alert.alert('ブロックしました'); fetchReviews(); }
             else Alert.alert('お知らせ', 'ブロックできませんでした');
           } },
@@ -247,7 +247,7 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
         'ユーザーをブロック', 'このユーザーの評価が表示されなくなります。', [
           { text: 'キャンセル', style: 'cancel' },
           { text: 'ブロック', style: 'destructive', onPress: async () => {
-            const r = await blockUser(review.user_id);
+            const r = await blockAuthor('review', review.id);
             if (r.ok) { Alert.alert('ブロックしました'); fetchReviews(); }
             else Alert.alert('お知らせ', 'ブロックできませんでした');
           } },
@@ -322,7 +322,7 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
             <>
               <Text style={styles.listLabel}>みんなの評価</Text>
               {reviews.map((review) => {
-                const isMyReview = currentUserId && review.user_id === currentUserId;
+                const isMyReview = !!review.is_mine;
                 return (
                   <View key={review.id} style={styles.reviewCardWrap}>
                     <Card>
@@ -386,7 +386,7 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
                             {expanded && (
                               <View style={styles.commentBody}>
                                 {comments.map((c) => {
-                                  const isMine = currentUserId && c.user_id === currentUserId;
+                                  const isMine = !!c.is_mine;
                                   return (
                                     <View key={c.id} style={styles.commentRow}>
                                       <View style={styles.commentTextWrap}>

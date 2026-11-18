@@ -28,7 +28,7 @@ import { supabase } from '../../lib/supabase';
 import { isBookmarked, addBookmark, removeBookmark } from '../../utils/bookmarks';
 import { deleteImagesFromStorage } from '../../utils/imageUpload';
 import { findProfanity } from '../../utils/profanity';
-import { reportContent, blockUser } from '../../utils/moderation';
+import { reportContent, blockAuthor } from '../../utils/moderation';
 import LinkifiedText from '../../components/LinkifiedText';
 
 // 시간 경과 표시
@@ -76,9 +76,10 @@ export default function PostDetailScreen({ navigation, route }) {
     if (user) setCurrentUserId(user.id);
 
     const [postRes, commentsRes, likeRes, commentLikesRes, bookmarkRes] = await Promise.all([
-      supabase.from('posts').select('*').eq('id', postId).single(),
+      // 읽기는 「가린 창구」 view — 익명 글의 작성자 ID 는 오지 않고 is_mine·is_post_author 로 판정 (보안 A1)
+      supabase.from('posts_v').select('*').eq('id', postId).single(),
       supabase
-        .from('post_comments')
+        .from('post_comments_v')
         .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: true }),
@@ -195,7 +196,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
   // ··· 메뉴 (내 글: 수정/삭제 / 타인 글: 신고)
   const handleMenu = () => {
-    const isMyPost = post && currentUserId && post.user_id === currentUserId;
+    const isMyPost = !!post?.is_mine;
     if (isMyPost) {
       Alert.alert('投稿の管理', '', [
         {
@@ -264,16 +265,16 @@ export default function PostDetailScreen({ navigation, route }) {
     else Alert.alert('エラー', '通報に失敗しました');
   };
 
-  // 사용자 차단 확인 → 성공 시 목록으로
-  const confirmBlockUser = (blockedId) => {
-    if (!blockedId) return;
+  // 작성자 차단 확인 → 성공 시 목록으로 (kind·contentId 로 서버가 작성자를 찾는다)
+  const confirmBlockUser = (kind, contentId) => {
+    if (!contentId) return;
     Alert.alert('ユーザーをブロック', 'このユーザーの投稿・コメントが表示されなくなります。', [
       { text: 'キャンセル', style: 'cancel' },
       {
         text: 'ブロック',
         style: 'destructive',
         onPress: async () => {
-          const r = await blockUser(blockedId);
+          const r = await blockAuthor(kind, contentId);
           if (r.ok) {
             Alert.alert('ブロックしました');
             navigation.goBack();
@@ -291,7 +292,7 @@ export default function PostDetailScreen({ navigation, route }) {
       { text: '通報する', onPress: () => promptReportReason(async (reason) => {
         notifyReportResult(await reportContent('post_reports', 'post_id', postId, reason));
       }) },
-      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlockUser(post?.user_id) },
+      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlockUser('post', post?.id) },
       { text: 'キャンセル', style: 'cancel' },
     ]);
   };
@@ -302,7 +303,7 @@ export default function PostDetailScreen({ navigation, route }) {
       { text: '通報する', onPress: () => promptReportReason(async (reason) => {
         notifyReportResult(await reportContent('comment_reports', 'comment_id', comment.id, reason));
       }) },
-      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlockUser(comment.user_id) },
+      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlockUser('post_comment', comment.id) },
       { text: 'キャンセル', style: 'cancel' },
     ]);
   };
@@ -334,13 +335,15 @@ export default function PostDetailScreen({ navigation, route }) {
         body: commentText.trim(),
         is_anonymous: isAnonymous,
       })
-      .select()
+      // 작성자 ID 는 돌려받지 않는다 (2단계에서 원래 표의 user_id 읽기를 막아도 깨지지 않게)
+      .select('id, post_id, body, is_anonymous, created_at, like_count, is_hidden')
       .single();
 
     if (error) {
       Alert.alert('エラー', 'コメントの投稿に失敗しました');
     } else {
-      setComments(prev => [...prev, data]);
+      // view 와 같은 모양으로 맞춘다 (내 댓글 → 내 ID 는 보여도 된다)
+      setComments(prev => [...prev, { ...data, user_id: user.id, is_mine: true, is_post_author: !!post?.is_mine }]);
       setCommentText('');
       // 댓글 작성 후 스크롤 아래로
       setTimeout(() => {
@@ -491,7 +494,7 @@ export default function PostDetailScreen({ navigation, route }) {
                   >
                     <View style={styles.commentHeader}>
                       {/* 글쓴이 본인이 단 댓글은 "作成者" 뱃지로 구분 (제3자가 익명이용자와 구별) */}
-                      {post && comment.user_id === post.user_id ? (
+                      {comment.is_post_author ? (
                         <View style={styles.authorBadge}>
                           <Text style={styles.authorBadgeText}>作成者</Text>
                         </View>
@@ -504,7 +507,7 @@ export default function PostDetailScreen({ navigation, route }) {
                       )}
                       <View style={styles.commentHeaderRight}>
                         <Text style={styles.commentTime}>{formatTimeAgo(comment.created_at)}</Text>
-                        {comment.user_id !== currentUserId && (
+                        {!comment.is_mine && (
                           <TouchableOpacity
                             onPress={() => handleCommentMenu(comment)}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

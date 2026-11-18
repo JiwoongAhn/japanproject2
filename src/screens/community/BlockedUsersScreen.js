@@ -27,7 +27,7 @@ export default function BlockedUsersScreen({ navigation }) {
     if (!user) { setLoading(false); return; }
     const { data } = await supabase
       .from('user_blocks')
-      .select('id, blocked_id, created_at')
+      .select('id, created_at') // 차단한 사람의 ID 는 읽지 않는다 — 익명 작성자 신원 노출 방지 (보안 A1)
       .eq('blocker_id', user.id)
       .order('created_at', { ascending: false });
     setBlocks(data ?? []);

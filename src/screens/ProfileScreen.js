@@ -96,7 +96,7 @@ export default function ProfileScreen({ navigation }) {
       // 내가 올린 게시글 불러오기
       setPostsLoading(true);
       const { data: posts } = await supabase
-        .from('posts')
+        .from('posts_v') // 가린 창구 (보안 A1)
         .select('id, title, category, created_at, like_count, post_comments(count)')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -263,7 +263,7 @@ export default function ProfileScreen({ navigation }) {
       fetchForwardStatus();
       fetchPushStatus();
       const { data: posts } = await supabase
-        .from('posts')
+        .from('posts_v') // 가린 창구 (보안 A1)
         .select('id, title, category, created_at, like_count, post_comments(count)')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })

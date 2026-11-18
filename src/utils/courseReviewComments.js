@@ -32,7 +32,7 @@ export function validateComment(text, sending = false) {
 export async function fetchCommentsByReviewIds(reviewIds) {
   if (!Array.isArray(reviewIds) || reviewIds.length === 0) return {};
   const { data, error } = await supabase
-    .from('course_review_comments')
+    .from('course_review_comments_v') // 가린 창구 (보안 A1) — 내 댓글은 is_mine
     .select('*')
     .in('review_id', reviewIds)
     .order('created_at', { ascending: true }); // 대화 순서대로 위에서 아래로
@@ -58,10 +58,11 @@ export async function addComment(reviewId, body) {
   const { data, error } = await supabase
     .from('course_review_comments')
     .insert({ review_id: reviewId, user_id: user.id, body })
-    .select()
+    // 작성자 ID 는 돌려받지 않는다 (2단계에서 원래 표의 user_id 읽기를 막아도 깨지지 않게)
+    .select('id, review_id, body, is_anonymous, is_hidden, created_at')
     .single();
   if (error) throw error;
-  return data;
+  return { ...data, user_id: user.id, is_mine: true }; // view 와 같은 모양
 }
 
 // 댓글 삭제(본인 것만 — 실제 제한은 RLS 가 건다)

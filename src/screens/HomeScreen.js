@@ -143,7 +143,7 @@ export default function HomeScreen({ navigation }) {
         // 최신 게시글 3개 — 본인 대학 게시글만
         myUniversity
           ? supabase
-              .from('posts')
+              .from('posts_v') // 가린 창구 (보안 A1)
               .select('*, post_comments(count)')
               .eq('university', myUniversity)
               .order('created_at', { ascending: false })

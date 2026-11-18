@@ -31,14 +31,14 @@ export default function MyPostsScreen({ navigation }) {
 
     // 게시판 글 조회
     const { data: postData } = await supabase
-      .from('posts')
+      .from('posts_v') // 가린 창구 (보안 A1) — 내 글은 user_id 가 그대로 와서 아래 eq 가 동작
       .select('id, title, category, created_at, like_count, post_comments(count), body')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
     // 내가 쓴 댓글 조회 (원글 제목/카테고리 조인 → 어느 글의 댓글인지 표시)
     const { data: commentData } = await supabase
-      .from('post_comments')
+      .from('post_comments_v')
       .select('id, body, created_at, post_id, posts(title, category)')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
