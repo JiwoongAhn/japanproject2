@@ -64,7 +64,7 @@ async function ensureTestUser() {
     id: userId,
     university: TEST_UNIVERSITY,
     nickname: TEST_NICKNAME,
-    school_email: TEST_USER_EMAIL,
+    // school_email 은 넣지 않는다 — 프로필은 같은 학교 학생에게 보이므로 항상 비워 둔다 (2026-11-18 보안 A2, 건강검진 profile-pii)
   }, { onConflict: 'id' });
   if (profileError) throw new Error(`profiles upsert 실패: ${profileError.message}`);
 
