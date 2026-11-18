@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { isCronAllowed, forbidden } from '../_shared/cronAuth.ts';
 import { runDeadlineReminders } from '../_shared/deadlineReminder.js';
 
 // 締切 3日前·前日 알림 — pg_cron 이 매일 09:00 UTC(= JST 18:00) 에 호출한다 (job: deadline-reminder-daily)
@@ -6,7 +7,9 @@ import { runDeadlineReminders } from '../_shared/deadlineReminder.js';
 //   응답에는 건수만 담는다 — 누가 호출해도 과제 내용이 새지 않게.
 //   같은 課題는 3日前·前日 각각 한 번만 알리므로(reminded_3d_at·reminded_at) 여러 번 호출돼도 중복 발송은 없다.
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  // 자동 작업(pg_cron)만 실행 가능 — 외부인이 공개 열쇠로 부르면 거절 (2026-11-18)
+  if (!(await isCronAllowed(req))) return forbidden();
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,

@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -70,6 +72,8 @@ export default function TimetableScreen({ navigation }) {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState(null);
+  // 헤더 ⚙ → 「時間割の設定」 바텀시트 (2026-11-18: 빨간 「全て削除」 버튼을 화면에서 치우고 시트 안으로)
+  const [settingsVisible, setSettingsVisible] = useState(false);
   // 오늘 요일 강조색은 파란색으로 고정 (사용자 색상 설정 기능 제거)
   const todayColor = colors.primary;
 
@@ -267,6 +271,13 @@ export default function TimetableScreen({ navigation }) {
     );
   };
 
+  // 시트에서 「全て削除」 → 시트를 먼저 닫고 확인 창을 띄운다
+  //   (iOS는 모달이 닫히는 도중 Alert를 띄우면 창이 안 뜨거나 화면이 굳는 경우가 있어 잠깐 기다린다)
+  const handleClearAllFromSheet = () => {
+    setSettingsVisible(false);
+    setTimeout(handleClearAll, 350);
+  };
+
   // 실제 삭제 실행 — 2단계 확인을 모두 통과했을 때만 호출된다
   const performClearAll = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -334,6 +345,16 @@ export default function TimetableScreen({ navigation }) {
           >
             <Text style={styles.addButtonText}>＋ 追加</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.settingsButton}
+            onPress={() => setSettingsVisible(true)}
+            activeOpacity={0.6}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="時間割の設定"
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.gray700} />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -341,29 +362,16 @@ export default function TimetableScreen({ navigation }) {
         <LoadingDots fullscreen />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
-          {/* ── 오늘 수업 요약 + 전체 삭제 (좌: 요약 / 우: 全て削除) ── */}
+          {/* ── 오늘 수업 요약 (전체 삭제는 헤더 ⚙ 시트로 옮김) ── */}
+          {/*   주말에도 줄 자체는 남겨 아래 시간표 위치가 요일마다 달라지지 않게 한다 */}
           <View style={styles.summaryRow}>
-            {TODAY_COL >= 0 ? (
+            {TODAY_COL >= 0 && (
               <View style={styles.todaySummary}>
                 <View style={[styles.todayDotLarge, { backgroundColor: todayColor }]} />
                 <Text style={styles.todaySummaryText}>
                   今日は<Text style={[styles.todaySummaryStrong, { color: todayColor }]}>{todayCourseCount}コマ</Text>
                 </Text>
               </View>
-            ) : (
-              <View />
-            )}
-
-            {/* 수업이 하나라도 있을 때만 전체 삭제 버튼 노출 */}
-            {courses.length > 0 && (
-              <TouchableOpacity
-                style={styles.clearAllButton}
-                onPress={handleClearAll}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="trash-outline" size={14} color="#FF3B30" />
-                <Text style={styles.clearAllText}>全て削除</Text>
-              </TouchableOpacity>
             )}
           </View>
 
@@ -559,6 +567,43 @@ export default function TimetableScreen({ navigation }) {
           params: { courseName: course.name },
         })}
       />
+      {/* 「時間割の設定」 시트 — 색 규칙: 위험(되돌릴 수 없음)=빨강+🗑 / 취소=회색 */}
+      <Modal
+        visible={settingsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSettingsVisible(false)}
+      >
+        <View style={styles.sheetBackdrop}>
+          <Pressable style={styles.sheetBackdropTouch} onPress={() => setSettingsVisible(false)} accessibilityLabel="閉じる" />
+          <View style={styles.sheet}>
+            <View style={styles.sheetGrab} />
+            <Text style={styles.sheetTitle}>時間割の設定</Text>
+
+            <TouchableOpacity
+              style={[styles.sheetItem, courses.length === 0 && styles.sheetItemDisabled]}
+              onPress={handleClearAllFromSheet}
+              disabled={courses.length === 0}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+            >
+              <Ionicons name="trash-outline" size={20} color={courses.length === 0 ? colors.textDisabled : colors.danger} />
+              <View style={styles.sheetItemTextBox}>
+                <Text style={[styles.sheetDangerText, courses.length === 0 && styles.sheetDisabledText]}>
+                  {termLabel(selectedTerm)}の時間割を全て削除
+                </Text>
+                <Text style={styles.sheetItemSub}>
+                  {courses.length === 0 ? '削除する授業がありません' : `授業${courses.length}件・元に戻せません`}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.sheetCancel} onPress={() => setSettingsVisible(false)} activeOpacity={0.7}>
+              <Text style={styles.sheetCancelText}>キャンセル</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <AiImportSheet
         visible={aiSheetVisible}
         siteLabel={links.aiTimetableLabel ?? null}
@@ -662,19 +707,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  clearAllButton: {
+  settingsButton: {
+    padding: spacing.xs,
+  },
+  // 「時間割の設定」 바텀시트 — 모양은 SetupPromptSheet 와 같은 기준(모서리 xxl·손잡이)
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheetBackdropTouch: { flex: 1 },
+  sheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xxl,
+    borderTopRightRadius: radius.xxl,
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.huge,
+  },
+  sheetGrab: { width: 38, height: 5, borderRadius: 3, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.lg },
+  sheetTitle: { ...typography.title3, color: colors.textPrimary, marginBottom: spacing.md },
+  sheetItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.pill,
-    backgroundColor: '#FFECEC', // 연한 빨강 배경 (위험 동작 강조)
+    borderRadius: radius.md,
+    backgroundColor: colors.dangerSoft,
   },
-  clearAllText: {
-    ...typography.captionStrong,
-    color: '#FF3B30',
-  },
+  sheetItemDisabled: { backgroundColor: colors.background },
+  sheetItemTextBox: { flex: 1 },
+  sheetDangerText: { ...typography.body1, fontWeight: '600', color: colors.danger },
+  sheetDisabledText: { color: colors.textDisabled },
+  sheetItemSub: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
+  sheetCancel: { alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
+  sheetCancelText: { ...typography.body1, color: colors.gray700 },
   todayDotLarge: {
     width: 8,
     height: 8,

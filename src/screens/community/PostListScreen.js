@@ -59,7 +59,9 @@ export default function PostListScreen({ navigation }) {
 
   // Supabase에서 게시글 불러오기
   // reset=true면 처음부터 다시 로드 (카테고리/검색 변경, 새로고침)
-  const fetchPosts = useCallback(async ({ reset = false } = {}) => {
+  // silent=true(당겨서 새로고침)면 전체 로딩 화면을 띄우지 않는다 — 목록 위 작은 점만 보이게.
+  //   (2026-11-18 수정: 이전엔 작은 점 + 전체 로딩 화면이 겹쳐 애니메이션 2개가 뜨고 목록이 깜빡였다)
+  const fetchPosts = useCallback(async ({ reset = false, silent = false } = {}) => {
     if (!universityName) return;
 
     if (reset) {
@@ -69,8 +71,11 @@ export default function PostListScreen({ navigation }) {
     const from = pageRef.current * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    if (reset) setLoading(true);
-    else setLoadingMore(true);
+    if (reset) {
+      if (!silent) setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
 
     let query = supabase
       .from('posts')
@@ -197,7 +202,7 @@ export default function PostListScreen({ navigation }) {
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchPosts({ reset: true });
+    fetchPosts({ reset: true, silent: true });
     fetchHot();
   }, [fetchPosts, fetchHot]);
 

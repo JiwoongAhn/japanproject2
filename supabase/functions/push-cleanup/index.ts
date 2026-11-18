@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { isCronAllowed, forbidden } from '../_shared/cronAuth.ts';
 
 // 정리 워커 — 매일 03:00 JST cron 실행
 // - delivered: 30일 경과 행 삭제 (가시성 가치 없음)
@@ -6,7 +7,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 //
 // 마이페이지 배지(최근 7일 실패 카운트)는 30/90일 윈도우 내에서 충분히 표현된다.
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  // 자동 작업(pg_cron)만 실행 가능 — 외부인이 공개 열쇠로 부르면 거절 (2026-11-18)
+  if (!(await isCronAllowed(req))) return forbidden();
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,

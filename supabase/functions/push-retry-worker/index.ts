@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { isCronAllowed, forbidden } from '../_shared/cronAuth.ts';
 import { buildNoticePushMessage } from '../_shared/noticePush.ts';
 
 // 재시도 워커 — 매시간 cron 실행
@@ -11,7 +12,9 @@ const BACKOFF_MIN = [5, 30, 120, 360, 1440]; // 1→2→3→4→5번째 시도 �
 const MAX_ATTEMPTS = 5;
 const BATCH_SIZE = 100; // Expo Push: 1요청 ≤ 100건
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  // 자동 작업(pg_cron)만 실행 가능 — 외부인이 공개 열쇠로 부르면 거절 (2026-11-18)
+  if (!(await isCronAllowed(req))) return forbidden();
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,

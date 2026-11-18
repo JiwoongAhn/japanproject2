@@ -155,16 +155,32 @@ export function credKeyForUrl(url) {
   return 'cred_' + (hostOf(url) || 'unknown');
 }
 
-export async function saveCredentials(key, id, pw) {
+// 보관 기한 (2026-11-18, 보안 A5): 마지막으로 쓴 날부터 90일 동안 안 쓰면 기기에서 지운다.
+//   폰 분실·방치 시 피해를 줄이기 위함. 자동 로그인이 성공적으로 제출될 때마다 캡처 훅이
+//   saveCredentials 를 다시 부르므로(useAutoRelogin) 꾸준히 쓰는 학생은 지워지지 않는다.
+export const CRED_MAX_IDLE_DAYS = 90;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+export async function saveCredentials(key, id, pw, now = Date.now()) {
   try {
-    await store.setItem(key, JSON.stringify({ id, pw }));
+    await store.setItem(key, JSON.stringify({ id, pw, savedAt: now }));
   } catch (_) {}
 }
 
-export async function getCredentials(key) {
+// 반환 모양은 예전과 같게 { id, pw } (savedAt 은 밖으로 내보내지 않음)
+export async function getCredentials(key, now = Date.now()) {
   try {
     const raw = await store.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const { id, pw, savedAt } = JSON.parse(raw);
+    if (typeof savedAt !== 'number') {
+      // 기한 도입 전에 저장된 값 → "오늘 저장"으로 간주(업데이트 직후 갑자기 지워지지 않게)
+      await saveCredentials(key, id, pw, now);
+    } else if (now - savedAt > CRED_MAX_IDLE_DAYS * DAY_MS) {
+      await clearCredentials(key);
+      return null;
+    }
+    return { id, pw };
   } catch (_) {
     return null;
   }

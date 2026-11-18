@@ -211,6 +211,35 @@ describe('자격증명 (A방식 자동 로그인)', () => {
   });
 });
 
+describe('자격증명 보관 기한 (90일 동안 안 쓰면 삭제)', () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const T0 = Date.UTC(2026, 10, 18);
+  const key = 'cred_kaedei.kokushikan.ac.jp';
+
+  test('90일째까지는 유지', async () => {
+    await saveCredentials(key, 'id', 'pw', T0);
+    expect(await getCredentials(key, T0 + 90 * DAY)).toEqual({ id: 'id', pw: 'pw' });
+  });
+  test('90일 넘게 안 쓰면 null + 기기에서 지움', async () => {
+    await saveCredentials(key, 'id', 'pw', T0);
+    expect(await getCredentials(key, T0 + 91 * DAY)).toBeNull();
+    // 지워졌으므로 시간을 되돌려 읽어도 없음
+    expect(await getCredentials(key, T0)).toBeNull();
+  });
+  test('다시 저장(=자동 로그인 사용)하면 기한이 새로 시작', async () => {
+    await saveCredentials(key, 'id', 'pw', T0);
+    await saveCredentials(key, 'id', 'pw', T0 + 80 * DAY);
+    expect(await getCredentials(key, T0 + 160 * DAY)).toEqual({ id: 'id', pw: 'pw' });
+  });
+  test('기한 도입 전 저장분(날짜 없음)은 "오늘 저장"으로 간주', async () => {
+    __mem[key] = JSON.stringify({ id: 'old', pw: 'pw' });
+    expect(await getCredentials(key, T0)).toEqual({ id: 'old', pw: 'pw' });
+    // 그날부터 90일 이내면 유지, 넘으면 삭제
+    expect(await getCredentials(key, T0 + 90 * DAY)).toEqual({ id: 'old', pw: 'pw' });
+    expect(await getCredentials(key, T0 + 181 * DAY)).toBeNull();
+  });
+});
+
 describe('buildAutoFillJS', () => {
   test('id/pw 포함 + 특수문자 JSON 안전 + truthy 종료', () => {
     const js = buildAutoFillJS("my'id", 'pw"&=x');

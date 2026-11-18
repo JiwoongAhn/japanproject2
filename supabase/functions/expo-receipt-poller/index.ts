@@ -1,4 +1,5 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { isCronAllowed, forbidden } from '../_shared/cronAuth.ts';
 
 // Expo Push receipts 폴러
 // 15분마다 cron 실행. pending 상태(15분 이상 경과) ticket들을 모아
@@ -10,7 +11,9 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const PERMANENT_ERRORS = ['DeviceNotRegistered', 'MessageTooBig', 'MismatchSenderId', 'InvalidCredentials'];
 const BATCH_SIZE = 1000; // Expo receipts API: 1요청 최대 1000건
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
+  // 자동 작업(pg_cron)만 실행 가능 — 외부인이 공개 열쇠로 부르면 거절 (2026-11-18)
+  if (!(await isCronAllowed(req))) return forbidden();
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
