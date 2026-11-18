@@ -9,6 +9,10 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 //   DEMO_EMAIL     (선택, 기본 appreview@kokushikan.ac.jp)
 //   DEMO_OTP_CODE  (필수, 6자리 — 미설정 시 동작 안 함)
 
+// 틀린 시도 제한: LOCK_WINDOW_MIN 분 안에 MAX_FAILURES 번 틀리면 잠금 (기록 = demo_login_failures 표)
+const MAX_FAILURES = 10;
+const LOCK_WINDOW_MIN = 15;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -30,14 +34,30 @@ Deno.serve(async (req: Request) => {
     const DEMO_CODE = Deno.env.get('DEMO_OTP_CODE');
 
     if (!DEMO_CODE) return json({ valid: false, reason: 'not_configured' }, 500);
-    if (email !== DEMO_EMAIL || code !== DEMO_CODE) {
-      return json({ valid: false, reason: 'invalid' });
-    }
 
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
+
+    // 시도 횟수 제한 (2026-11-18, 보안 A4): 최근 15분에 10번 넘게 틀렸으면 잠시 막는다.
+    //   고정 6자리 번호를 무한히 맞혀 보는 것을 막기 위함. 맞는 번호도 잠긴 동안은 거절한다.
+    const since = new Date(Date.now() - LOCK_WINDOW_MIN * 60 * 1000).toISOString();
+    const { count: recentFailures } = await admin
+      .from('demo_login_failures')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', since);
+    if ((recentFailures ?? 0) >= MAX_FAILURES) {
+      return json({ valid: false, reason: 'locked' }, 429);
+    }
+
+    if (email !== DEMO_EMAIL || code !== DEMO_CODE) {
+      await admin.from('demo_login_failures').insert({});
+      // 하루 지난 기록은 정리 (표가 끝없이 커지지 않게)
+      await admin.from('demo_login_failures').delete()
+        .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      return json({ valid: false, reason: 'invalid' });
+    }
 
     // 데모 유저 보장 (이미 있으면 'already registered' 에러는 무시)
     await admin.auth.admin.createUser({ email: DEMO_EMAIL, email_confirm: true });

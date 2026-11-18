@@ -152,7 +152,11 @@ export async function handleInitialNotification(onNotificationTap) {
  * 탭한 푸시 → 이동할 화면 (AppNavigator 가 사용, 테스트: __tests__/utils/pushTapRoute.test.js)
  *   締切前日 알림(type 'assignment_reminder') → 課題 모달 / 그 외(manaba 통지) → 통지 미리보기
  */
+//   운영 안내 푸시(type 'app_notice', 예: manaba 설정 안내) → 화면 이동 없음(홈이 그대로 열리고 설정 안내 창이 뜬다)
+//   ⚠️ 이 type 은 2026-11-18 OTA 이후 앱만 이해한다. 옛 앱은 통지 미리보기를 빈 채로 연다 → 그 전 앱이 남아 있으면
+//      안내 푸시는 type 'assignment_reminder' 로 보낼 것
 export function pushTapRoute(data) {
   if (data?.type === 'assignment_reminder') return { screen: 'Assignment' };
+  if (data?.type === 'app_notice') return { screen: null };
   return { screen: 'NoticePreview', params: data };
 }

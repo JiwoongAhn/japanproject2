@@ -28,6 +28,7 @@ const healthy = (over = {}) => ({
   http_errors_recent: 0,
   reports_24h: 0,
   identity_mismatch: 0,
+  profile_pii: 0,
   manaba_setup_stages: { none: 7, pending: 8, no_push: 6, ready: 4 },
   signups_24h: 1,
   posts_24h: 2,
@@ -132,6 +133,10 @@ describe('푸시·신고·용량·만료일', () => {
   test('HC-54 메일 도메인과 학교가 다른 계정이 1개라도 생기면 🔴 (보안 수정 1 방어 장치)', () => {
     expect(levelOf(healthy(), 'identity-mismatch')).toBe('ok');
     expect(levelOf(healthy({ identity_mismatch: 1 }), 'identity-mismatch')).toBe('critical');
+  });
+  test('HC-56 프로필에 학교 메일·학번이 다시 생기면 🔴 (보안 A2 방어 장치)', () => {
+    expect(levelOf(healthy(), 'profile-pii')).toBe('ok');
+    expect(levelOf(healthy({ profile_pii: 1 }), 'profile-pii')).toBe('critical');
   });
   test('HC-55 manaba 통지 설정 단계: 10/29 대비 증감을 참고로 보여준다', () => {
     const r = runChecks(healthy({ manaba_setup_stages: { none: 5, pending: 6, no_push: 3, ready: 11 } }), { now: NOW })

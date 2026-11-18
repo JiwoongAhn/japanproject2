@@ -109,6 +109,10 @@ export default function AppNavigator() {
     const route = pushTapRoute(pendingNotice);
     // 課題 화면은 통지 모달과 달리 pendingNotice 를 스스로 비우지 않는다
     if (route.screen === 'Assignment') clearPendingNotice();
+    if (!route.screen) {
+      clearPendingNotice(); // 운영 안내 푸시: 앱만 열면 된다
+      return;
+    }
     navigationRef.navigate(route.screen, route.params);
   }, [pendingNotice]); // eslint-disable-line react-hooks/exhaustive-deps
 

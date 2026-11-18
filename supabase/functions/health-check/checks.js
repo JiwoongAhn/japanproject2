@@ -206,6 +206,20 @@ export const CHECKS = [
     },
   },
   {
+    id: 'profile-pii',
+    title: '프로필 개인정보 숨김',
+    since: '2026-11-18 보안 A2 — 같은 학교 학생이 다른 학생의 학교 메일·학번을 읽을 수 있었다 (profiles_private 로 옮김)',
+    run(snap) {
+      if (snap.profile_pii == null) return ok('확인 불가 (snapshot 에 칸 없음)');
+      const n = num(snap.profile_pii);
+      if (n === 0) return ok('프로필에 학교 메일·학번 없음');
+      return {
+        level: 'critical',
+        message: `프로필에 학교 메일·학번이 남은 계정 ${n}개 — 같은 학교 학생이 읽을 수 있음 (guard_profile_identity 트리거 확인)`,
+      };
+    },
+  },
+  {
     id: 'manaba-setup-funnel',
     title: 'manaba 통지 설정 단계',
     since: '2026-10-30 — 10/29 OTA 「まだ終わっていない設定」 안내 창의 효과를 매일 본다 (manaba 학교 실사용자)',
