@@ -25,7 +25,9 @@ import { getUniversityInfo, findUniversityByEmail, getUniversityLinks } from '..
 import { supportsManaba, manabaUrlsFor, manabaOriginFrom } from '../constants/manaba';
 import { clearCachedNotices } from '../utils/manabaCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { cookieKeyForUrl, credKeyForUrl, clearCookies, clearCredentials } from '../utils/schoolCookies';
+import { clearAllSchoolSites } from '../utils/schoolLogout';
+import { useConfirm } from '../hooks/useConfirm';
+import HomeDisplaySheet from '../components/HomeDisplaySheet';
 import { readLoginFailures, getFailureCopy } from '../utils/loginDiagnostics';
 import { getCategoryInfo } from '../constants/boardCategories';
 import { getAppVersionLabel } from '../utils/appVersion';
@@ -36,6 +38,8 @@ import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 const APP_VERSION_LABEL = getAppVersionLabel();
 
 export default function ProfileScreen({ navigation }) {
+  const { confirm, confirmElement } = useConfirm();
+  const [homeDisplayVisible, setHomeDisplayVisible] = useState(false);
   const { refreshProfile } = useAuth();
   const { handleScroll } = useTabBarScroll();
   const [userEmail, setUserEmail]           = useState('');
@@ -140,29 +144,20 @@ export default function ProfileScreen({ navigation }) {
   // 학교 로그인 정보 초기화 — 쿠키가 만료·오염된 채로 굳어 로그인이 계속 실패할 때의 탈출구.
   // 저장된 ID/PW와 쿠키를 모두 비우고 처음부터 다시 로그인하게 한다.
   const handleResetSchoolLogin = useCallback(() => {
-    Alert.alert(
-      '学校ログイン情報をリセット',
-      '保存されたIDとパスワード、ログイン状態を削除します。\n次回は改めてログインが必要になります。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: 'リセット',
-          style: 'destructive',
-          onPress: async () => {
-            // 이 학교에서 쓰는 모든 로그인 호스트를 대상으로 정리한다
-            const urls = [links.manabaUrl, links.portalUrl, links.lmsUrl, links.timetableUrl]
-              .filter(Boolean);
-            for (const url of urls) {
-              await clearCookies(url, cookieKeyForUrl(url));
-              await clearCredentials(credKeyForUrl(url));
-            }
-            await clearCachedNotices();
-            Alert.alert('完了', 'ログイン情報を削除しました。\nもう一度ログインしてお試しください。');
-          },
-        },
-      ],
-    );
-  }, [links]);
+    confirm({
+      kind: 'danger',
+      icon: 'refresh-outline',
+      title: '学校ログイン情報をリセットしますか？',
+      message: '保存されたIDとパスワード、ログイン状態を削除します。次回は改めてログインが必要になります。',
+      confirmText: 'リセット',
+      onConfirm: async () => {
+        // 이 학교에서 쓰는 모든 로그인 호스트를 대상으로 정리한다
+        await clearAllSchoolSites(links);
+        await clearCachedNotices();
+        Alert.alert('完了', 'ログイン情報を削除しました。\nもう一度ログインしてお試しください。');
+      },
+    });
+  }, [links, confirm]);
 
   // 테스트 통지 발송 — 서버가 호출자 본인에게만 보낸다(userId를 보내지 않는다)
   const handleSendTestPush = useCallback(async () => {
@@ -349,34 +344,16 @@ export default function ProfileScreen({ navigation }) {
       .eq('id', userId);
   };
 
-  // 탈퇴 (2단계 확인)
+  // 탈퇴 — 체크해야 버튼이 켜진다
   const handleDeleteAccount = () => {
-    Alert.alert(
-      '退会する',
-      '退会すると、時間割・課題・投稿などすべてのデータが削除されます。\n本当に退会しますか？',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '退会する',
-          style: 'destructive',
-          onPress: () => {
-            // 2단계 최종 확인
-            Alert.alert(
-              '本当に退会しますか？',
-              'この操作は取り消せません。すべてのデータが完全に削除されます。',
-              [
-                { text: 'キャンセル', style: 'cancel' },
-                {
-                  text: '退会する',
-                  style: 'destructive',
-                  onPress: confirmDeleteAccount,
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'all',
+      title: '退会しますか？',
+      message: '時間割・課題・投稿など、すべてのデータが完全に削除されます。',
+      checkText: 'すべてのデータが消え、元に戻せないことを理解しました',
+      confirmText: '退会する',
+      onConfirm: confirmDeleteAccount,
+    });
   };
 
   const confirmDeleteAccount = async () => {
@@ -402,6 +379,7 @@ export default function ProfileScreen({ navigation }) {
       }
 
       // 계정 삭제 성공 → manaba 캐시 정리(다른 계정에 옛 공지 섞임 방지) → 세션 정리 → 로그인 화면 이동
+      await clearAllSchoolSites(links);
       await clearCachedNotices();
       await supabase.auth.signOut();
     } catch (e) {
@@ -411,24 +389,22 @@ export default function ProfileScreen({ navigation }) {
 
   // 로그아웃
   const handleLogout = () => {
-    Alert.alert(
-      'ログアウト',
-      'ログアウトしますか？',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: 'ログアウト',
-          style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            // manaba 공지 캐시 정리 → 다른 계정으로 로그인해도 옛 공지가 홈에 남지 않게
-            await clearCachedNotices();
-            // scope: 'local' → 서버 요청 실패해도 로컬 세션 강제 삭제
-            await supabase.auth.signOut({ scope: 'local' });
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'danger',
+      icon: 'log-out-outline',
+      title: 'UniOneからログアウトしますか？',
+      message: 'ログアウトすると、この端末に保存されている学校サイトのID・パスワードとログイン状態も削除されます。時間割や投稿は消えません。',
+      confirmText: 'ログアウト',
+      onConfirm: async () => {
+        setLoggingOut(true);
+        // 학교 사이트 로그인까지 지운다 → 같은 폰에서 다른 사람이 로그인해도 앞 사람의 manaba 가 열리지 않게
+        await clearAllSchoolSites(links);
+        // manaba 공지 캐시 정리 → 다른 계정으로 로그인해도 옛 공지가 홈에 남지 않게
+        await clearCachedNotices();
+        // scope: 'local' → 서버 요청 실패해도 로컬 세션 강제 삭제
+        await supabase.auth.signOut({ scope: 'local' });
+      },
+    });
   };
 
   // 게시글 탭 → 게시글 상세로 이동
@@ -548,86 +524,78 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── 내가 올린 게시글 ── */}
+        {/* ── 내 글 ── */}
         <View style={styles.section}>
-          {/* 섹션 타이틀 + 전체보기 버튼 */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>投稿・講義評価</Text>
+          <Text style={styles.sectionTitle}>自分の投稿</Text>
+          <View style={styles.infoCard}>
             {/* #12: 게시글 수와 무관하게 항상 진입 가능 — 여기서 掲示板·コメント·講義評価를
                 한곳에서 관리한다(적은 게시글이어도 講義評価 탭에 접근되게 함) */}
+            <TouchableOpacity onPress={() => navigation.navigate('MyPosts')} activeOpacity={0.8}>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>投稿・講義評価</Text>
+                  <Text style={styles.toggleHint}>自分の投稿・コメント・評価を確認できます</Text>
+                </View>
+                <Text style={styles.menuArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+            {postsLoading ? (
+              <LoadingDots size={7} style={{ paddingVertical: spacing.md }} />
+            ) : myPosts.length === 0 ? (
+              null
+            ) : (
+              <View>
+                {myPosts.slice(0, 3).map((post) => {
+                  const cat = getCategoryInfo(post.category);
+                  return (
+                    <React.Fragment key={post.id}>
+                      <View style={styles.divider} />
+                      <TouchableOpacity
+                        style={styles.postRow}
+                        onPress={() => handlePostPress(post)}
+                        activeOpacity={0.75}
+                      >
+                        {/* 카테고리 배지 */}
+                        <View style={[styles.categoryBadge, { backgroundColor: cat.color + '22' }]}>
+                          <Text style={[styles.categoryText, { color: cat.textColor }]}>{cat.label}</Text>
+                        </View>
+
+                        {/* 제목 + 날짜 */}
+                        <View style={styles.postContent}>
+                          <Text style={styles.postTitle} numberOfLines={1}>{post.title}</Text>
+                          <Text style={styles.postMeta}>
+                            {formatTimeAgo(post.created_at)}
+                            {post.like_count > 0 && `  ♡ ${post.like_count}`}
+                            {(post.post_comments?.[0]?.count ?? 0) > 0 && `  💬 ${post.post_comments[0].count}`}
+                          </Text>
+                        </View>
+
+                        <Text style={styles.chevron}>›</Text>
+                      </TouchableOpacity>
+                    </React.Fragment>
+                  );
+                })}
+              </View>
+            )}
+            <View style={styles.divider} />
             <TouchableOpacity
-              onPress={() => navigation.navigate('MyPosts')}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => navigation.navigate('SavedPosts')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.seeAllText}>すべて見る ›</Text>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>保存した投稿を見る</Text>
+                  <Text style={styles.toggleHint}>気になる投稿を保存していつでも見返せます</Text>
+                </View>
+                <Text style={styles.menuArrow}>›</Text>
+              </View>
             </TouchableOpacity>
           </View>
-
-          {postsLoading ? (
-            <LoadingDots size={7} style={{ paddingVertical: 24 }} />
-          ) : myPosts.length === 0 ? (
-            <View style={styles.emptyPostsCard}>
-              <Ionicons name="document-text-outline" size={32} color={colors.textDisabled} style={styles.emptyPostsEmoji} />
-              <Text style={styles.emptyPostsText}>まだ投稿した記事がありません</Text>
-            </View>
-          ) : (
-            <View style={styles.postListCard}>
-              {myPosts.slice(0, 3).map((post, idx) => {
-                const cat = getCategoryInfo(post.category);
-                return (
-                  <React.Fragment key={post.id}>
-                    {idx > 0 && <View style={styles.divider} />}
-                    <TouchableOpacity
-                      style={styles.postRow}
-                      onPress={() => handlePostPress(post)}
-                      activeOpacity={0.75}
-                    >
-                      {/* 카테고리 배지 */}
-                      <View style={[styles.categoryBadge, { backgroundColor: cat.color + '22' }]}>
-                        <Text style={[styles.categoryText, { color: cat.textColor }]}>{cat.label}</Text>
-                      </View>
-
-                      {/* 제목 + 날짜 */}
-                      <View style={styles.postContent}>
-                        <Text style={styles.postTitle} numberOfLines={1}>{post.title}</Text>
-                        <Text style={styles.postMeta}>
-                          {formatTimeAgo(post.created_at)}
-                          {post.like_count > 0 && `  ♡ ${post.like_count}`}
-                          {(post.post_comments?.[0]?.count ?? 0) > 0 && `  💬 ${post.post_comments[0].count}`}
-                        </Text>
-                      </View>
-
-                      <Text style={styles.chevron}>›</Text>
-                    </TouchableOpacity>
-                  </React.Fragment>
-                );
-              })}
-            </View>
-          )}
         </View>
 
-        {/* ── 保存した投稿 (관심글 저장) ── */}
+        {/* ── 통지 (課題 마감 알림은 모든 학교 — 수동 등록 課題에도 적용) ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>保存した投稿</Text>
-          <TouchableOpacity
-            style={styles.infoCard}
-            onPress={() => navigation.navigate('SavedPosts')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>保存した投稿を見る</Text>
-                <Text style={styles.toggleHint}>気になる投稿を保存していつでも見返せます</Text>
-              </View>
-              <Text style={styles.menuArrow}>›</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── 課題 알림 (모든 학교 — 수동 등록 課題에도 적용) ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>課題の通知</Text>
+          <Text style={styles.sectionTitle}>通知</Text>
           <View style={styles.infoCard}>
             <View style={styles.toggleRow}>
               <View style={styles.toggleInfo}>
@@ -639,41 +607,16 @@ export default function ProfileScreen({ navigation }) {
               <Switch
                 value={deadlineReminder}
                 onValueChange={handleDeadlineReminderToggle}
-                trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                thumbColor={deadlineReminder ? colors.primary : colors.textDisabled}
+                trackColor={{ false: colors.gray300, true: colors.primary }}
+                thumbColor={colors.white}
               />
             </View>
-          </View>
-        </View>
-
-        {/* ── 공강맞추기 공유 설정 ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>空き時間合わせ設定</Text>
-          <View style={styles.infoCard}>
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>時間割を公開する</Text>
-                <Text style={styles.toggleHint}>
-                  ONにすると、友達があなたの空き時間を確認できます
-                </Text>
-              </View>
-              <Switch
-                value={shareTimetable}
-                onValueChange={handleShareTimetableToggle}
-                trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                thumbColor={shareTimetable ? colors.primary : colors.textDisabled}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* ── manaba 알림 메일전달 설정 ── */}
-        {/* manaba를 쓰지 않는 학교에는 이 메뉴 자체를 노출하지 않는다.
-            (누르면 국사관 manaba 설정 화면으로 이어져 혼란을 준다) */}
-        {usesManaba && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>manaba通知設定</Text>
-          <View style={styles.infoCard}>
+            {/* ── manaba 알림 메일전달 설정 ── */}
+            {/* manaba를 쓰지 않는 학교에는 이 메뉴 자체를 노출하지 않는다.
+                (누르면 국사관 manaba 설정 화면으로 이어져 혼란을 준다) */}
+            {usesManaba && (
+              <>
+            <View style={styles.divider} />
             <TouchableOpacity
               onPress={() =>
                 navigation.navigate(
@@ -741,8 +684,8 @@ export default function ProfileScreen({ navigation }) {
                     value={autoAssignment}
                     onValueChange={handleAutoAssignmentToggle}
                     disabled={autoAssignmentSaving}
-                    trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                    thumbColor={autoAssignment ? colors.primary : colors.textDisabled}
+                    trackColor={{ false: colors.gray300, true: colors.primary }}
+                    thumbColor={colors.white}
                   />
                 </View>
                 {/* 「提出済」 자동 전환은 manaba 가 제출 메일을 보내야 가능 — 그 설정은 기본으로 꺼져 있는 사람이 많다
@@ -776,8 +719,8 @@ export default function ProfileScreen({ navigation }) {
                     value={aiSummaryPush}
                     onValueChange={handleAiSummaryToggle}
                     disabled={aiSummarySaving}
-                    trackColor={{ false: colors.border, true: colors.primary + '80' }}
-                    thumbColor={aiSummaryPush ? colors.primary : colors.textDisabled}
+                    trackColor={{ false: colors.gray300, true: colors.primary }}
+                    thumbColor={colors.white}
                   />
                 </View>
               </>
@@ -796,13 +739,14 @@ export default function ProfileScreen({ navigation }) {
                 {testPushSending ? '送信中…' : 'テスト通知を送る'}
               </Text>
             </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
-        )}
 
-        {/* ── 학교 로그인 문제 해결 ── */}
+        {/* ── 학교 사이트·프라이버시 ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>学校サイトの接続</Text>
+          <Text style={styles.sectionTitle}>学校とプライバシー</Text>
           <View style={styles.infoCard}>
             <TouchableOpacity onPress={handleResetSchoolLogin} activeOpacity={0.8}>
               <View style={styles.toggleRow}>
@@ -829,43 +773,74 @@ export default function ProfileScreen({ navigation }) {
                 ))}
               </>
             )}
+            <View style={styles.divider} />
+            <View style={styles.toggleRow}>
+              <View style={styles.toggleInfo}>
+                <Text style={styles.toggleLabel}>時間割を公開する</Text>
+                <Text style={styles.toggleHint}>
+                  ONにすると、友達があなたの空き時間を確認できます
+                </Text>
+              </View>
+              <Switch
+                value={shareTimetable}
+                onValueChange={handleShareTimetableToggle}
+                trackColor={{ false: colors.gray300, true: colors.primary }}
+                thumbColor={colors.white}
+              />
+            </View>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              onPress={() => navigation.navigate('BlockedUsers')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>ブロックしたユーザー</Text>
+                  <Text style={styles.toggleHint}>ブロックの確認・解除ができます</Text>
+                </View>
+                <Text style={styles.menuArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* ── 앱 사용법 다시 보기 ── */}
+        {/* ── 앱 ── */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>アプリの使い方</Text>
-          <TouchableOpacity
-            style={styles.infoCard}
-            onPress={() => navigation.navigate('OnboardingReview')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>使い方をもう一度見る</Text>
-                <Text style={styles.toggleHint}>最初に表示された紹介をもう一度確認できます</Text>
+          <Text style={styles.sectionTitle}>アプリ</Text>
+          <View style={styles.infoCard}>
+            <TouchableOpacity onPress={() => setHomeDisplayVisible(true)} activeOpacity={0.8}>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>ホームの表示</Text>
+                  <Text style={styles.toggleHint}>ホームに表示するものを選べます</Text>
+                </View>
+                <Text style={styles.menuArrow}>›</Text>
               </View>
-              <Text style={styles.menuArrow}>›</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ── 안전·프라이버시: 차단 관리 ── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>安全とプライバシー</Text>
-          <TouchableOpacity
-            style={styles.infoCard}
-            onPress={() => navigation.navigate('BlockedUsers')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>ブロックしたユーザー</Text>
-                <Text style={styles.toggleHint}>ブロックの確認・解除ができます</Text>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity onPress={() => navigation.navigate('ReleaseNotes')} activeOpacity={0.8}>
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>アップデート情報</Text>
+                  <Text style={styles.toggleHint}>新しくなったところを確認できます</Text>
+                </View>
+                <Text style={styles.menuArrow}>›</Text>
               </View>
-              <Text style={styles.menuArrow}>›</Text>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+            <View style={styles.divider} />
+            <TouchableOpacity
+              onPress={() => navigation.navigate('OnboardingReview')}
+              activeOpacity={0.8}
+            >
+              <View style={styles.toggleRow}>
+                <View style={styles.toggleInfo}>
+                  <Text style={styles.toggleLabel}>使い方をもう一度見る</Text>
+                  <Text style={styles.toggleHint}>最初に表示された紹介をもう一度確認できます</Text>
+                </View>
+                <Text style={styles.menuArrow}>›</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── 로그아웃 ── */}
@@ -910,6 +885,8 @@ export default function ProfileScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+      <HomeDisplaySheet visible={homeDisplayVisible} onClose={() => setHomeDisplayVisible(false)} usesManaba={usesManaba} />
+      {confirmElement}
     </SafeAreaView>
   );
 }
@@ -994,31 +971,20 @@ const styles = StyleSheet.create({
   // 섹션
   section: {
     marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
-    paddingLeft: spacing.xs,
+    marginBottom: spacing.xl,
   },
   sectionTitle: {
-    ...typography.caption,
-    fontWeight: '600',
+    ...typography.captionStrong,
     color: colors.textSecondary,
-  },
-  seeAllText: {
-    ...typography.caption,
-    color: colors.primary,
-    fontWeight: '600',
+    marginBottom: spacing.sm,
+    paddingLeft: spacing.xs,
   },
 
   // 정보 카드
   infoCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl, // 카드 안쪽 여백 20 (홈과 같은 기준)
     paddingVertical: spacing.xs,
     ...shadow.card,
   },
@@ -1041,30 +1007,10 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.border,
+    backgroundColor: colors.gray100,
   },
 
   // 게시글 목록
-  emptyPostsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    paddingVertical: spacing.xxxl,
-    alignItems: 'center',
-    ...shadow.card,
-  },
-  emptyPostsEmoji: {
-    marginBottom: spacing.sm,
-  },
-  emptyPostsText: {
-    ...typography.body2,
-    color: colors.textSecondary,
-  },
-  postListCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    ...shadow.card,
-  },
   postRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1174,6 +1120,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.primary,
+    marginBottom: spacing.md,
   },
   testPushButtonText: {
     ...typography.captionStrong,

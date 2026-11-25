@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../../components/AppTextInput';
 import { colors } from '../../constants/colors';
 import PostReactions from '../../components/PostReactions';
+import { ListSkeleton } from '../../components/Skeleton';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -306,7 +307,7 @@ export default function PostListScreen({ navigation }) {
 
       {/* ── 로딩 중 ── */}
       {loading ? (
-        <LoadingDots fullscreen />
+        <ListSkeleton />
       ) : (
         <FlatList
           data={posts}
@@ -492,7 +493,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingVertical: spacing.md,
     gap: spacing.sm,
     ...shadow.soft,
   },
@@ -563,7 +564,7 @@ const styles = StyleSheet.create({
   postCard: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md + 1,
+    paddingVertical: spacing.lg,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
   },
@@ -580,7 +581,7 @@ const styles = StyleSheet.create({
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   sectionTitle: {
     ...typography.bodyStrong,
@@ -596,7 +597,7 @@ const styles = StyleSheet.create({
     color: colors.hot,
     backgroundColor: colors.hotSoft,
     borderRadius: radius.sm,
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 1,
     overflow: 'hidden',
   },
@@ -612,7 +613,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md + 2,
-    gap: 6,
+    gap: spacing.sm,
     ...shadow.soft,
   },
   hotMeta: {
@@ -623,13 +624,13 @@ const styles = StyleSheet.create({
   hotWho: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
     flexShrink: 1,
   },
   hotAvatar: {
     width: 18,
     height: 18,
-    borderRadius: 6,
+    borderRadius: radius.sm,
     backgroundColor: colors.gray200,
   },
   hotWhoText: {
@@ -738,7 +739,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: spacing.xs,
     bottom: spacing.xs,
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: radius.sm,
     backgroundColor: 'rgba(0,0,0,0.65)',

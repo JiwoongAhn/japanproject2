@@ -39,8 +39,8 @@ japanproject/
 │   │   ├── manaba/        ManabaLogin·ManabaNoticeList/Detail·ManabaReminderSetup
 │   │   ├── notice/        NoticePreviewModal·DuplicateAlertGuideModal
 │   │   └── assignment/    AssignmentAdd
-│   ├── components/        공용 부품 (Card·Button·BottomSheet·InfoNote·HomeBanner·AppTextInput·KeyboardAwareScrollView…)
-│   ├── hooks/             useAppUpdate·useAutoRelogin·useAiTimetableImport
+│   ├── components/        공용 부품 (Card·Button·BottomSheet·CenterDialog·ConfirmDialog·Skeleton·InfoNote·HomeBanner·AppTextInput·KeyboardAwareScrollView…)
+│   ├── hooks/             useAppUpdate·useAutoRelogin·useAiTimetableImport·useConfirm·useHomeDisplay
 │   ├── utils/             순수 함수 (Jest 대상)
 │   ├── constants/         colors·spacing·typography·universities·universityLinks…
 │   ├── lib/               supabase·AuthProvider·sessionKeeper·largeSecureStore(AES-256)·notifications
@@ -80,6 +80,11 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - 화면 문구는 일본어
 - **디자인 규칙(2026-11-25 확정):** 색 있는 버튼은 주 행동 하나(파랑), 나머지 회색, 삭제는 빨간 글씨+🗑(빨강으로 꽉 찬 버튼은 마지막 확인에서만). 안내문은 배경 없이 `InfoNote`(ⓘ+회색 글씨), 색 상자는 버튼만. 아래에서 올라오는 창은 `BottomSheet`, 움직임 속도는 `constants/motion.js`
 - **색·여백 규칙(2026-11-25 확정):** 작은 글씨 명암비 4.5 이상(회색은 `textSecondary`, 파스텔 배경 위 글씨는 `pastel.*.text`, 게시판 분류는 `textColor`). 할 일이 없는 숫자(0)는 `textMuted`. 홈 카드 안쪽 여백 20, 카드 안에 카드를 넣지 않고 줄로 나눔
+- **확인 창(2026-11-25 확정):** `useConfirm()` — 되돌릴 수 있으면 `normal`, 없으면 `danger`(로그아웃 포함), 전부 지우면 `all`(체크해야 켜짐). **일반 화면은 아래에서, 이미 올라온 창(modal 화면) 안은 가운데에서** = `useConfirm('center')`. 단순 안내·오류는 `Alert`
+- **로그아웃하면 저장된 ID·비밀번호를 지운다** (`utils/schoolLogout.js`): manaba·kaede-i = 그 사이트 것만, 앱 로그아웃·退会·リセット = 전부
+- 새 기능을 배포할 때 `constants/releaseNotes.js` 맨 위에 추가(`releasedAt` = 배포일). 첫 로딩은 `Skeleton`(홈·시간표·게시판·課題), 나머지는 `LoadingDots`
+- **홈에서 자동으로 뜨는 창은 한 번에 하나만**(스토어 업데이트 → 新しくなりました → 설정 안내). 겹치면 열리지 못한 창이 보이지 않게 화면을 막는다 — 새 자동 창을 넣을 땐 `HomeScreen`의 `noSheet`·`releaseDone` 순서에 끼울 것. 안전장치 = `useModalGuard`(2초 안에 안 열리면 닫음)
+- 課題 D-day: 3일 이내·기한 초과 = `dangerText`, 나머지·제출 완료 = 회색
 - 시트를 닫은 직후 다른 창(모달·사진첩·Alert)을 열 때는 `setTimeout(…, motion.afterClose)` — iOS는 창이 겹치면 안 열린다
 - 화면·훅 수정 후 보고 전: Jest + `check:bundle` + no-undef 검사, UI 변경은 시뮬 실화면까지 확인
 

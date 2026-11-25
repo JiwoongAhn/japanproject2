@@ -12,8 +12,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
+import { useConfirm } from '../../hooks/useConfirm';
 import { colors } from '../../constants/colors';
-import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
 import { getCourseColorFor } from '../../constants/courseColors';
@@ -23,6 +23,7 @@ import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 import { useTabBarScroll } from '../../navigation/TabBarScrollContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { TimetableSkeleton } from '../../components/Skeleton';
 import BottomSheet from '../../components/BottomSheet';
 import { motion } from '../../constants/motion';
 import AiImportSheet from '../../components/AiImportSheet';
@@ -49,6 +50,7 @@ function getTodayCol() {
 
 
 export default function TimetableScreen({ navigation }) {
+  const { confirm, confirmElement } = useConfirm();
   const { session } = useAuth();
   const { handleScroll } = useTabBarScroll();
   const universityInfo = getUniversityInfo(session?.user?.email);
@@ -245,32 +247,17 @@ export default function TimetableScreen({ navigation }) {
     }
   };
 
-  // 시간표 전체 삭제 — 되돌릴 수 없으므로 2단계 확인을 거친다(退会와 동일한 실수방지 패턴)
+  // 시간표 전체 삭제 — 되돌릴 수 없으므로 체크해야 버튼이 켜진다(退会와 같은 실수방지 패턴)
   const handleClearAll = () => {
     if (courses.length === 0) return;
-    // 1단계: 삭제 예고
-    Alert.alert(
-      `${termLabel(selectedTerm)}の時間割を全て削除`,
-      `${termLabel(selectedTerm)}の授業${courses.length}件をすべて削除します。\nこの操作は元に戻せません。`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除に進む',
-          style: 'destructive',
-          onPress: () => {
-            // 2단계: 최종 확인 (실수로 연속 탭하는 것을 막기 위해 한 번 더 물음)
-            Alert.alert(
-              '本当に削除しますか？',
-              'すべての授業が消え、元に戻せません。',
-              [
-                { text: 'キャンセル', style: 'cancel' },
-                { text: '全て削除', style: 'destructive', onPress: performClearAll },
-              ]
-            );
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'all',
+      title: `${termLabel(selectedTerm)}の時間割を全て削除`,
+      target: `授業 ${courses.length}件`,
+      checkText: 'すべての授業が消え、元に戻せないことを理解しました',
+      confirmText: '全て削除',
+      onConfirm: performClearAll,
+    });
   };
 
   // 시트에서 「全て削除」 → 시트를 먼저 닫고 확인 창을 띄운다
@@ -280,7 +267,7 @@ export default function TimetableScreen({ navigation }) {
     setTimeout(handleClearAll, motion.afterClose);
   };
 
-  // 실제 삭제 실행 — 2단계 확인을 모두 통과했을 때만 호출된다
+  // 실제 삭제 실행 — 확인 창을 통과했을 때만 호출된다
   const performClearAll = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
@@ -361,7 +348,7 @@ export default function TimetableScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <LoadingDots fullscreen />
+        <TimetableSkeleton />
       ) : (
         <ScrollView showsVerticalScrollIndicator={false} onScroll={handleScroll} scrollEventThrottle={16} contentContainerStyle={{ paddingBottom: spacing.huge * 2 }}>
           {/* ── 오늘 수업 요약 (전체 삭제는 헤더 ⚙ 시트로 옮김) ── */}
@@ -610,6 +597,7 @@ export default function TimetableScreen({ navigation }) {
         onCancel={() => setPendingAiAction(null)}
       />
       <AiReadingOverlay visible={aiImport.reading} />
+      {confirmElement}
     </SafeAreaView>
   );
 }
@@ -633,7 +621,7 @@ const styles = StyleSheet.create({
   semesterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     marginBottom: spacing.xs,
   },
   semesterLabel: {
@@ -643,13 +631,13 @@ const styles = StyleSheet.create({
   termBadge: {
     backgroundColor: colors.primaryLight,
     borderRadius: radius.sm,
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 1,
     marginLeft: 2,
   },
   termBadgeText: {
     ...typography.caption,
-    fontSize: 10,
+    fontSize: 11,
     color: colors.primary,
     fontWeight: '700',
   },
@@ -665,7 +653,7 @@ const styles = StyleSheet.create({
   bulkButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     backgroundColor: colors.primaryLight,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -812,7 +800,7 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
   },
   attendanceBadgeText: {
-    fontSize: 9,
+    fontSize: 10,
     lineHeight: 11,
     fontWeight: '800',
   },
@@ -833,9 +821,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.lg,
+    marginBottom: spacing.md,
     ...shadow.card,
   },
   menuCardIcon: {

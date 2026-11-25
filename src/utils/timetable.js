@@ -72,6 +72,11 @@ export function getCurrentTerm(date = new Date()) {
   return (m >= 4 && m <= 8) ? 'spring' : 'fall';
 }
 
+// 주간 표에 몇 교시까지 그릴지 — 마지막 수업까지, 최소 4교시 (순수 함수)
+export function lastPeriodOf(courses) {
+  return Math.max(4, ...courses.map((c) => Number(c.period)).filter(Number.isFinite));
+}
+
 // 홈 화면에 보여줄 "오늘 수업"을 고른다 (순수 함수)
 //
 // 배경(실기 버그 ②: "시간표를 넣었는데 홈탭에 안 나온다"):

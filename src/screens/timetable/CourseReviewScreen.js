@@ -66,7 +66,13 @@ function groupReviewsByCourse(reviews) {
     .sort((a, b) => b.count - a.count);
 }
 
-export default function CourseReviewScreen({ navigation }) {
+export default function CourseReviewScreen({ navigation, route }) {
+  // 홈의 바로가기로 들어왔으면 뒤로 눌렀을 때 홈으로 (時間割 탭은 첫 화면으로 되돌려 둔다)
+  const handleBack = () => {
+    if (!route?.params?.fromHome) { navigation.goBack(); return; }
+    navigation.popToTop();
+    navigation.navigate('Home');
+  };
   const [searchText, setSearchText] = useState('');
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,7 +112,7 @@ export default function CourseReviewScreen({ navigation }) {
     <SafeAreaView style={styles.container}>
       {/* ── 헤더 (보더 없는 토스 스타일) ── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={handleBack} style={styles.backButton} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={styles.backButtonText}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>講義評価</Text>
@@ -382,7 +388,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     ...typography.small,
-    color: pastel.sky.accent,
+    color: pastel.sky.text,
     fontWeight: '600',
   },
 

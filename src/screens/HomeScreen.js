@@ -17,7 +17,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../constants/colors';
 import PostReactions from '../components/PostReactions';
 import { OPEN_MAIL_CONNECT_KEY } from '../constants/onboardingFlags';
-import LoadingDots from '../components/LoadingDots';
+import { HomeSkeleton } from '../components/Skeleton';
+import TodayClasses from '../components/TodayClasses';
+import WeekTimetable from '../components/WeekTimetable';
+import HomeDisplaySheet from '../components/HomeDisplaySheet';
+import ReleaseNoteSheet from '../components/ReleaseNoteSheet';
+import { useHomeDisplay } from '../hooks/useHomeDisplay';
+import { RELEASE_NOTES } from '../constants/releaseNotes';
+import { pickReleaseNote, getSeenReleaseId, markReleaseSeen } from '../utils/releaseNotes';
 import { typography } from '../constants/typography';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { getCategoryInfo } from '../constants/boardCategories';
@@ -48,6 +55,8 @@ import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 // 이번 앱 실행에서 「まだ終わっていない設定」 안내 창을 이미 띄웠는가 (앱을 새로 켜면 false 로 시작)
 let setupPromptShownThisLaunch = false;
 
+const HIT = { top: 8, bottom: 8, left: 8, right: 8 };
+
 // 알림 주소(push token) 등록 — 실패해도 홈은 계속 (getExpoPushTokenAsync 는 네트워크 오류로 throw 할 수 있다)
 async function tryRegisterPush(prompt) {
   try {
@@ -59,7 +68,14 @@ async function tryRegisterPush(prompt) {
 
 export default function HomeScreen({ navigation }) {
   const { handleScroll } = useTabBarScroll();
+  const [display] = useHomeDisplay(); // 홈에 무엇을 보여줄지 (ホームの表示)
+  const [displaySheetVisible, setDisplaySheetVisible] = useState(false);
+  // 「新しくなりました」 창 — releaseDone 이 true 가 된 뒤에야 다른 안내 창을 띄운다 (창이 겹치지 않게)
+  const [userCreatedAt, setUserCreatedAt] = useState(null);
+  const [releaseNote, setReleaseNote] = useState(null);
+  const [releaseDone, setReleaseDone] = useState(false);
   const [todayCourses, setTodayCourses] = useState([]);
+  const [week, setWeek] = useState({ courses: [], fallbackTerm: null }); // 「今週の時間割」용
   // manaba 통지 설정 상태 (⑤ 미완료 배너용) — { hasSubscription, verifiedAt, pushTokenCount }
   const [manabaSetup, setManabaSetup] = useState(null);
   // 알림 권한 { status, canAskAgain } — 「通知をオンにする」가 허용 팝업/설정 앱 중 무엇을 할지 정한다
@@ -95,6 +111,7 @@ export default function HomeScreen({ navigation }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.email) {
         setUserEmail(user.email);
+        setUserCreatedAt(user.created_at ?? null);
         setUniversityInfo(getUniversityInfo(user.email));
 
         // 학번(nickname) 조회
@@ -126,11 +143,11 @@ export default function HomeScreen({ navigation }) {
       const myUniversity = user?.email ? getUniversityInfo(user.email).name : null;
 
       const [coursesRes, assignmentsRes, postsRes] = await Promise.all([
-        // 오늘 수업 (평일일 때만, 본인 수업만)
+        // 본인 수업 전부 (오늘 것은 아래에서 고르고, 전체는 「今週の時間割」에 쓴다)
         // 학기로 DB에서 거르지 않는다 — 어느 학기를 보여줄지는 pickTodayCourses가 정한다.
         // (현재 학기에 데이터가 없으면 다른 학기라도 보여줘 홈이 빈 채로 남지 않게 함)
-        dbDay >= 0 && dbDay <= 4 && user
-          ? supabase.from('courses').select('*').eq('user_id', user.id).eq('day_of_week', dbDay).order('period')
+        user
+          ? supabase.from('courses').select('*').eq('user_id', user.id).order('period')
           : Promise.resolve({ data: [] }),
 
         // D-3 이내 미제출 과제
@@ -154,7 +171,9 @@ export default function HomeScreen({ navigation }) {
       ]);
 
       if (coursesRes.data) {
-        const picked = pickTodayCourses(coursesRes.data, getCurrentTerm(today));
+        const term = getCurrentTerm(today);
+        const picked = pickTodayCourses(coursesRes.data.filter((c) => c.day_of_week === dbDay), term);
+        setWeek(pickTodayCourses(coursesRes.data, term));
         setTodayCourses(picked.courses);
         setTermFallback(picked.fallbackTerm);
       }
@@ -315,23 +334,64 @@ export default function HomeScreen({ navigation }) {
     dismiss: dismissUpdate,
   } = useAppUpdate();
 
+  const updateKindRef = useRef(updateKind);
+  updateKindRef.current = updateKind;
+
   const setupBanner = manabaSetup && shouldShowSetupBanner(setupStage)
     ? getSetupBannerCopy(setupStage)
     : null;
   const pushAction = resolvePushAction(pushPermission);
   const setupSheetCopy = getSetupSheetCopy(setupStage, pushAction);
 
+  // 업데이트 뒤 처음 켰을 때 한 번 — 심사 데모 계정에는 띄우지 않는다 · 스토어 업데이트 창과 겹치지 않게
+  useEffect(() => {
+    if (!userEmail || updateKind === 'store' || releaseDone || releaseNote || displaySheetVisible) return undefined;
+    let alive = true;
+    let timer = null;
+    getSeenReleaseId().then((seen) => {
+      if (!alive) return;
+      const note = userEmail === DEMO_EMAIL ? null : pickReleaseNote(RELEASE_NOTES, seen, userCreatedAt);
+      // 스토어 업데이트 창이 막 닫힌 경우를 위해 잠깐 기다린다 (iOS 는 창이 겹치면 안 열린다)
+      if (note) timer = setTimeout(() => setReleaseNote(note), motion.afterClose);
+      else setReleaseDone(true);
+    });
+    return () => { alive = false; clearTimeout(timer); };
+  }, [userEmail, userCreatedAt, updateKind, releaseDone, releaseNote, displaySheetVisible]);
+
+  const closeReleaseNote = () => {
+    if (releaseNote) markReleaseSeen(releaseNote.id);
+    setReleaseDone(true);
+    setReleaseNote(null);
+  };
+
   // 안내 창: 앱을 새로 켰을 때 / 30분 이상 비웠다 돌아왔을 때만 (탭 이동으로는 안 뜬다)
   //   심사 데모 계정은 띄우지 않는다 (홈 배너는 그대로) · 스토어 업데이트 창과 겹치지 않게
   useEffect(() => {
-    if (!manabaSetup || !userEmail || userEmail === DEMO_EMAIL || updateKind === 'store') return;
+    // 다른 창이 떠 있거나 다른 화면(manaba 등)이 위에 있으면 띄우지 않는다 — 열리지 못한 창이 홈을 막는다
+    if (!releaseDone || displaySheetVisible || !navigation.isFocused()) return undefined;
+    if (!manabaSetup || !userEmail || userEmail === DEMO_EMAIL || updateKind === 'store') return undefined;
     const backgroundedMs = backgroundedMsRef.current;
     backgroundedMsRef.current = 0;
     if (shouldPromptSetup({ stage: setupStage, coldStart: !setupPromptShownThisLaunch, backgroundedMs })) {
       setupPromptShownThisLaunch = true;
-      setSetupSheetVisible(true);
+      // 「新しくなりました」 창이 막 닫힌 경우를 위해 잠깐 기다린다 (iOS 는 창이 겹치면 안 열린다)
+      setTimeout(() => {
+        // 기다리는 사이에 스토어 업데이트 창이 떴으면 양보한다 (그 창을 닫으면 다시 판단)
+        if (updateKindRef.current === 'store') { setupPromptShownThisLaunch = false; return; }
+        setSetupSheetVisible(true);
+      }, motion.afterClose);
     }
-  }, [manabaSetup, setupStage, userEmail, updateKind]);
+    return undefined;
+  }, [manabaSetup, setupStage, userEmail, updateKind, releaseDone, displaySheetVisible, navigation]);
+
+  // 홈의 창은 한 번에 하나만 — 아래 시트가 하나라도 떠 있거나 막 닫히는 중이면 스토어 업데이트 창은 기다린다
+  const anySheet = !!releaseNote || setupSheetVisible || displaySheetVisible;
+  const [noSheet, setNoSheet] = useState(true);
+  useEffect(() => {
+    if (anySheet) { setNoSheet(false); return undefined; }
+    const timer = setTimeout(() => setNoSheet(true), motion.afterClose);
+    return () => clearTimeout(timer);
+  }, [anySheet]);
 
   // 안내 창·홈 배너 공통: 단계에 맞는 곳으로 보낸다
   //   none → 메일 연결 온보딩(처음부터) / pending → 주소·설정 가이드 / no-push → 허용 팝업 또는 설정 앱
@@ -370,7 +430,7 @@ export default function HomeScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <LoadingDots fullscreen />
+        <HomeSkeleton />
       </SafeAreaView>
     );
   }
@@ -465,7 +525,7 @@ export default function HomeScreen({ navigation }) {
                 {nearestAssignment ? nearestAssignment.title : 'なし'}
               </Text>
               {nearestAssignment && (
-                <Text style={[styles.heroDetail, { color: colors.warning, fontWeight: '700' }]} numberOfLines={1}>
+                <Text style={[styles.heroDetail, { color: colors.dangerText, fontWeight: '700' }]} numberOfLines={1}>
                   D-{nearestDday}
                 </Text>
               )}
@@ -523,12 +583,70 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ── manaba 공지 미리보기 (manaba 쓰는 학교만) ── */}
+        {/* ── 時間割 (ホームの表示 에서 今日 / 1週間 / 表示しない) ── */}
+        {display.timetable === 'week' && (
+          <View style={[styles.section, styles.weekSection]}>
+            <View style={[styles.sectionHeader, styles.weekHeader]}>
+              <Text style={styles.sectionTitle}>
+                今週の時間割
+                {week.fallbackTerm ? <Text style={styles.heroTermNote}>　{termLabel(week.fallbackTerm)}</Text> : null}
+              </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Timetable')} hitSlop={HIT}>
+                <Text style={styles.seeAll}>時間割を見る</Text>
+              </TouchableOpacity>
+            </View>
+            <WeekTimetable
+              courses={week.courses}
+              todayCol={isWeekend ? -1 : now.getDay() - 1}
+              university={universityInfo}
+              onPress={() => navigation.navigate('Timetable')}
+            />
+          </View>
+        )}
+        {display.timetable === 'today' && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>今日の時間割</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Timetable')} hitSlop={HIT}>
+                <Text style={styles.seeAll}>時間割を見る</Text>
+              </TouchableOpacity>
+            </View>
+            <TodayClasses
+              courses={todayCourses}
+              nowMin={nowMin}
+              university={universityInfo}
+              emptyText={isWeekend ? '今日はお休みです' : '今日の授業はありません'}
+              onPress={() => navigation.navigate('Timetable')}
+            />
+          </View>
+        )}
+
+        {/* ── 講義評価·掲示板 바로가기 ── */}
+        {display.shortcuts && (
+          <View style={styles.shortcuts}>
+            {[
+              // 뒤로 누르면 홈으로 돌아오게 fromHome 을 넘긴다 (initial:false = 時間割 화면을 밑에 깔아 둔다)
+              { icon: 'star-outline', label: '講義評価', onPress: () => navigation.navigate('Timetable', { screen: 'CourseReview', initial: false, params: { fromHome: true } }) },
+              { icon: 'chatbubble-ellipses-outline', label: '掲示板', onPress: () => navigation.navigate('Community', { screen: 'PostList' }) },
+            ].map((s) => (
+              <TouchableOpacity key={s.label} style={styles.shortcut} activeOpacity={0.7} onPress={s.onPress} accessibilityRole="button">
+                <View style={styles.shortcutIcon}>
+                  <Ionicons name={s.icon} size={20} color={colors.primary} />
+                </View>
+                <Text style={styles.shortcutText}>{s.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* ── manaba 공지 미리보기 (manaba 쓰는 학교만) ──
+            숨겨도 화면에서 빼지는 않는다 — 위 「お知らせ」 숫자를 이 부품이 세어 주기 때문 */}
         {links.manabaUrl && (
-          <ManabaNoticePreview navigation={navigation} onCountsChange={handleNoticeCounts} />
+          <ManabaNoticePreview navigation={navigation} onCountsChange={handleNoticeCounts} hidden={!display.notices} />
         )}
 
         {/* ── 掲示板 미리보기 ── */}
+        {display.board && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>掲示板</Text>
@@ -573,8 +691,10 @@ export default function HomeScreen({ navigation }) {
             })
           )}
         </View>
+        )}
 
         {/* ── 学校情報 2×2 그리드 ── */}
+        {display.school && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>学校情報</Text>
           <View style={styles.schoolGrid}>
@@ -611,9 +731,18 @@ export default function HomeScreen({ navigation }) {
           </View>
         </View>
 
+        )}
+
+        <TouchableOpacity style={styles.editDisplay} onPress={() => setDisplaySheetVisible(true)} hitSlop={HIT} accessibilityRole="button">
+          <Ionicons name="options-outline" size={16} color={colors.primary} />
+          <Text style={styles.seeAll}>ホームの表示を変更</Text>
+        </TouchableOpacity>
+
         <View style={{ height: 32 }} />
       </ScrollView>
 
+      <HomeDisplaySheet visible={displaySheetVisible} onClose={() => setDisplaySheetVisible(false)} usesManaba={!!links.manabaUrl} />
+      <ReleaseNoteSheet note={releaseNote} onClose={closeReleaseNote} />
       {/* 앱을 열 때 올라오는 설정 안내 시트 */}
       <SetupPromptSheet
         visible={setupSheetVisible}
@@ -623,7 +752,7 @@ export default function HomeScreen({ navigation }) {
       />
       {/* ── 📦 네이티브 업데이트 모달 (App Store 로 이동) ── */}
       <StoreUpdateModal
-        visible={updateKind === 'store'}
+        visible={updateKind === 'store' && noSheet}
         storeVersion={storeVersion}
         releaseNotes={releaseNotes}
         onOpenStore={openStore}
@@ -754,6 +883,25 @@ const styles = StyleSheet.create({
     ...typography.small,
     fontWeight: '700',
     color: colors.danger,
+  },
+
+  // 주간 표는 칸을 최대한 넓히려고 안쪽 여백을 줄인다 (제목은 다른 카드와 같은 줄에 맞춤)
+  weekSection: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+  weekHeader: { paddingHorizontal: spacing.sm },
+  // 講義評価·掲示板 바로가기
+  shortcuts: { flexDirection: 'row', gap: spacing.md, marginHorizontal: spacing.lg, marginBottom: spacing.md },
+  shortcut: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+    backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.lg, ...shadow.card,
+  },
+  shortcutIcon: {
+    width: 36, height: 36, borderRadius: radius.md, backgroundColor: colors.primaryLight,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  shortcutText: { ...typography.bodyStrong, color: colors.textPrimary },
+  editDisplay: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: spacing.xs, paddingVertical: spacing.md,
   },
 
   // 빈 상태 카드

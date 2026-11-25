@@ -12,6 +12,7 @@ import MyPostsScreen from '../screens/community/MyPostsScreen';
 import SavedPostsScreen from '../screens/community/SavedPostsScreen';
 import PostDetailScreen from '../screens/community/PostDetailScreen';
 import PostEditScreen from '../screens/community/PostEditScreen';
+import ReleaseNotesScreen from '../screens/ReleaseNotesScreen';
 import BlockedUsersScreen from '../screens/community/BlockedUsersScreen';
 import { colors } from '../constants/colors';
 import AnimatedTabBar from './AnimatedTabBar';
@@ -33,6 +34,7 @@ function ProfileStackNavigator() {
       <ProfileStack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
       <ProfileStack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
       <ProfileStack.Screen name="BlockedUsers" component={BlockedUsersScreen} />
+      <ProfileStack.Screen name="ReleaseNotes" component={ReleaseNotesScreen} />
     </ProfileStack.Navigator>
   );
 }

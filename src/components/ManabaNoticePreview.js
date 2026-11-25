@@ -145,7 +145,7 @@ function NoticeCoachModal({ visible, onConfirm, onDismiss }) {
   );
 }
 
-export default function ManabaNoticePreview({ navigation, onCountsChange }) {
+export default function ManabaNoticePreview({ navigation, onCountsChange, hidden = false }) {
   const { user } = useAuth();
   const [notices, setNotices] = useState([]);          // WebView 파싱 결과 (Phase 1)
   const [dbNotices, setDbNotices] = useState([]);      // manaba_notices 안 읽음 (Phase 3)
@@ -392,6 +392,9 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
         pointerEvents="none"
       />
     ) : null;
+
+  // 홈에서 「manabaのお知らせ」를 끈 경우 — 화면에는 안 보이지만 새 공지 확인(숫자 세기)은 계속한다
+  if (hidden) return hiddenWebView ?? null;
 
   // 1) 병합된 공지가 있으면 카드 표시 (DB 푸시 + WebView 캐시)
   if (merged.length > 0) {
