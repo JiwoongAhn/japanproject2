@@ -99,12 +99,11 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - 로컬 `ios/`·`android/`(prebuild, gitignore)가 있으면 지문이 빌드와 달라져 **OTA가 폰에 도착하지 않는다** → 잠깐 치우고 보낸다
 - 루트 `.gitignore`도 지문에 들어간다 — 고치지 말 것 (하위 폴더 `.gitignore` 사용)
 ```bash
-mv ios /tmp/ios-bak && npx eas fingerprint:compare --build-id <최근 빌드 id>   # ✅ matches 확인
-npx expo export --clear --platform all --output-dir dist --dump-assetmap --source-maps
-grep -ac "rexnpusrxezuztxmkaex" dist/_expo/static/js/*/*.hbc   # ⚠️ ios·android 둘 다 1 이어야 발송 (0 = 서버 주소 빠짐 → 앱이 안 켜짐)
-npx eas update --channel production --skip-bundler --input-dir dist --message "…" ; mv /tmp/ios-bak ios
+scripts/ota.sh --check          # 만들고 검사만
+scripts/ota.sh "일본어 문구"     # 커밋·지문·서버 주소·비밀값 검사를 모두 통과하면 발송 → 올라간 파일까지 재확인
 ```
-- ⚠️ **`--environment` 옵션 금지** — `.env`를 안 읽어 서버 주소가 빠진다(2026-11-25 약 1분 30초 배포 사고). 캐시에도 남아 다음 발송까지 오염되므로 `--clear` 필수
+- **OTA는 반드시 이 스크립트로만** 보낸다(위의 `ios/` 치우기도 자동). `eas update`를 직접 치지 말 것 — `--environment` 옵션이 `.env`를 안 읽어 서버 주소 빠진 업데이트가 나간 사고(2026-11-25)
+- `package.json`의 `scripts`도 지문에 들어간다 — 명령을 추가하면 OTA가 폰에 도착하지 않는다
 - 사고 시 복구: `npx eas update:list --branch production` → 직전 정상 그룹을 `npx eas update:republish --group <id> --destination-channel production`(iOS·Android 그룹이 따로라 2번)
 
 ### TestFlight 함정
