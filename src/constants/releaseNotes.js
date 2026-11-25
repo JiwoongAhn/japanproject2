@@ -4,9 +4,9 @@
 //   icon: Ionicons 이름
 export const RELEASE_NOTES = [
   {
-    id: '2026-12-home',
-    releasedAt: '2026-12-03',
-    label: '2026年12月',
+    id: '2026-11-home',
+    releasedAt: '2026-11-26',
+    label: '2026年11月',
     popup: true,
     items: [
       { icon: 'calendar-outline', title: 'ホームに時間割', text: '今日の授業か1週間の表か、好きな方を選べます' },

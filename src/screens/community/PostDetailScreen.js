@@ -247,12 +247,16 @@ export default function PostDetailScreen({ navigation, route }) {
 
   // 신고 사유 선택 → onPick(reason)
   const promptReportReason = (onPick) => {
-    Alert.alert('通報する', '通報する理由を選択してください', [
-      { text: '侮辱・嫌がらせ', onPress: () => onPick('insult') },
-      { text: '暴言・脅迫', onPress: () => onPick('abuse') },
-      { text: '誹謗中傷', onPress: () => onPick('defamation') },
-      { text: 'キャンセル', style: 'cancel' },
-    ]);
+    confirm({
+      kind: 'choice',
+      icon: 'flag-outline',
+      title: '通報する理由を選んでください',
+      choices: [
+        { text: '侮辱・嫌がらせ', onPress: () => onPick('insult') },
+        { text: '暴言・脅迫', onPress: () => onPick('abuse') },
+        { text: '誹謗中傷', onPress: () => onPick('defamation') },
+      ],
+    });
   };
 
   // 신고 결과 공통 안내
@@ -392,7 +396,7 @@ export default function PostDetailScreen({ navigation, route }) {
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         keyboardVerticalOffset={0}
       >
         <ScrollView

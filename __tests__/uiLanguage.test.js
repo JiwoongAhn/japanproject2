@@ -62,3 +62,30 @@ describe('화면 문구에 한국어가 없다', () => {
     expect(bad).toEqual([]);
   });
 });
+
+// Android 의 Alert 는 버튼이 3개까지만 보인다 → 4번째(대개 キャンセル)가 사라져 창을 못 닫는다
+//   계기(2026-11-25): 신고 사유 창에서 취소할 방법이 없어 잘못 누르면 꼭 신고가 됐다
+export function findLongAlerts(code) {
+  const ast = parse(code, { sourceType: 'module', plugins: ['jsx'] });
+  const found = [];
+  traverse(ast, {
+    CallExpression(p) {
+      const c = p.node.callee;
+      if (c.type !== 'MemberExpression' || c.object.name !== 'Alert' || c.property.name !== 'alert') return;
+      const buttons = p.node.arguments[2];
+      if (buttons?.type === 'ArrayExpression' && buttons.elements.length > 3) found.push(p.node.loc.start.line);
+    },
+  });
+  return found;
+}
+
+describe('Alert 버튼은 3개까지', () => {
+  test('UL-03 검사기가 4개짜리를 잡는다', () => {
+    expect(findLongAlerts("Alert.alert('a', 'b', [{}, {}, {}, {}]);")).toEqual([1]);
+    expect(findLongAlerts("Alert.alert('a', 'b', [{}, {}, {}]);")).toEqual([]);
+  });
+  test('UL-04 src 전체에 4개 이상인 Alert 가 없다 (4개 이상은 useConfirm 의 choice)', () => {
+    const bad = listFiles(SRC).flatMap((f) => findLongAlerts(fs.readFileSync(f, 'utf8')).map((l) => `${path.relative(SRC, f)}:${l}`));
+    expect(bad).toEqual([]);
+  });
+});

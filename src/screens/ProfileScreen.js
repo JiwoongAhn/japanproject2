@@ -10,7 +10,6 @@ import {
   TextInput,
   Modal,
   KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../components/AppTextInput';
@@ -463,7 +462,7 @@ export default function ProfileScreen({ navigation }) {
         >
           <KeyboardAvoidingView
             style={{ flex: 1 }}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior="padding"
           >
           <View style={styles.modalOverlay}>
             <View style={styles.modalCard}>

@@ -199,6 +199,20 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
     });
   }, [confirm]);
 
+  // 신고 사유 고르기 (report = (사유) => 실행 함수)
+  const promptReason = useCallback((report) => {
+    confirm({
+      kind: 'choice',
+      icon: 'flag-outline',
+      title: '通報する理由を選んでください',
+      choices: [
+        { text: '侮辱・嫌がらせ', onPress: report('insult') },
+        { text: '暴言・脅迫', onPress: report('abuse') },
+        { text: '誹謗中傷', onPress: report('defamation') },
+      ],
+    });
+  }, [confirm]);
+
   // 평가·댓글 작성자 차단 확인 (kind·id 로 서버가 작성자를 찾는다)
   const confirmBlock = useCallback((kind, id, message) => {
     confirm({
@@ -224,16 +238,11 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
       else Alert.alert('お知らせ', '通報できませんでした');
     };
     Alert.alert('コメント', '', [
-      { text: '通報する', onPress: () => Alert.alert('通報する', '通報する理由を選択してください', [
-        { text: '侮辱・嫌がらせ', onPress: report('insult') },
-        { text: '暴言・脅迫', onPress: report('abuse') },
-        { text: '誹謗中傷', onPress: report('defamation') },
-        { text: 'キャンセル', style: 'cancel' },
-      ]) },
+      { text: '通報する', onPress: () => promptReason(report) },
       { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlock('review_comment', comment.id, 'このユーザーのコメントが表示されなくなります。') },
       { text: 'キャンセル', style: 'cancel' },
     ]);
-  }, [confirmBlock]);
+  }, [confirmBlock, promptReason]);
 
   const handleReviewReportMenu = useCallback((review) => {
     const report = (reason) => async () => {
@@ -243,16 +252,11 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
       else Alert.alert('お知らせ', '通報できませんでした');
     };
     Alert.alert('評価', '', [
-      { text: '通報する', onPress: () => Alert.alert('通報する', '通報する理由を選択してください', [
-        { text: '侮辱・嫌がらせ', onPress: report('insult') },
-        { text: '暴言・脅迫', onPress: report('abuse') },
-        { text: '誹謗中傷', onPress: report('defamation') },
-        { text: 'キャンセル', style: 'cancel' },
-      ]) },
+      { text: '通報する', onPress: () => promptReason(report) },
       { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlock('review', review.id, 'このユーザーの評価が表示されなくなります。') },
       { text: 'キャンセル', style: 'cancel' },
     ]);
-  }, [confirmBlock]);
+  }, [confirmBlock, promptReason]);
 
   useEffect(() => {
     fetchReviews();

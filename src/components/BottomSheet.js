@@ -3,7 +3,7 @@
 // ⚠️ 닫은 직후 다른 창(모달·사진첩·Alert·modal 화면)을 열 때는 setTimeout(…, motion.afterClose) 로 미룰 것
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View,
+  Animated, BackHandler, Dimensions, Easing, KeyboardAvoidingView, Modal, Pressable, StyleSheet, View,
 } from 'react-native';
 import { colors } from '../constants/colors';
 import { motion } from '../constants/motion';
@@ -48,6 +48,16 @@ export default function BottomSheet({
     return () => clearTimeout(timer);
   }, [visible, progress]);
 
+  // Android 뒤로가기: OS 모달은 onRequestClose 가 받지만 inline 은 직접 받아야 한다
+  //   (안 받으면 시트가 열린 채 이전 화면으로 가 버린다 — 2026-11-25 에뮬레이터에서 발견)
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!inline || !visible) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => { closeRef.current?.(); return true; });
+    return () => sub.remove();
+  }, [inline, visible]);
+
   if (!visible && !mounted) return null;
 
   const body = (
@@ -74,7 +84,7 @@ export default function BottomSheet({
   return (
     <Modal visible transparent animationType="none" onShow={onShow} onRequestClose={onClose}>
       {avoidKeyboard ? (
-        <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView style={styles.flex} behavior="padding">
           {body}
         </KeyboardAvoidingView>
       ) : body}

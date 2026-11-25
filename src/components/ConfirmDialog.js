@@ -2,6 +2,8 @@
 //   normal : 되돌릴 수 있는 일 (ブロック·保存を解除)            회색 아이콘 + 파랑 버튼
 //   danger : 되돌릴 수 없는 일 (削除·ログアウト)                 빨강 아이콘 + 빨강 버튼
 //   all    : 전부 지우는 일 (退会·時間割を全て削除)              체크해야 빨강 버튼이 켜진다
+//   choice : 여러 개 중 하나 고르기 (通報の理由 등)                회색 버튼 여러 개
+//            Alert 는 Android 에서 버튼이 3개까지만 보여 キャンセル 이 사라지므로 4개 이상은 반드시 이것을 쓴다
 // 단순 안내·오류는 여기 쓰지 않고 Alert 를 그대로 쓴다
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
@@ -12,14 +14,14 @@ import { colors } from '../constants/colors';
 import { spacing, radius } from '../constants/spacing';
 import { typography } from '../constants/typography';
 
-const DEFAULT_ICON = { normal: 'help-circle-outline', danger: 'trash-outline', all: 'warning-outline' };
+const DEFAULT_ICON = { choice: 'list-outline', normal: 'help-circle-outline', danger: 'trash-outline', all: 'warning-outline' };
 
-export default function ConfirmDialog({ visible, placement = 'sheet', options, onCancel, onConfirm }) {
+export default function ConfirmDialog({ visible, placement = 'sheet', options, onCancel, onConfirm, onChoose }) {
   const [checked, setChecked] = useState(false);
   useEffect(() => { if (visible) setChecked(false); }, [visible]);
 
-  const { kind = 'normal', icon, title, target, message, confirmText = 'OK', checkText } = options ?? {};
-  const danger = kind !== 'normal';
+  const { kind = 'normal', icon, title, target, message, confirmText = 'OK', checkText, choices } = options ?? {};
+  const danger = kind === 'danger' || kind === 'all';
   const blocked = kind === 'all' && !checked;
 
   const body = options ? (
@@ -47,6 +49,18 @@ export default function ConfirmDialog({ visible, placement = 'sheet', options, o
           <Text style={styles.checkText}>{checkText}</Text>
         </TouchableOpacity>
       ) : null}
+      {kind === 'choice' ? (choices ?? []).map((c) => (
+        <TouchableOpacity
+          key={c.text}
+          style={[styles.button, styles.buttonChoice]}
+          onPress={() => onChoose?.(c)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={c.text}
+        >
+          <Text style={styles.choiceText}>{c.text}</Text>
+        </TouchableOpacity>
+      )) : (
       <TouchableOpacity
         style={[styles.button, danger ? styles.buttonDanger : styles.buttonPrimary, blocked && styles.buttonDisabled]}
         onPress={onConfirm}
@@ -57,6 +71,7 @@ export default function ConfirmDialog({ visible, placement = 'sheet', options, o
       >
         <Text style={styles.buttonText}>{confirmText}</Text>
       </TouchableOpacity>
+      )}
       <TouchableOpacity
         style={[styles.button, styles.buttonCancel]}
         onPress={onCancel}
@@ -90,6 +105,8 @@ const styles = StyleSheet.create({
   buttonPrimary: { backgroundColor: colors.primary },
   buttonDanger: { backgroundColor: colors.danger },
   buttonDisabled: { opacity: 0.4 },
+  buttonChoice: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
+  choiceText: { ...typography.subtitle, color: colors.textPrimary },
   buttonText: { ...typography.subtitle, fontWeight: '700', color: colors.white },
   buttonCancel: { backgroundColor: colors.gray100, marginTop: spacing.sm },
   cancelText: { ...typography.subtitle, color: colors.gray700 },

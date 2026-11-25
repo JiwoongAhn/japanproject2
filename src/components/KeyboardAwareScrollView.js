@@ -19,8 +19,9 @@ import React, {
   useContext,
   useEffect,
   useRef,
+  useState,
 } from 'react';
-import { ScrollView, Keyboard, Dimensions, Platform } from 'react-native';
+import { ScrollView, Keyboard, Dimensions, Platform, View } from 'react-native';
 
 const FocusScrollContext = createContext(null);
 
@@ -51,6 +52,9 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
   const scrollRef = useRef(null);
   const scrollY = useRef(0); // 현재 스크롤 오프셋(스크롤할 때마다 갱신)
   const keyboardHeight = useRef(0); // 현재 키보드 높이(키보드 이벤트로 갱신)
+  // Android 는 iOS 의 automaticallyAdjustKeyboardInsets 가 없고 화면도 줄어들지 않는다(edge-to-edge)
+  //   → 키보드 높이만큼 아래 여백을 넣어야 아래쪽 칸을 키보드 위로 올릴 수 있다 (2026-11-25 에뮬레이터에서 확인)
+  const [androidPad, setAndroidPad] = useState(0);
   const focusedNode = useRef(null); // 마지막으로 포커스된 입력칸(키보드가 뜬 뒤 재시도용)
 
   // 포커스된 칸을 계산된 위치로 실제로 옮긴다(측정 → 계산 → scrollTo)
@@ -75,6 +79,7 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     const showSub = Keyboard.addListener(showEvt, (e) => {
       keyboardHeight.current = e?.endCoordinates?.height ?? 0;
+      if (Platform.OS === 'android') setAndroidPad(keyboardHeight.current);
       // ⚠️ 키보드가 올라온 뒤 한 번 더 옮긴다.
       //    autoFocus 로 화면 진입과 동시에 포커스되는 경우, 첫 시도 시점에는 키보드가 없어
       //    스크롤 가능 범위가 0 이라 scrollTo 가 그대로 무시된다(내용이 화면보다 짧을 때).
@@ -85,6 +90,7 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
     });
     const hideSub = Keyboard.addListener(hideEvt, () => {
       keyboardHeight.current = 0;
+      setAndroidPad(0);
     });
     return () => {
       showSub.remove();
@@ -119,6 +125,7 @@ export default function KeyboardAwareScrollView({ children, ...props }) {
         onScroll={handleScroll}
       >
         {children}
+        {androidPad > 0 ? <View style={{ height: androidPad }} /> : null}
       </ScrollView>
     </FocusScrollContext.Provider>
   );

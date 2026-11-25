@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
+  BackHandler,
   View,
   Text,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import AppTextInput from '../../components/AppTextInput';
 import { colors, pastel } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
@@ -73,6 +75,18 @@ export default function CourseReviewScreen({ navigation, route }) {
     navigation.popToTop();
     navigation.navigate('Home');
   };
+  // Android 뒤로가기도 같은 규칙으로
+  useFocusEffect(
+    useCallback(() => {
+      if (!route?.params?.fromHome) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        navigation.popToTop();
+        navigation.navigate('Home');
+        return true;
+      });
+      return () => sub.remove();
+    }, [navigation, route?.params?.fromHome])
+  );
   const [searchText, setSearchText] = useState('');
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);

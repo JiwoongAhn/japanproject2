@@ -84,6 +84,7 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - **로그아웃하면 저장된 ID·비밀번호를 지운다** (`utils/schoolLogout.js`): manaba·kaede-i = 그 사이트 것만, 앱 로그아웃·退会·リセット = 전부
 - 새 기능을 배포할 때 `constants/releaseNotes.js` 맨 위에 추가(`releasedAt` = 배포일). 첫 로딩은 `Skeleton`(홈·시간표·게시판·課題), 나머지는 `LoadingDots`
 - **홈에서 자동으로 뜨는 창은 한 번에 하나만**(스토어 업데이트 → 新しくなりました → 설정 안내). 겹치면 열리지 못한 창이 보이지 않게 화면을 막는다 — 새 자동 창을 넣을 땐 `HomeScreen`의 `noSheet`·`releaseDone` 순서에 끼울 것. 안전장치 = `useModalGuard`(2초 안에 안 열리면 닫음)
+- **Android 함정 3가지(2026-11-26):** ① `CookieManager.set`은 항상 domain 을 붙여 같은 이름 쿠키가 2개가 된다 → `schoolCookies.js`의 `setAndroidCookie`만 쓸 것 ② `Alert` 버튼은 3개까지(4개 이상은 `useConfirm`의 `choice`) ③ 키보드가 화면을 줄이지 않는다 → `KeyboardAvoidingView`는 양쪽 다 `padding`, 스크롤 폼은 `KeyboardAwareScrollView`
 - 課題 D-day: 3일 이내·기한 초과 = `dangerText`, 나머지·제출 완료 = 회색
 - 시트를 닫은 직후 다른 창(모달·사진첩·Alert)을 열 때는 `setTimeout(…, motion.afterClose)` — iOS는 창이 겹치면 안 열린다
 - 화면·훅 수정 후 보고 전: Jest + `check:bundle` + no-undef 검사, UI 변경은 시뮬 실화면까지 확인
