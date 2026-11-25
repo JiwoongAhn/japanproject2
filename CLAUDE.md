@@ -100,8 +100,12 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - 루트 `.gitignore`도 지문에 들어간다 — 고치지 말 것 (하위 폴더 `.gitignore` 사용)
 ```bash
 mv ios /tmp/ios-bak && npx eas fingerprint:compare --build-id <최근 빌드 id>   # ✅ matches 확인
-npx eas update --channel production --message "…" && mv /tmp/ios-bak ios
+npx expo export --clear --platform all --output-dir dist --dump-assetmap --source-maps
+grep -ac "rexnpusrxezuztxmkaex" dist/_expo/static/js/*/*.hbc   # ⚠️ ios·android 둘 다 1 이어야 발송 (0 = 서버 주소 빠짐 → 앱이 안 켜짐)
+npx eas update --channel production --skip-bundler --input-dir dist --message "…" ; mv /tmp/ios-bak ios
 ```
+- ⚠️ **`--environment` 옵션 금지** — `.env`를 안 읽어 서버 주소가 빠진다(2026-11-25 약 1분 30초 배포 사고). 캐시에도 남아 다음 발송까지 오염되므로 `--clear` 필수
+- 사고 시 복구: `npx eas update:list --branch production` → 직전 정상 그룹을 `npx eas update:republish --group <id> --destination-channel production`(iOS·Android 그룹이 따로라 2번)
 
 ### TestFlight 함정
 TestFlight·Xcode로 설치한 앱은 App Store 업데이트가 영구히 안 온다(항상 「開く」). 「업데이트 안 온다」 신고 시 코드보다 먼저 라이브 버전(`curl -s "https://itunes.apple.com/lookup?id=6784875972&country=jp"`)과 설치 출처 확인. 복구 = 삭제 → App Store 설치
