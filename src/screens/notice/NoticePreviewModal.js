@@ -55,7 +55,7 @@ function buildHtml(bodyHtml) {
           margin: 0;
           word-break: break-word;
         }
-        a { color: #3182F6; }
+        a { color: ${colors.primary}; }
         img { max-width: 100%; height: auto; }
       </style>
     </head>
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 4,
     padding: 14,
-    backgroundColor: '#EFF6FF', // 파란 강조 배경
+    backgroundColor: colors.primaryLight, // 파란 강조 배경
     borderRadius: 12,
     borderLeftWidth: 3,
     borderLeftColor: colors.primary,
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   addAssignmentButton: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: 12,
     paddingVertical: 15,
     alignItems: 'center',

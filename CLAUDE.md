@@ -5,7 +5,7 @@
 - **저장소:** github.com/JiwoongAhn/japanproject2 (**공개 저장소** — 실제 학생 데이터는 gitignore)
 - **패키지/번들 ID:** `com.jiwoongahn.unione` (iOS·Android 공통), App Store ID `6784875972`
 - **EAS slug:** `unipas` (⚠️ 앱 이름과 다르지만 EAS 식별자라 바꾸면 빌드 에러)
-- **UI 스타일:** 토스 스타일 (primary #3182F6, background #F2F4F6) — 기준값 `src/constants/colors.js`·`spacing.js`·`typography.js`
+- **UI 스타일:** 토스 스타일 (primary #1D66E5, background #F2F4F6) — 기준값 `src/constants/colors.js`·`spacing.js`·`typography.js`
 - **하단 탭:** 홈 / 시간표 / 게시판 / マイページ. 課題는 루트 모달 `Assignment`(홈 카드·시간표 셀·통지에서 진입)
   - 재검토 조건 = 이용자 20~30명 시점에 `assignments` 행 수 확인(`docs/admin-status.sql`). 0이면 홈 칸도 빼고, 있으면 유지
 - **학기:** `courses.term`(spring/fall), `getCurrentTerm()` = 4~8월 春 / 9~3월 秋
@@ -79,6 +79,7 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 - 변수명: camelCase 영어 / 주석: 한국어 / 순수 함수는 `src/utils/`
 - 화면 문구는 일본어
 - **디자인 규칙(2026-11-25 확정):** 색 있는 버튼은 주 행동 하나(파랑), 나머지 회색, 삭제는 빨간 글씨+🗑(빨강으로 꽉 찬 버튼은 마지막 확인에서만). 안내문은 배경 없이 `InfoNote`(ⓘ+회색 글씨), 색 상자는 버튼만. 아래에서 올라오는 창은 `BottomSheet`, 움직임 속도는 `constants/motion.js`
+- **색·여백 규칙(2026-11-25 확정):** 작은 글씨 명암비 4.5 이상(회색은 `textSecondary`, 파스텔 배경 위 글씨는 `pastel.*.text`, 게시판 분류는 `textColor`). 할 일이 없는 숫자(0)는 `textMuted`. 홈 카드 안쪽 여백 20, 카드 안에 카드를 넣지 않고 줄로 나눔
 - 시트를 닫은 직후 다른 창(모달·사진첩·Alert)을 열 때는 `setTimeout(…, motion.afterClose)` — iOS는 창이 겹치면 안 열린다
 - 화면·훅 수정 후 보고 전: Jest + `check:bundle` + no-undef 검사, UI 변경은 시뮬 실화면까지 확인
 

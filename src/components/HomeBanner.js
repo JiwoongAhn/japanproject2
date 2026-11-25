@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
-    padding: spacing.lg,
+    padding: spacing.xl,
     marginHorizontal: spacing.lg, // 홈의 다른 카드와 같은 좌우 여백
     marginBottom: spacing.md,
     ...shadow.card,

@@ -29,7 +29,7 @@ export function buildOnboardingCopy(links) {
     hasDedicatedImport
       ? {
           key: 'timetable',
-          title: '時間割は、学校のシステムから\nそのまま取り込み',
+          title: '学校のシステムから\n時間割を取り込み',
           subtitle: `${links.portalLabel || '学校のシステム'}にログインしてボタンを押すだけ。\n授業を1つずつ入力しなくて大丈夫です。`,
         }
       : {
@@ -49,7 +49,7 @@ export function buildOnboardingCopy(links) {
       ? {
           key: 'assignment',
           title: '課題は、自動でリストに',
-          subtitle: 'manabaでレポートや小テストが出ると、\n締切つきで自動追加。提出すると「提出済」に。\n締切の3日前と前日、18時ごろにもお知らせします。',
+          subtitle: 'manabaでレポートや小テストが出ると、\n締切つきで自動追加。提出すると「提出済」に。\n締切の3日前と前日、18時ごろにお知らせ。',
           autoAdd: true,
         }
       : {
@@ -74,7 +74,7 @@ export function buildOnboardingCopy(links) {
         ? {
             key: 'oneTimeLogin',
             title: '最初の1回だけ、ログイン',
-            subtitle: `${targetText}は、最初に一度ログインするだけ。\nあとは毎回ログインしなくても自動でつながります。`,
+            subtitle: `${targetText}へのログインは最初だけ。\nあとは自動でつながります。`,
             targets,
             afterText: 'あとは自動でつながります',
           }

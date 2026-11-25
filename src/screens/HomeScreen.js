@@ -439,7 +439,7 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate('Timetable')}
             >
               <Text style={styles.heroLabel}>授業</Text>
-              <Text style={styles.heroNumber}>{todayCourses.length}</Text>
+              <Text style={[styles.heroNumber, todayCourses.length > 0 && { color: colors.primary }]}>{todayCourses.length}</Text>
               <Text style={styles.heroDetailStrong} numberOfLines={1}>
                 {heroCourseMain}
               </Text>
@@ -460,7 +460,7 @@ export default function HomeScreen({ navigation }) {
               onPress={() => navigation.navigate('Assignment')}
             >
               <Text style={styles.heroLabel}>課題</Text>
-              <Text style={[styles.heroNumber, { color: colors.warning }]}>{upcomingAssignments.length}</Text>
+              <Text style={[styles.heroNumber, upcomingAssignments.length > 0 && { color: colors.warning }]}>{upcomingAssignments.length}</Text>
               <Text style={styles.heroDetailStrong} numberOfLines={1}>
                 {nearestAssignment ? nearestAssignment.title : 'なし'}
               </Text>
@@ -515,7 +515,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.heroLabel}>お知らせ</Text>
                 {hasUnreadNotice && <View style={styles.redDot} />}
               </View>
-              <Text style={[styles.heroNumber, { color: colors.danger }]}>{noticeDisplayCount}</Text>
+              <Text style={[styles.heroNumber, hasUnreadNotice && { color: colors.danger }]}>{noticeDisplayCount}</Text>
               <Text style={styles.heroDetailStrong} numberOfLines={1}>
                 {noticeMain}
               </Text>
@@ -542,13 +542,13 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.emptyCardText}>まだ投稿がありません</Text>
             </View>
           ) : (
-            recentPosts.map((post) => {
+            recentPosts.map((post, i) => {
               const catInfo = getCategoryInfo(post.category);
               const commentCount = post.post_comments?.[0]?.count ?? 0;
               return (
                 <TouchableOpacity
                   key={post.id}
-                  style={styles.postCard}
+                  style={[styles.postCard, i === 0 && styles.postCardFirst, i === recentPosts.length - 1 && styles.postCardLast]}
                   activeOpacity={0.7}
                   onPress={() => navigation.navigate('Community', {
                     screen: 'PostDetail',
@@ -557,7 +557,7 @@ export default function HomeScreen({ navigation }) {
                 >
                   <View style={styles.postHeader}>
                     <View style={[styles.categoryBadge, { backgroundColor: catInfo.color + '18' }]}>
-                      <Text style={[styles.categoryBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
+                      <Text style={[styles.categoryBadgeText, { color: catInfo.textColor }]}>{catInfo.label}</Text>
                     </View>
                     <Text style={styles.postAnon}>{post.is_anonymous ? '匿名' : '実名'}</Text>
                   </View>
@@ -583,14 +583,14 @@ export default function HomeScreen({ navigation }) {
               // manaba 없으면 lmsUrl(WebClass/UNIPA 등)을 앱 내 브라우저(쿠키 유지+자동입력)로 대체
               // — 외부 브라우저로 열면 세션이 공유되지 않아 매번 재로그인이 필요했음(2026-09-20 일반화)
               ...(links.manabaUrl
-                ? [{ icon: 'book', label: 'manaba', internal: 'Manaba', tint: colors.primary }]
+                ? [{ icon: 'book', label: 'manaba', internal: 'Manaba' }]
                 : links.lmsUrl
-                  ? [{ icon: 'book', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, webview: true, autoLogin: true, tint: colors.primary }]
+                  ? [{ icon: 'book', label: links.lmsLabel ?? 'LMS', url: links.lmsUrl, webview: true, autoLogin: true }]
                   : []
               ),
               // 학사 포털(국사관 kaede-i 등)은 앱 내부 WebView로 진입 (autoLogin: ID/PW 자동 로그인)
-              { icon: 'calendar', label: links.portalLabel ?? 'ポータル', url: links.portalUrl, webview: true, autoLogin: true, tint: colors.success },
-              { icon: 'school', label: 'ホームページ', url: links.homepageUrl, tint: colors.warning },
+              { icon: 'calendar', label: links.portalLabel ?? 'ポータル', url: links.portalUrl, webview: true, autoLogin: true },
+              { icon: 'school', label: 'ホームページ', url: links.homepageUrl },
             ].filter(item => item.url || item.internal).map((item) => (
               <TouchableOpacity
                 key={item.label}
@@ -602,8 +602,8 @@ export default function HomeScreen({ navigation }) {
                   else WebBrowser.openBrowserAsync(item.url);
                 }}
               >
-                <View style={[styles.schoolIconChip, { backgroundColor: item.tint + '18' }]}>
-                  <Ionicons name={item.icon} size={28} color="#4F7CFF" />
+                <View style={styles.schoolIconChip}>
+                  <Ionicons name={item.icon} size={26} color={colors.primary} />
                 </View>
                 <Text style={styles.schoolLabel}>{item.label}</Text>
               </TouchableOpacity>
@@ -650,9 +650,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
+    padding: spacing.xl,
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     ...shadow.card,
@@ -702,8 +700,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    padding: spacing.xl,
     borderRadius: radius.lg,
     ...shadow.card,
   },
@@ -713,7 +710,8 @@ const styles = StyleSheet.create({
   heroDivider: { width: 1, backgroundColor: colors.border, marginVertical: spacing.xs },
   heroLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   heroLabel: { ...typography.caption, color: colors.textSecondary, marginBottom: spacing.xs },
-  heroNumber: { ...typography.display, color: colors.primary, marginBottom: spacing.xs },
+  // 기본은 회색 — 할 일이 있을 때만 색을 입힌다 (0 이면 눈에 띄지 않게)
+  heroNumber: { ...typography.display, color: colors.textMuted, marginBottom: spacing.xs },
   heroDetailStrong: { ...typography.small, fontWeight: '700', color: colors.textPrimary, textAlign: 'center' },
   heroDetail: { ...typography.small, color: colors.textSecondary, textAlign: 'center' },
   redDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.danger, marginBottom: spacing.xs },
@@ -723,8 +721,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    padding: spacing.xl, // 홈 카드 안쪽 여백은 모두 20
     borderRadius: radius.lg,
     ...shadow.card,
   },
@@ -761,9 +758,7 @@ const styles = StyleSheet.create({
 
   // 빈 상태 카드
   emptyCard: {
-    backgroundColor: colors.gray50,
-    borderRadius: radius.md,
-    padding: spacing.lg,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
   },
   emptyCardText: {
@@ -864,12 +859,14 @@ const styles = StyleSheet.create({
   },
 
   // 게시판 카드
+  // 카드 안의 카드 대신 줄로 나눈다
   postCard: {
-    backgroundColor: colors.gray50,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray100,
   },
+  postCardFirst: { borderTopWidth: 0, paddingTop: 0 },
+  postCardLast: { paddingBottom: 0 },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -926,6 +923,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radius.md,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
   },

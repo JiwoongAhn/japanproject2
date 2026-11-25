@@ -22,9 +22,9 @@ import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 // 상태별 디자인 — pastel 토큰으로 부드럽게
 const STATUS_CONFIG = {
-  pending:   { label: '未提出',   bg: pastel.peach.bg,    text: pastel.peach.accent },
-  submitted: { label: '提出済',   bg: pastel.mint.bg,     text: pastel.mint.accent },
-  overdue:   { label: '期限超過', bg: pastel.rose.bg,     text: pastel.rose.accent },
+  pending:   { label: '未提出',   bg: pastel.peach.bg,    text: pastel.peach.text },
+  submitted: { label: '提出済',   bg: pastel.mint.bg,     text: pastel.mint.text },
+  overdue:   { label: '期限超過', bg: pastel.rose.bg,     text: pastel.rose.text },
 };
 
 // DB 상태와 마감일을 비교해 실제 표시 상태를 계산
@@ -406,7 +406,7 @@ const styles = StyleSheet.create({
   // 안내 힌트
   hint: {
     ...typography.micro,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.md,
   },

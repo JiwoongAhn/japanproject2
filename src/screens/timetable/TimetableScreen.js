@@ -460,21 +460,21 @@ export default function TimetableScreen({ navigation }) {
                       {course ? (
                         <>
                           <Text
-                            style={[styles.courseName, { color: color.accent }]}
+                            style={[styles.courseName, { color: color.text }]}
                             numberOfLines={2}
                           >
                             {course.name}
                           </Text>
                           {course.room ? (
                             <Text
-                              style={[styles.courseRoom, { color: color.accent }]}
+                              style={[styles.courseRoom, { color: color.text }]}
                               numberOfLines={1}
                             >
                               {course.room}
                             </Text>
                           ) : course.professor_name ? (
                             <Text
-                              style={[styles.courseRoom, { color: color.accent }]}
+                              style={[styles.courseRoom, { color: color.text }]}
                               numberOfLines={1}
                             >
                               {course.professor_name}
@@ -772,7 +772,7 @@ const styles = StyleSheet.create({
   },
   periodTimeText: {
     ...typography.micro,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginTop: 2,
   },
 
@@ -796,7 +796,6 @@ const styles = StyleSheet.create({
   },
   courseRoom: {
     ...typography.micro,
-    opacity: 0.85,
     marginTop: 2,
   },
   // 결석/지각 배지 — 칸 우상단. 흰 반투명 배경으로 색 텍스트 가독성 확보

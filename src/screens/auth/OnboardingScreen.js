@@ -201,10 +201,11 @@ export default function OnboardingScreen({ navigation, route }) {
                 )}
               </View>
               <View style={styles.textBlock} onLayout={onTextLayout}>
-                {/* 화면 폭이 좁으면(안드로이드·SE) 글자를 조금 줄여, 정해 둔 줄 수를 지킨다 (한 글자만 다음 줄로 넘어가는 것 방지) */}
+                {/* 화면 폭이 좁으면(안드로이드·SE) 글자를 조금 줄인다. 줄 수에는 한 줄 여유를 둔다 —
+                    자동 축소가 안 먹으면 뒷 문장이 통째로 잘렸다 (SE, 2026-11-25) */}
                 <Text
                   style={styles.title}
-                  numberOfLines={slide.title.split('\n').length}
+                  numberOfLines={slide.title.split('\n').length + 1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.75}
                 >
@@ -212,7 +213,7 @@ export default function OnboardingScreen({ navigation, route }) {
                 </Text>
                 <Text
                   style={styles.subtitle}
-                  numberOfLines={slide.subtitle.split('\n').length}
+                  numberOfLines={slide.subtitle.split('\n').length + 1}
                   adjustsFontSizeToFit
                   minimumFontScale={0.8}
                 >

@@ -163,8 +163,8 @@ export function TimetableMock() {
                   <View key={di} style={[styles.cell, { backgroundColor: c ? c[4].bg : colors.gray50 }]}>
                     {c && (
                       <>
-                        <Text style={[styles.cellName, { color: c[4].accent }]} numberOfLines={2}>{c[2]}</Text>
-                        <Text style={[styles.cellRoom, { color: c[4].accent }]} numberOfLines={1}>{c[3]}</Text>
+                        <Text style={[styles.cellName, { color: c[4].text }]} numberOfLines={2}>{c[2]}</Text>
+                        <Text style={[styles.cellRoom, { color: c[4].text }]} numberOfLines={1}>{c[3]}</Text>
                       </>
                     )}
                   </View>
@@ -208,8 +208,8 @@ export function ManabaPushMock() {
 // 3. 課題 — 실제 AssignmentScreen 과 같은 카드 + 위에 「締切前日」 알림 배너
 // ─────────────────────────────────────────────────────────────
 const STATUS = {
-  pending: { label: '未提出', bg: pastel.peach.bg, text: pastel.peach.accent },
-  submitted: { label: '提出済', bg: pastel.mint.bg, text: pastel.mint.accent },
+  pending: { label: '未提出', bg: pastel.peach.bg, text: pastel.peach.text },
+  submitted: { label: '提出済', bg: pastel.mint.bg, text: pastel.mint.text },
 };
 const ASSIGNMENTS_AUTO = [
   { course: '経営学概論', title: '第5回レポート', due: '2026-10-27 23:59', dday: 'D-1', ddayColor: colors.warning, status: 'pending', auto: true },
@@ -500,10 +500,10 @@ const styles = StyleSheet.create({
   periodRow: { flexDirection: 'row', height: 70, marginBottom: 3 },
   periodCol: { width: 36, alignItems: 'center', justifyContent: 'center' },
   periodNum: { ...typography.captionStrong, color: colors.textSecondary },
-  periodTime: { fontSize: 10, color: colors.textDisabled, marginTop: 2 },
+  periodTime: { fontSize: 10, color: colors.textSecondary, marginTop: 2 },
   cell: { flex: 1, marginHorizontal: 1.5, borderRadius: 8, padding: 4 },
   cellName: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
-  cellRoom: { fontSize: 10, marginTop: 2, opacity: 0.85 },
+  cellRoom: { fontSize: 10, marginTop: 2 },
 
   // 잠금화면 알림
   lock: { flex: 1, backgroundColor: MOCK_BG_LOCK, alignItems: 'center', paddingTop: 30, paddingHorizontal: 12 },
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   chipOn: { backgroundColor: colors.primary },
   chipText: { ...typography.captionStrong, color: colors.gray700 },
   chipTextOn: { color: colors.white },
-  hint: { fontSize: 11, color: colors.textDisabled, textAlign: 'center', marginVertical: 12 },
+  hint: { fontSize: 11, color: colors.textSecondary, textAlign: 'center', marginVertical: 12 },
   card: { backgroundColor: colors.surface, borderRadius: 16, padding: 16 },
   cardCourse: { ...typography.caption, color: colors.textSecondary, flex: 1, marginRight: 8 },
   statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999 },

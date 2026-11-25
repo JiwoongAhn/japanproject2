@@ -1,9 +1,9 @@
 // 앱 전체에서 사용하는 색상 팔레트 (토스 스타일)
 export const colors = {
-  // 메인 — 토스 스타일 블루
-  primary:       '#3182F6',   // 버튼, 탭 활성화, 강조
-  primaryDark:   '#1B64DA',   // 버튼 눌렀을 때
-  primaryLight:  '#EBF3FE',   // 배지 배경, 아이콘 배경
+  // 메인 — 짙은 파랑 (2026-11-25 변경: 흰 글씨 명암비 3.7 → 5.1)
+  primary:       '#1D66E5',   // 버튼, 탭 활성화, 강조
+  primaryDark:   '#1650B8',   // 버튼 눌렀을 때
+  primaryLight:  '#E8F0FD',   // 배지 배경, 아이콘 배경
 
   // 상태
   success:       '#05C072',   // 과제 제출 완료
@@ -27,7 +27,8 @@ export const colors = {
 
   // 텍스트
   textPrimary:   '#191F28',   // 제목
-  textSecondary: '#8B95A1',   // 부제목, 날짜, 힌트
+  textSecondary: '#5F6B7A',   // 부제목, 날짜, 힌트 (작은 글씨라 명암비 5 안팎 유지)
+  textMuted:     '#8B95A1',   // 큰 숫자 「0」 등 일부러 힘을 뺀 큰 글씨 전용 (작은 글씨에 쓰지 말 것)
   textDisabled:  '#C9CDD2',
 
   // 구분선
@@ -37,8 +38,8 @@ export const colors = {
   gray900:       '#191F28',
   gray800:       '#333D4B',
   gray700:       '#4E5968',
-  gray600:       '#6B7684',
-  gray500:       '#8B95A1',
+  gray600:       '#5F6B7A',
+  gray500:       '#6B7684',
   gray400:       '#B0B8C1',
   gray300:       '#D1D6DB',
   gray200:       '#E5E8EB',
@@ -48,14 +49,14 @@ export const colors = {
 };
 
 // 일본 감성 파스텔 액센트 7색 (밀러의 법칙 — 7±2)
-// 각 컬러는 bg(연한 배경) + accent(글자/강조) 페어
+// bg = 연한 배경 / accent = 점·테두리·아이콘 / text = bg 위의 작은 글씨 (명암비 4.5 — 더 진하면 무거워 보인다는 사용자 의견)
 // 시간표 셀, 카테고리 칩, 태그 등에 사용
 export const pastel = {
-  pink:     { bg: '#FFE4E6', accent: '#FB7185' },
-  peach:    { bg: '#FFEDD5', accent: '#FB923C' },
-  yellow:   { bg: '#FEF3C7', accent: '#D97706' },
-  mint:     { bg: '#D1FAE5', accent: '#10B981' },
-  sky:      { bg: '#DBEAFE', accent: '#3B82F6' },
-  lavender: { bg: '#EDE9FE', accent: '#8B5CF6' },
-  rose:     { bg: '#FCE7F3', accent: '#DB2777' },
+  pink:     { bg: '#FFE4E6', accent: '#FB7185', text: '#CD1D37' },
+  peach:    { bg: '#FFEDD5', accent: '#FB923C', text: '#A55718' },
+  yellow:   { bg: '#FEF3C7', accent: '#D97706', text: '#9F5F17' },
+  mint:     { bg: '#D1FAE5', accent: '#10B981', text: '#127C59' },
+  sky:      { bg: '#DBEAFE', accent: '#3B82F6', text: '#1E63D3' },
+  lavender: { bg: '#EDE9FE', accent: '#8B5CF6', text: '#7848E5' },
+  rose:     { bg: '#FCE7F3', accent: '#DB2777', text: '#C8216B' },
 };

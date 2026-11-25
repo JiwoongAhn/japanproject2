@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   },
   editHint: {
     ...typography.micro,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginLeft: 'auto',
   },
   editHintWarn: {

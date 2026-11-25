@@ -481,7 +481,7 @@ const styles = StyleSheet.create({
   },
   dateHint: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginBottom: spacing.md,
   },
 

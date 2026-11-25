@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   scrollHint: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginBottom: spacing.sm,
   },

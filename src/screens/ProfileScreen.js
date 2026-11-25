@@ -585,7 +585,7 @@ export default function ProfileScreen({ navigation }) {
                     >
                       {/* 카테고리 배지 */}
                       <View style={[styles.categoryBadge, { backgroundColor: cat.color + '22' }]}>
-                        <Text style={[styles.categoryText, { color: cat.color }]}>{cat.label}</Text>
+                        <Text style={[styles.categoryText, { color: cat.textColor }]}>{cat.label}</Text>
                       </View>
 
                       {/* 제목 + 날짜 */}
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
   studentId: {
     ...typography.small,
     fontWeight: '400',
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
 
   // 섹션
@@ -1057,7 +1057,7 @@ const styles = StyleSheet.create({
   },
   emptyPostsText: {
     ...typography.body2,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
   postListCard: {
     backgroundColor: colors.surface,
@@ -1095,7 +1095,7 @@ const styles = StyleSheet.create({
   postMeta: {
     ...typography.small,
     fontWeight: '400',
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
   chevron: {
     fontSize: 18,
@@ -1129,7 +1129,7 @@ const styles = StyleSheet.create({
   toggleHint: {
     ...typography.small,
     fontWeight: '400',
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
   menuArrow: {
     fontSize: 24,
@@ -1229,7 +1229,7 @@ const styles = StyleSheet.create({
   modalHint: {
     ...typography.small,
     fontWeight: '400',
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginBottom: spacing.xl,
   },
   modalButtons: {
@@ -1277,7 +1277,7 @@ const styles = StyleSheet.create({
   // 개인정보처리방침 + 탈퇴 링크
   versionText: {
     ...typography.small,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     textAlign: 'center',
     marginTop: -spacing.md,
   },

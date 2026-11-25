@@ -1,3 +1,4 @@
+import { colors } from '../../src/constants/colors';
 import { calcDday, getDdayColor, formatDueDate, isAssignmentFormValid } from '../../src/utils/assignment';
 
 beforeEach(() => {
@@ -50,16 +51,16 @@ describe('getDdayColor', () => {
     expect(getDdayColor(1)).toBe('#FF8A00');
   });
 
-  test('A-09: dday=2 → colors.primary (#3182F6)', () => {
-    expect(getDdayColor(2)).toBe('#3182F6');
+  test('A-09: dday=2 → colors.primary', () => {
+    expect(getDdayColor(2)).toBe(colors.primary);
   });
 
-  test('A-10: dday=3 → colors.primary (#3182F6)', () => {
-    expect(getDdayColor(3)).toBe('#3182F6');
+  test('A-10: dday=3 → colors.primary', () => {
+    expect(getDdayColor(3)).toBe(colors.primary);
   });
 
-  test('A-11: dday=4 → colors.textSecondary (#8B95A1)', () => {
-    expect(getDdayColor(4)).toBe('#8B95A1');
+  test('A-11: dday=4 → colors.textSecondary', () => {
+    expect(getDdayColor(4)).toBe(colors.textSecondary);
   });
 
   test('A-12: dday=-1 (음수) → colors.warning (#FF8A00)', () => {

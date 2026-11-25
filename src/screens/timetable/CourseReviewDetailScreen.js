@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
   },
   cardDate: {
     ...typography.small,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
 
   // ── 태그 ──
@@ -640,7 +640,7 @@ const styles = StyleSheet.create({
   },
   commentAuthor: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginBottom: 2,
   },
   commentBodyText: {

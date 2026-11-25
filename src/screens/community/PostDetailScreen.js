@@ -408,7 +408,7 @@ export default function PostDetailScreen({ navigation, route }) {
             {/* 카테고리 + 시간 */}
             <View style={styles.postMeta}>
               <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
-                <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
+                <Text style={[styles.catBadgeText, { color: catInfo.textColor }]}>{catInfo.label}</Text>
               </View>
               <Text style={styles.postAnon}>
                 {post.is_anonymous ? '匿名' : (authorNickname ?? '実名')}
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
   },
   postTime: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginLeft: 'auto',
   },
   postTitle: {
@@ -834,7 +834,7 @@ const styles = StyleSheet.create({
   },
   emptyCommentsSubText: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
   commentItem: {
     paddingVertical: spacing.md,
@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   },
   commentTime: {
     ...typography.small,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
   commentBody: {
     ...typography.body2,

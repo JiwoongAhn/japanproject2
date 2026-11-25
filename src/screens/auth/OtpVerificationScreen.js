@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
 
   note: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     textAlign: 'center',
   },
 });

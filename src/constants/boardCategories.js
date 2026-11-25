@@ -22,10 +22,10 @@ import { colors } from './colors';
 // ──────────────────────────────────────────────────────────────
 
 export const BOARD_CATEGORIES = [
-  { key: 'qa',     label: '質問',  color: colors.primary  },
-  { key: 'free',   label: '自由',  color: colors.success  },
-  { key: 'secret', label: '秘密',  color: '#A855F7'       },
-  { key: 'info',   label: '情報',  color: colors.warning  },
+  { key: 'qa',     label: '質問',  color: colors.primary, textColor: colors.primary },
+  { key: 'free',   label: '自由',  color: colors.success, textColor: '#087A4B'      },
+  { key: 'secret', label: '秘密',  color: '#A855F7',      textColor: '#8A35DB'      },
+  { key: 'info',   label: '情報',  color: colors.warning, textColor: '#A85800'      },
 ];
 
 // key → 카테고리 정보 찾기 헬퍼 (없으면 첫 번째 카테고리 반환)

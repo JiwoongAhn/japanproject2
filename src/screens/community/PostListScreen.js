@@ -401,7 +401,7 @@ export default function PostListScreen({ navigation }) {
                   <View style={styles.postTextArea}>
                     <View style={styles.postMeta}>
                       <View style={[styles.catBadge, { backgroundColor: catInfo.color + '18' }]}>
-                        <Text style={[styles.catBadgeText, { color: catInfo.color }]}>{catInfo.label}</Text>
+                        <Text style={[styles.catBadgeText, { color: catInfo.textColor }]}>{catInfo.label}</Text>
                       </View>
                       <Text style={styles.postAnon} numberOfLines={1}>
                         {authorLabel(post)}
@@ -690,7 +690,7 @@ const styles = StyleSheet.create({
   },
   postTime: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginLeft: 'auto',
   },
   postTitle: {

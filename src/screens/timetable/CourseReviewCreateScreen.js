@@ -363,7 +363,7 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   optional: {
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     fontWeight: '400',
   },
 
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   },
   readonlyHint: {
     ...typography.small,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginTop: spacing.xs,
   },
 
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   },
   charCount: {
     ...typography.small,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     textAlign: 'right',
     marginTop: spacing.xs + 2,
   },

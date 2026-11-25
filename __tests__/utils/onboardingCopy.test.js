@@ -63,7 +63,7 @@ describe('buildOnboardingCopy', () => {
     });
     const last = c.slides[c.slides.length - 1];
     expect(last.title).toBe('最初の1回だけ、ログイン');
-    expect(last.subtitle).toContain('UNIPAは');
+    expect(last.subtitle).toContain('UNIPAへのログイン');
     expect(c.summaryLead).toContain('最初のログイン1回');
     // manaba 가 없으니 "お知らせ·課題가 자동" 은 약속하지 않는다
     expect(c.summaryLead).not.toContain('お知らせ');

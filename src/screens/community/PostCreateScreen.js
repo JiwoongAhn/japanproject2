@@ -346,7 +346,7 @@ const styles = StyleSheet.create({
     color: colors.danger,
   },
   optional: {
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     fontWeight: '400',
   },
 
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
   },
   charCount: {
     ...typography.small,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     textAlign: 'right',
     marginTop: spacing.xs + 2,
   },
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
   },
   imageCount: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
   imageScroll: {
     gap: spacing.sm,

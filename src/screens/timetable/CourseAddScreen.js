@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   optional: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     fontWeight: '400',
   },
 

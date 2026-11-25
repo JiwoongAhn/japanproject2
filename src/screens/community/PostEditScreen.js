@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   },
   imageCount: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
   },
   imageScroll: {
     gap: spacing.sm,

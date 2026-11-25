@@ -64,9 +64,9 @@ const HIGHLIGHT_KEITAI_JS = `
       var target = input || labelEl;
       target.scrollIntoView({ behavior: 'smooth', block: 'center' });
       if (input) {
-        input.style.outline = '3px solid #3182F6';
+        input.style.outline = '3px solid #1D66E5';
         input.style.outlineOffset = '2px';
-        input.style.backgroundColor = '#EBF3FE';
+        input.style.backgroundColor = '#E8F0FD';
         input.style.borderRadius = '4px';
       }
     }
@@ -77,8 +77,8 @@ const HIGHLIGHT_KEITAI_JS = `
       if (tt.indexOf('課題提出のお知らせ') === 0 && tt.length < 20) {
         var subRow = ths[j].closest('tr');
         if (subRow) {
-          subRow.style.outline = '3px solid #3182F6';
-          subRow.style.backgroundColor = '#EBF3FE';
+          subRow.style.outline = '3px solid #1D66E5';
+          subRow.style.backgroundColor = '#E8F0FD';
         }
         break;
       }

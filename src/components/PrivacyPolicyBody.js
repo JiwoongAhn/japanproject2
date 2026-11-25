@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     ...typography.caption,
-    color: colors.textDisabled,
+    color: colors.textSecondary,
     marginTop: spacing.lg,
     paddingHorizontal: spacing.md,
     textAlign: 'center',

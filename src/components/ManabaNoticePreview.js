@@ -39,7 +39,7 @@ const PREVIEW_COUNT = 3; // 카드에 보여줄 공지 개수
 // 공지 1건 = 스와이프 카드.
 // 스와이프로 열린 상태(openRef=true)에서는 카드 탭을 무시하고 닫기만 한다.
 // → 스와이프했을 때 마나바 상세로 잘못 들어가는 문제 방지.
-function NoticeRow({ item, onDismiss, onPressItem }) {
+function NoticeRow({ item, first, last, onDismiss, onPressItem }) {
   const swipeRef = useRef(null);
   const openRef = useRef(false);
   return (
@@ -59,7 +59,7 @@ function NoticeRow({ item, onDismiss, onPressItem }) {
       )}
     >
       <TouchableOpacity
-        style={styles.noticeCard}
+        style={[styles.noticeCard, first && styles.noticeCardFirst, last && styles.noticeCardLast]}
         activeOpacity={0.7}
         onPress={() => {
           // 스와이프로 열려 있으면 화면 전환 대신 닫기만
@@ -84,7 +84,7 @@ function NoticeRow({ item, onDismiss, onPressItem }) {
               {!!item._deadline && (
                 <Text style={styles.metaDeadline}>⏰ ~{item._deadline}</Text>
               )}
-              {item._hasAttach && <Text style={styles.metaAttach}>📎 첨부</Text>}
+              {item._hasAttach && <Text style={styles.metaAttach}>📎 添付あり</Text>}
               {!!item.date && <Text style={styles.noticeDate}>{item.date}</Text>}
             </View>
           </View>
@@ -439,6 +439,8 @@ export default function ManabaNoticePreview({ navigation, onCountsChange }) {
           <NoticeRow
             key={item._id || item.href || i}
             item={item}
+            first={i === 0}
+            last={i === top.length - 1}
             onDismiss={dismissNotice}
             onPressItem={handleNoticePress}
           />
@@ -503,8 +505,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     marginHorizontal: spacing.lg,
     marginBottom: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
+    padding: spacing.xl,
     borderRadius: radius.lg,
     ...shadow.card,
   },
@@ -571,13 +572,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#FF3B30',
     marginTop: 6,
   },
+  // 카드 안의 카드 대신 줄로 나눈다 (배경이 불투명해야 스와이프할 때 뒤의 버튼이 비치지 않는다)
   noticeCard: {
-    backgroundColor: colors.gray50,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.gray100,
     gap: 3,
   },
+  noticeCardFirst: { borderTopWidth: 0, paddingTop: 0 },
+  noticeCardLast: { paddingBottom: 0 },
   // 스와이프 시 오른쪽에 나타나는 빨간 '既読' 버튼 (카드와 같은 높이·간격)
   swipeAction: {
     backgroundColor: '#FF3B30',
@@ -585,7 +589,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 72,
     marginLeft: spacing.sm,
-    marginBottom: spacing.sm,
     borderRadius: radius.md,
   },
   swipeActionText: {
@@ -626,9 +629,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   emptyCard: {
-    backgroundColor: colors.gray50,
-    borderRadius: radius.md,
-    padding: spacing.lg,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
     gap: spacing.sm,
     marginTop: spacing.md,

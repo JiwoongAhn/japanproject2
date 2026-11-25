@@ -76,7 +76,7 @@ export default function SavedPostsScreen({ navigation }) {
       >
         <View style={styles.cardTop}>
           <View style={[styles.catBadge, { backgroundColor: cat.color + '18' }]}>
-            <Text style={[styles.catText, { color: cat.color }]}>{cat.label}</Text>
+            <Text style={[styles.catText, { color: cat.textColor }]}>{cat.label}</Text>
           </View>
           <Text style={styles.cardTime}>{formatTimeAgo(post.created_at)}</Text>
         </View>
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   catText: { ...typography.small, fontWeight: '700' },
-  cardTime: { ...typography.caption, color: colors.textDisabled },
+  cardTime: { ...typography.caption, color: colors.textSecondary },
   cardTitle: {
     ...typography.subtitle,
     color: colors.textPrimary,

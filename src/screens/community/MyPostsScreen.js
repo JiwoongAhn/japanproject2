@@ -194,7 +194,7 @@ export default function MyPostsScreen({ navigation }) {
       >
         <View style={styles.cardTop}>
           <View style={[styles.catBadge, { backgroundColor: cat.color + '18' }]}>
-            <Text style={[styles.catText, { color: cat.color }]}>{cat.label}</Text>
+            <Text style={[styles.catText, { color: cat.textColor }]}>{cat.label}</Text>
           </View>
           <Text style={styles.cardTime}>{formatTimeAgo(post.created_at)}</Text>
         </View>
@@ -241,7 +241,7 @@ export default function MyPostsScreen({ navigation }) {
       >
         <View style={styles.cardTop}>
           <View style={[styles.catBadge, { backgroundColor: cat.color + '18' }]}>
-            <Text style={[styles.catText, { color: cat.color }]}>{cat.label}</Text>
+            <Text style={[styles.catText, { color: cat.textColor }]}>{cat.label}</Text>
           </View>
           <Text style={styles.cardTime}>{formatTimeAgo(comment.created_at)}</Text>
         </View>
@@ -550,7 +550,7 @@ const styles = StyleSheet.create({
     color: pastel.yellow.accent,
     fontWeight: '700',
   },
-  cardTime: { ...typography.caption, color: colors.textDisabled },
+  cardTime: { ...typography.caption, color: colors.textSecondary },
   cardTitle: {
     ...typography.subtitle,
     color: colors.textPrimary,
