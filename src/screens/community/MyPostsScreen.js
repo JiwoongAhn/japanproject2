@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+import { useConfirm } from '../../hooks/useConfirm';
 import { colors, pastel } from '../../constants/colors';
 import PostReactions from '../../components/PostReactions';
 import LoadingDots from '../../components/LoadingDots';
@@ -18,6 +19,7 @@ import { getMyReviews, deleteReview } from '../../utils/review';
 // 내 게시글 + 내가 쓴 수업평가 통합 목록 화면
 // 탭으로 분리: 掲示板 | 講義評価
 export default function MyPostsScreen({ navigation }) {
+  const { confirm, confirmElement } = useConfirm();
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'comments' | 'reviews'
   const [posts, setPosts] = useState([]);
   const [comments, setComments] = useState([]);
@@ -65,25 +67,21 @@ export default function MyPostsScreen({ navigation }) {
   // ── 게시판 글 핸들러 ─────────────────────────────────────────────
 
   const handleDeletePost = (post) => {
-    Alert.alert(
-      '投稿を削除',
-      `「${post.title}」を削除しますか？\nこの操作は取り消せません。`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase.from('posts').delete().eq('id', post.id);
-            if (error) {
-              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
-            } else {
-              setPosts(prev => prev.filter(p => p.id !== post.id));
-            }
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'danger',
+      title: '投稿を削除しますか？',
+      target: post.title,
+      message: '元に戻せません。',
+      confirmText: '削除する',
+      onConfirm: async () => {
+        const { error } = await supabase.from('posts').delete().eq('id', post.id);
+        if (error) {
+          Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+        } else {
+          setPosts(prev => prev.filter(p => p.id !== post.id));
+        }
+      },
+    });
   };
 
   const handleEditPost = (post) => {
@@ -107,49 +105,41 @@ export default function MyPostsScreen({ navigation }) {
   };
 
   const handleDeleteComment = (comment) => {
-    Alert.alert(
-      'コメントを削除',
-      'このコメントを削除しますか？\nこの操作は取り消せません。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase.from('post_comments').delete().eq('id', comment.id);
-            if (error) {
-              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
-            } else {
-              setComments(prev => prev.filter(c => c.id !== comment.id));
-            }
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'danger',
+      title: 'コメントを削除しますか？',
+      target: comment.body,
+      message: '元に戻せません。',
+      confirmText: '削除する',
+      onConfirm: async () => {
+        const { error } = await supabase.from('post_comments').delete().eq('id', comment.id);
+        if (error) {
+          Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+        } else {
+          setComments(prev => prev.filter(c => c.id !== comment.id));
+        }
+      },
+    });
   };
 
   // ── 수업평가 핸들러 ──────────────────────────────────────────────
 
   const handleDeleteReview = (review) => {
-    Alert.alert(
-      '評価を削除',
-      `「${review.course_name}」の評価を削除しますか？\nこの操作は取り消せません。`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteReview(review.id);
-              setReviews(prev => prev.filter(r => r.id !== review.id));
-            } catch {
-              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
-            }
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'danger',
+      title: '評価を削除しますか？',
+      target: review.course_name,
+      message: '元に戻せません。',
+      confirmText: '削除する',
+      onConfirm: async () => {
+        try {
+          await deleteReview(review.id);
+          setReviews(prev => prev.filter(r => r.id !== review.id));
+        } catch {
+          Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+        }
+      },
+    });
   };
 
   const handleEditReview = (review) => {
@@ -442,6 +432,7 @@ export default function MyPostsScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         />
       )}
+      {confirmElement}
     </SafeAreaView>
   );
 }

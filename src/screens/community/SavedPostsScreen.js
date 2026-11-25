@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
+import { useConfirm } from '../../hooks/useConfirm';
 import { colors } from '../../constants/colors';
 import PostReactions from '../../components/PostReactions';
 import LoadingDots from '../../components/LoadingDots';
@@ -17,6 +18,7 @@ import { getMyBookmarkedPosts, removeBookmark } from '../../utils/bookmarks';
 
 // 관심글 저장(북마크)한 게시판 글 목록 화면 — 마이페이지에서 진입
 export default function SavedPostsScreen({ navigation }) {
+  const { confirm, confirmElement } = useConfirm();
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,27 +42,24 @@ export default function SavedPostsScreen({ navigation }) {
 
   // 저장 해제 (길게 누르기)
   const handleRemove = (post) => {
-    Alert.alert(
-      '保存を解除',
-      `「${post.title}」を保存済みから外しますか？`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '解除する',
-          style: 'destructive',
-          onPress: async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-            const ok = await removeBookmark(post.id, user.id);
-            if (ok) {
-              setPosts(prev => prev.filter(p => p.id !== post.id));
-            } else {
-              Alert.alert('お知らせ', '解除できませんでした。もう一度お試しください');
-            }
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'normal',
+      icon: 'bookmark-outline',
+      title: '保存を解除しますか？',
+      target: post.title,
+      message: '投稿はそのまま残ります。',
+      confirmText: '解除する',
+      onConfirm: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const ok = await removeBookmark(post.id, user.id);
+        if (ok) {
+          setPosts(prev => prev.filter(p => p.id !== post.id));
+        } else {
+          Alert.alert('お知らせ', '解除できませんでした。もう一度お試しください');
+        }
+      },
+    });
   };
 
   const renderPost = ({ item: post }) => {
@@ -130,6 +129,7 @@ export default function SavedPostsScreen({ navigation }) {
           showsVerticalScrollIndicator={false}
         />
       )}
+      {confirmElement}
     </SafeAreaView>
   );
 }

@@ -11,13 +11,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useConfirm } from '../hooks/useConfirm';
 import { colors, pastel } from '../constants/colors';
-import LoadingDots from '../components/LoadingDots';
+import { ListSkeleton } from '../components/Skeleton';
 import { spacing, radius, shadow } from '../constants/spacing';
 import { typography } from '../constants/typography';
 import Card from '../components/Card';
 import { supabase } from '../lib/supabase';
-import { calcDday, formatDueLabel, isPastDue } from '../utils/assignment';
+import { calcDday, getDdayColor, formatDueLabel, isPastDue } from '../utils/assignment';
 import { useTabBarScroll } from '../navigation/TabBarScrollContext';
 
 // 상태별 디자인 — pastel 토큰으로 부드럽게
@@ -50,6 +51,7 @@ const EMPTY_STATE = {
 };
 
 export default function AssignmentScreen({ navigation }) {
+  const { confirm, confirmElement } = useConfirm('center');
   const { handleScroll } = useTabBarScroll();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -124,28 +126,24 @@ export default function AssignmentScreen({ navigation }) {
   };
 
   const handleDeleteAssignment = (assignment) => {
-    Alert.alert(
-      '課題を削除',
-      `「${assignment.title}」を削除しますか？`,
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: async () => {
-            setAssignments(prev => prev.filter(a => a.id !== assignment.id));
-            const { error } = await supabase
-              .from('assignments')
-              .delete()
-              .eq('id', assignment.id);
-            if (error) {
-              fetchAssignments();
-              Alert.alert('お知らせ', '削除できませんでした');
-            }
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'danger',
+      title: '課題を削除しますか？',
+      target: assignment.title,
+      message: '元に戻せません。',
+      confirmText: '削除する',
+      onConfirm: async () => {
+        setAssignments(prev => prev.filter(a => a.id !== assignment.id));
+        const { error } = await supabase
+          .from('assignments')
+          .delete()
+          .eq('id', assignment.id);
+        if (error) {
+          fetchAssignments();
+          Alert.alert('お知らせ', '削除できませんでした');
+        }
+      },
+    });
   };
 
   const filteredAssignments = selectedFilter === 'all'
@@ -208,7 +206,7 @@ export default function AssignmentScreen({ navigation }) {
       </View>
 
       {loading ? (
-        <LoadingDots fullscreen />
+        <ListSkeleton />
       ) : isEmpty ? (
         <View style={styles.emptyContainer}>
           <Ionicons name={emptyInfo.icon} size={56} color={colors.textDisabled} style={styles.emptyEmoji} />
@@ -292,7 +290,7 @@ export default function AssignmentScreen({ navigation }) {
                       <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
                       <Text style={styles.dueDate}>{formatDueLabel(assignment)}</Text>
                     </View>
-                    <Text style={[styles.ddayLabel, { color: dday.color }]}>
+                    <Text style={[styles.ddayLabel, { color: getDdayColor(dday, displayStatus === 'submitted') }]}>
                       {dday.label}
                     </Text>
                   </View>
@@ -303,6 +301,7 @@ export default function AssignmentScreen({ navigation }) {
         />
       )}
 
+      {confirmElement}
     </SafeAreaView>
   );
 }
@@ -441,7 +440,7 @@ const styles = StyleSheet.create({
   },
   statusBadge: {
     paddingHorizontal: spacing.md,
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
     borderRadius: radius.pill,
   },
   statusText: {
@@ -467,7 +466,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
-    gap: 3,
+    gap: spacing.xs,
     marginTop: -spacing.xs,
     marginBottom: spacing.md,
   },
@@ -484,7 +483,7 @@ const styles = StyleSheet.create({
   dueDateWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
   dueDate: {
     ...typography.caption,

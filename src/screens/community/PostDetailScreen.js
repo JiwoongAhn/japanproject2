@@ -18,6 +18,7 @@ import AppTextInput from '../../components/AppTextInput';
 
 // 이미지 뷰어 크기는 모듈 로드 시점의 고정값이 아니라 훅으로 계산한다.
 // (아이패드·회전·분할 화면에서 폭이 바뀌면 페이지 넘김 위치가 어긋나기 때문)
+import { useConfirm } from '../../hooks/useConfirm';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius, shadow } from '../../constants/spacing';
@@ -47,6 +48,7 @@ function formatTimeAgo(timestamp) {
 }
 
 export default function PostDetailScreen({ navigation, route }) {
+  const { confirm, confirmElement } = useConfirm();
   const { postId } = route.params;
 
   // 이미지 뷰어는 화면 전체를 쓰므로 콘텐츠 제한 폭이 아니라 실제 창 크기를 쓴다
@@ -222,29 +224,25 @@ export default function PostDetailScreen({ navigation, route }) {
 
   // 내 게시글 삭제
   const handleDeletePost = () => {
-    Alert.alert(
-      '投稿を削除',
-      'この投稿を削除しますか？\nこの操作は取り消せません。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase.from('posts').delete().eq('id', post.id);
-            if (error) {
-              Alert.alert('エラー', '削除に失敗しました');
-            } else {
-              // 삭제 성공 후 Storage 이미지도 정리
-              if (post.image_urls?.length > 0) {
-                await deleteImagesFromStorage(post.image_urls).catch(() => {});
-              }
-              navigation.goBack();
-            }
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'danger',
+      title: '投稿を削除しますか？',
+      target: post?.title,
+      message: '元に戻せません。',
+      confirmText: '削除する',
+      onConfirm: async () => {
+        const { error } = await supabase.from('posts').delete().eq('id', post.id);
+        if (error) {
+          Alert.alert('エラー', '削除に失敗しました');
+        } else {
+          // 삭제 성공 후 Storage 이미지도 정리
+          if (post.image_urls?.length > 0) {
+            await deleteImagesFromStorage(post.image_urls).catch(() => {});
+          }
+          navigation.goBack();
+        }
+      },
+    });
   };
 
   // 신고 사유 선택 → onPick(reason)
@@ -268,22 +266,22 @@ export default function PostDetailScreen({ navigation, route }) {
   // 작성자 차단 확인 → 성공 시 목록으로 (kind·contentId 로 서버가 작성자를 찾는다)
   const confirmBlockUser = (kind, contentId) => {
     if (!contentId) return;
-    Alert.alert('ユーザーをブロック', 'このユーザーの投稿・コメントが表示されなくなります。', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: 'ブロック',
-        style: 'destructive',
-        onPress: async () => {
-          const r = await blockAuthor(kind, contentId);
-          if (r.ok) {
-            Alert.alert('ブロックしました');
-            navigation.goBack();
-          } else {
-            Alert.alert('エラー', 'ブロックに失敗しました');
-          }
-        },
+    confirm({
+      kind: 'normal',
+      icon: 'person-remove-outline',
+      title: 'このユーザーをブロックしますか？',
+      message: 'このユーザーの投稿・コメントが表示されなくなります。マイページからいつでも解除できます。',
+      confirmText: 'ブロック',
+      onConfirm: async () => {
+        const r = await blockAuthor(kind, contentId);
+        if (r.ok) {
+          Alert.alert('ブロックしました');
+          navigation.goBack();
+        } else {
+          Alert.alert('エラー', 'ブロックに失敗しました');
+        }
       },
-    ]);
+    });
   };
 
   // 게시글 신고/차단
@@ -614,6 +612,7 @@ export default function PostDetailScreen({ navigation, route }) {
           )}
         </View>
       </Modal>
+      {confirmElement}
     </SafeAreaView>
   );
 }

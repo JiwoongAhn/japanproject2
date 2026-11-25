@@ -5,4 +5,8 @@ export const motion = {
   // 시트를 닫고 "다음 창"(다른 모달·사진첩·Alert)을 열 때 기다리는 시간.
   //   iOS 는 창이 완전히 닫히기 전에 다음 창을 열면 열리지 않는다 → close 보다 넉넉하게
   afterClose: 400,
+  // 확인 창에서 「する」를 누른 뒤 실제 동작까지 (창이 닫힌 다음에 실행해야 오류 Alert 가 가려지지 않는다)
+  afterConfirm: 300,
+  // 창을 열라고 했는데 이 시간 안에 안 열리면 포기한다 (hooks/useModalGuard)
+  modalTimeout: 2000,
 };

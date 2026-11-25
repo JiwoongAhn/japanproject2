@@ -8,6 +8,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
+import { useConfirm } from '../../hooks/useConfirm';
+import { clearSavedLogin, logoutMessage } from '../../utils/schoolLogout';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import UnofficialNotice from '../../components/UnofficialNotice';
@@ -60,6 +62,7 @@ const isLoggedIn = (url, origin) =>
   !url.includes('/ct/logout');
 
 export default function ManabaLoginScreen({ navigation, route }) {
+  const { confirm, confirmElement } = useConfirm('center');
   const webViewRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [loggedIn, setLoggedIn] = useState(false);
@@ -125,24 +128,26 @@ export default function ManabaLoginScreen({ navigation, route }) {
 
   // 로그아웃: 쿠키 제거 후 로그인 페이지로
   const handleLogout = () => {
-    Alert.alert('ログアウト', 'manabaからログアウトしますか?', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: 'ログアウト',
-        style: 'destructive',
-        onPress: () => {
-          relogin.markManualLogout();
-          // 쿠키가 살아있는 상태에서 서버 로그아웃 URL로 이동 → 서버 세션 종료.
-          // (manaba는 WebView 쿠키만 지워선 세션이 안 끊겨 다시 로그인 화면이 안 뜸)
-          // 나머지 정리(쿠키·캐시 삭제)는 /ct/logout 도착을 프로브로 확인한 뒤 finishLogout에서.
-          // ⚠️ 여기서 state(cookieHeader 등)를 바꾸면 WebView source가 바뀌어 즉시 재로드되고,
-          //    진행 중이던 로그아웃 요청이 취소돼 "로그아웃이 안 되는" 경합이 생겼음(2026-09-18 실기).
-          webViewRef.current?.injectJavaScript(
-            `window.location.href = '${manabaUrls.logout}';`
-          );
-        },
+    confirm({
+      kind: 'danger',
+      icon: 'log-out-outline',
+      title: 'manabaからログアウトしますか？',
+      message: logoutMessage(manabaUrls.login, links),
+      confirmText: 'ログアウト',
+      onConfirm: async () => {
+        relogin.markManualLogout();
+        // 저장된 ID/PW 는 먼저 지운다 — 로그아웃 페이지가 안 열려도 다음에 자동 로그인되지 않게
+        await clearSavedLogin(manabaUrls.login, links);
+        // 쿠키가 살아있는 상태에서 서버 로그아웃 URL로 이동 → 서버 세션 종료.
+        // (manaba는 WebView 쿠키만 지워선 세션이 안 끊겨 다시 로그인 화면이 안 뜸)
+        // 나머지 정리(쿠키·캐시 삭제)는 /ct/logout 도착을 프로브로 확인한 뒤 finishLogout에서.
+        // ⚠️ 여기서 state(cookieHeader 등)를 바꾸면 WebView source가 바뀌어 즉시 재로드되고,
+        //    진행 중이던 로그아웃 요청이 취소돼 "로그아웃이 안 되는" 경합이 생겼음(2026-09-18 실기).
+        webViewRef.current?.injectJavaScript(
+          `window.location.href = '${manabaUrls.logout}';`
+        );
       },
-    ]);
+    });
   };
 
   // 서버 로그아웃 완료(/ct/logout 도착) 후 정리 → 로그인 폼으로 이동
@@ -287,6 +292,7 @@ export default function ManabaLoginScreen({ navigation, route }) {
 
       {/* 비공식 앱 면책 고지 — 로그인 전(처음 로그인 화면)에만 표시, 로그인 후 숨김 */}
       {!loggedIn && <UnofficialNotice />}
+      {confirmElement}
     </SafeAreaView>
   );
 }

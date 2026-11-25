@@ -19,12 +19,10 @@ export function calcDday(dueDateStr) {
   return                 { label: `D-${diff}`,           isUrgent: false };
 }
 
-// D-day 숫자에 따른 색상 반환
-// dday: 남은 일수 (음수 = 기한 초과)
-export function getDdayColor(dday) {
-  if (dday <= 1) return colors.warning;
-  if (dday <= 3) return colors.primary;
-  return colors.textSecondary;
+// D-day 글씨 색 — 3일 이내·기한 초과는 빨강, 나머지(여유 있음·이미 제출)는 회색
+// dday: calcDday 의 반환값
+export function getDdayColor(dday, submitted = false) {
+  return dday.isUrgent && !submitted ? colors.dangerText : colors.textSecondary;
 }
 
 // 마감일 입력 시 자동 하이픈 포맷

@@ -10,6 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import { UNIPAS_USER_AGENT } from '../constants/manaba';
 import UnofficialNotice from '../components/UnofficialNotice';
+import { useConfirm } from '../hooks/useConfirm';
+import { clearSchoolSite, logoutMessage, siteNameFor } from '../utils/schoolLogout';
 import { colors } from '../constants/colors';
 import LoadingDots from '../components/LoadingDots';
 import {
@@ -17,16 +19,13 @@ import {
   saveCookies,
   getSavedCookieHeader,
   restoreCookies,
-  clearCookies,
   cookieKeyForUrl,
-  credKeyForUrl,
-  clearCredentials,
   PROBE_LOGIN_FORM_JS,
 } from '../utils/schoolCookies';
 // 자동 재로그인(ID/PW 기기 저장 + 자동 입력)은 manaba 화면과 같은 공용 훅.
 // 허용 호스트는 universityLinks[id].autoLoginHosts — 목록에 없는 사이트의 폼은 캡처·자동입력하지 않는다.
 import { useAutoRelogin } from '../hooks/useAutoRelogin';
-import { autoLoginHostsFor, hostOf } from '../utils/autoLoginPolicy';
+import { hostOf } from '../utils/autoLoginPolicy';
 import { useAuth } from '../lib/AuthProvider';
 import { findUniversityByEmail, getUniversityInfo, getUniversityLinks } from '../utils/university';
 import { parseTimetable } from '../utils/timetableRouter';
@@ -90,6 +89,7 @@ const KAEDE_EXTRACT_JS = `(function(){
 //   ※ ID/PW는 기기 내 AES-256 저장, 서버 전송 없음
 // 로그인 여부는 URL이 아니라 페이지 로드 후 프로브(비밀번호 칸 유무)로 판정한다.
 export default function SchoolWebViewScreen({ navigation, route }) {
+  const { confirm, confirmElement } = useConfirm('center');
   const {
     url, title, autoLogin = false, forTimetableImport = false, syllabusTarget = null,
     aiTimetable = false, aiTimetableGuide = null,
@@ -322,32 +322,21 @@ export default function SchoolWebViewScreen({ navigation, route }) {
     webViewRef.current?.injectJavaScript(PROBE_LOGIN_FORM_JS);
   };
 
-  // 로그아웃: 쿠키 + 이 학교의 자동입력 허용 호스트 전부의 저장 ID/PW 삭제 후 재로드.
-  // (SSO 학교는 IdP 호스트 키에 저장돼 있으므로 초기 URL 하나만 지우면 남는다)
+  // 로그아웃: 이 사이트의 쿠키 + 저장된 ID/PW 삭제 후 재로드 (다른 서비스의 ID/PW 는 건드리지 않는다)
   const handleLogout = () => {
-    Alert.alert(
-      'ログアウト',
-      'ログアウトしますか?\n（保存したログイン情報も削除されます）',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: 'ログアウト',
-          style: 'destructive',
-          onPress: async () => {
-            relogin.markManualLogout(); // 이 화면에 있는 동안은 자동 입력하지 않음
-            await clearCookies(url, cookieKey);
-            if (autoLogin) {
-              const hosts = new Set([hostOf(url), ...autoLoginHostsFor(links)]);
-              for (const h of hosts) {
-                if (h) await clearCredentials(credKeyForUrl(`https://${h}`));
-              }
-            }
-            setCookieHeader(null);
-            webViewRef.current?.reload();
-          },
-        },
-      ]
-    );
+    confirm({
+      kind: 'danger',
+      icon: 'log-out-outline',
+      title: `${siteNameFor(url, links)}からログアウトしますか？`,
+      message: logoutMessage(url, links),
+      confirmText: 'ログアウト',
+      onConfirm: async () => {
+        relogin.markManualLogout(); // 이 화면에 있는 동안은 자동 입력하지 않음
+        await clearSchoolSite(url, links, cookieKey);
+        setCookieHeader(null);
+        webViewRef.current?.reload();
+      },
+    });
   };
 
   return (
@@ -450,6 +439,7 @@ export default function SchoolWebViewScreen({ navigation, route }) {
       {/* 비공식 앱 면책 고지 — 로그인 전(처음 로그인 화면)에만 표시, 로그인 후 숨김 */}
       {!loggedIn && <UnofficialNotice />}
       <AiReadingOverlay visible={aiImport.reading} />
+      {confirmElement}
     </SafeAreaView>
   );
 }

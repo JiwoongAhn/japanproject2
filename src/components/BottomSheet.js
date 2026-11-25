@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { colors } from '../constants/colors';
 import { motion } from '../constants/motion';
+import { useModalGuard } from '../hooks/useModalGuard';
 import { spacing, radius } from '../constants/spacing';
 
 /**
@@ -22,6 +23,7 @@ export default function BottomSheet({
   visible, onClose, dismissOnBackdrop = true, inline = false, avoidKeyboard = false, scrollable = false, style, children,
 }) {
   const [mounted, setMounted] = useState(!!visible);
+  const onShow = useModalGuard(!!visible && !inline, onClose);
   const progress = useRef(new Animated.Value(0)).current; // 0 = 닫힘, 1 = 열림
   const height = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const translateY = useRef(
@@ -70,7 +72,7 @@ export default function BottomSheet({
   if (inline) return <View style={StyleSheet.absoluteFill}>{body}</View>;
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose}>
+    <Modal visible transparent animationType="none" onShow={onShow} onRequestClose={onClose}>
       {avoidKeyboard ? (
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           {body}

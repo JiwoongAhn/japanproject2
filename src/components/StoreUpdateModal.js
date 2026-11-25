@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import CenterDialog from './CenterDialog';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius } from '../constants/spacing';
@@ -25,69 +26,51 @@ export default function StoreUpdateModal({ visible, storeVersion, releaseNotes, 
     .slice(0, 5);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
-      <View style={styles.backdrop}>
-        <View style={styles.card}>
-          <Text style={styles.title}>新しいバージョンがあります</Text>
+    <CenterDialog visible={visible} onClose={onDismiss} dismissOnBackdrop={false}>
+      <Text style={styles.title}>新しいバージョンがあります</Text>
 
-          <View style={styles.versionRow}>
-            <Text style={styles.versionLabel}>現在のバージョン</Text>
-            <Text style={styles.versionValue}>{installed || '—'}</Text>
-          </View>
-          <View style={styles.versionRow}>
-            <Text style={styles.versionLabel}>最新バージョン</Text>
-            <Text style={[styles.versionValue, styles.versionNew]}>{storeVersion || '—'}</Text>
-          </View>
-
-          {notes.length > 0 && (
-            <ScrollView style={styles.notes} contentContainerStyle={styles.notesInner}>
-              {notes.map((line, i) => (
-                <Text key={i} style={styles.noteLine}>{line}</Text>
-              ))}
-            </ScrollView>
-          )}
-
-          <View style={styles.actions}>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonGhost]}
-              onPress={onDismiss}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel="あとで"
-            >
-              <Text style={styles.buttonGhostText}>あとで</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary]}
-              onPress={onOpenStore}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="App Store へ"
-            >
-              <Text style={styles.buttonPrimaryText}>App Store へ</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      <View style={styles.versionRow}>
+        <Text style={styles.versionLabel}>現在のバージョン</Text>
+        <Text style={styles.versionValue}>{installed || '—'}</Text>
       </View>
-    </Modal>
+      <View style={styles.versionRow}>
+        <Text style={styles.versionLabel}>最新バージョン</Text>
+        <Text style={[styles.versionValue, styles.versionNew]}>{storeVersion || '—'}</Text>
+      </View>
+
+      {notes.length > 0 && (
+        <ScrollView style={styles.notes} contentContainerStyle={styles.notesInner}>
+          {notes.map((line, i) => (
+            <Text key={i} style={styles.noteLine}>{line}</Text>
+          ))}
+        </ScrollView>
+      )}
+
+      <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonGhost]}
+          onPress={onDismiss}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="あとで"
+        >
+          <Text style={styles.buttonGhostText}>あとで</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, styles.buttonPrimary]}
+          onPress={onOpenStore}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="App Store へ"
+        >
+          <Text style={styles.buttonPrimaryText}>App Store へ</Text>
+        </TouchableOpacity>
+      </View>
+    </CenterDialog>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 400,
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-  },
   title: {
     ...typography.title3,
     color: colors.textPrimary,

@@ -43,28 +43,18 @@ describe('calcDday', () => {
 // getDdayColor
 // ──────────────────────────────────────────────
 describe('getDdayColor', () => {
-  test('A-07: dday=0 → colors.warning (#FF8A00)', () => {
-    expect(getDdayColor(0)).toBe('#FF8A00');
+  test('A-07: 3일 이내·당일·기한 초과 → 빨강', () => {
+    for (const d of ['2026-04-14', '2026-04-15', '2026-04-17', '2026-04-13', '2026-04-04']) {
+      expect(getDdayColor(calcDday(d))).toBe(colors.dangerText);
+    }
   });
 
-  test('A-08: dday=1 → colors.warning (#FF8A00)', () => {
-    expect(getDdayColor(1)).toBe('#FF8A00');
+  test('A-08: 4일 이상 남음 → 회색', () => {
+    expect(getDdayColor(calcDday('2026-04-18'))).toBe(colors.textSecondary);
   });
 
-  test('A-09: dday=2 → colors.primary', () => {
-    expect(getDdayColor(2)).toBe(colors.primary);
-  });
-
-  test('A-10: dday=3 → colors.primary', () => {
-    expect(getDdayColor(3)).toBe(colors.primary);
-  });
-
-  test('A-11: dday=4 → colors.textSecondary', () => {
-    expect(getDdayColor(4)).toBe(colors.textSecondary);
-  });
-
-  test('A-12: dday=-1 (음수) → colors.warning (#FF8A00)', () => {
-    expect(getDdayColor(-1)).toBe('#FF8A00');
+  test('A-09: 이미 제출했으면 기한이 지났어도 회색', () => {
+    expect(getDdayColor(calcDday('2026-04-04'), true)).toBe(colors.textSecondary);
   });
 });
 

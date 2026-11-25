@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useConfirm } from '../../hooks/useConfirm';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { typography } from '../../constants/typography';
@@ -19,6 +20,7 @@ import { supabase } from '../../lib/supabase';
 // 차단한 사용자 목록 + 해제. 게시판이 익명이라 사용자 식별 정보는 표시하지 않고
 // 차단 일시와 해제 버튼만 제공한다. (App Store UGC 1.2 "차단 관리")
 export default function BlockedUsersScreen({ navigation }) {
+  const { confirm, confirmElement } = useConfirm();
   const [blocks, setBlocks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,17 +39,18 @@ export default function BlockedUsersScreen({ navigation }) {
   useFocusEffect(useCallback(() => { fetchBlocks(); }, [fetchBlocks]));
 
   const handleUnblock = (item) => {
-    Alert.alert('ブロック解除', 'このユーザーのブロックを解除しますか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '解除する',
-        onPress: async () => {
-          const { error } = await supabase.from('user_blocks').delete().eq('id', item.id);
-          if (error) Alert.alert('お知らせ', '解除できませんでした');
-          else setBlocks((prev) => prev.filter((b) => b.id !== item.id));
-        },
+    confirm({
+      kind: 'normal',
+      icon: 'person-add-outline',
+      title: 'ブロックを解除しますか？',
+      message: 'このユーザーの投稿・コメントがまた表示されます。',
+      confirmText: '解除する',
+      onConfirm: async () => {
+        const { error } = await supabase.from('user_blocks').delete().eq('id', item.id);
+        if (error) Alert.alert('お知らせ', '解除できませんでした');
+        else setBlocks((prev) => prev.filter((b) => b.id !== item.id));
       },
-    ]);
+    });
   };
 
   const renderItem = ({ item, index }) => (
@@ -92,6 +95,7 @@ export default function BlockedUsersScreen({ navigation }) {
           contentContainerStyle={styles.list}
         />
       )}
+      {confirmElement}
     </SafeAreaView>
   );
 }

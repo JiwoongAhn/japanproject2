@@ -9,6 +9,7 @@ export const colors = {
   success:       '#05C072',   // 과제 제출 완료
   warning:       '#FF8A00',   // 마감 임박
   danger:        '#F04438',   // 기한 초과
+  dangerText:    '#D92D20',   // 흰 배경 위의 작은 빨간 글씨 (danger 는 명암비 3.8 이라 작은 글씨에 흐리다)
 
   // 부드러운 상태 배경 — 실패·경고 화면을 강압적이지 않게
   successSoft:   '#DCFCE7',

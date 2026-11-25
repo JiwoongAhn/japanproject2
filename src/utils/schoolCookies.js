@@ -10,6 +10,7 @@
 //   보냄 → 서버가 바로 로그인 상태로 인식. (CookieManager.set 주입의 타이밍/HttpOnly
 //   문제를 회피)
 //   ※ 비밀번호는 저장하지 않음. 쿠키만 저장 (CLAUDE.md 원칙 준수)
+import { Platform } from 'react-native';
 import CookieManager from './cookieManager';
 import { LargeSecureStore } from '../lib/supabase';
 import { hostOf } from './autoLoginPolicy'; // URL → 호스트 (저장 키·도메인 매칭 공용)
@@ -143,6 +144,20 @@ export async function clearCookies(url, key) {
         await CookieManager.clearByName(url, all[n].name, true);
       }
     }
+    // Android 는 getAll·clearByName 이 없다 → 이 사이트의 쿠키를 「이미 만료된 쿠키」로 덮어써서 지운다
+    if (Platform.OS === 'android') {
+      const got = await CookieManager.get(url).catch(() => ({}));
+      for (const n of Object.keys(got || {})) {
+        await CookieManager.set(url, { name: n, value: '', path: '/', expires: '2000-01-01T00:00:00.000Z' });
+      }
+    }
+  } catch (_) {}
+}
+
+// 앱 안 브라우저의 쿠키를 전부 제거 (앱 로그아웃·退会·リセット) — 앱 안 브라우저는 학교 사이트에만 쓴다
+export async function clearAllWebCookies() {
+  try {
+    await CookieManager.clearAll(true);
   } catch (_) {}
 }
 

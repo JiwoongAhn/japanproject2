@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useConfirm } from '../../hooks/useConfirm';
 import { colors, pastel } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
@@ -50,6 +51,7 @@ function formatDate(isoString) {
 }
 
 export default function CourseReviewDetailScreen({ navigation, route }) {
+  const { confirm, confirmElement } = useConfirm();
   const { courseName, professorName } = route.params;
 
   const [reviews, setReviews] = useState([]);
@@ -117,26 +119,22 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
 
   // 내 리뷰 삭제: Alert 확인 후 삭제 → 목록 갱신
   const handleDeleteReview = useCallback((review) => {
-    Alert.alert(
-      '評価を削除',
-      'この評価を削除しますか？\nこの操作は取り消せません。',
-      [
-        { text: 'キャンセル', style: 'cancel' },
-        {
-          text: '削除する',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteReview(review.id);
-              setReviews(prev => prev.filter(r => r.id !== review.id));
-            } catch {
-              Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
-            }
-          },
-        },
-      ]
-    );
-  }, []);
+    confirm({
+      kind: 'danger',
+      title: '評価を削除しますか？',
+      target: review.course_name,
+      message: '元に戻せません。',
+      confirmText: '削除する',
+      onConfirm: async () => {
+        try {
+          await deleteReview(review.id);
+          setReviews(prev => prev.filter(r => r.id !== review.id));
+        } catch {
+          Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+        }
+      },
+    });
+  }, [confirm]);
 
   // ··· 메뉴 (내 평가: 수정/삭제) — 게시판 상세와 동일 패턴
   const handleReviewMenu = useCallback((review) => {
@@ -181,25 +179,41 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
   }, [commentDrafts, sendingReviewId]);
 
   const handleDeleteComment = useCallback((reviewId, comment) => {
-    Alert.alert('コメントを削除', 'このコメントを削除しますか？', [
-      { text: 'キャンセル', style: 'cancel' },
-      {
-        text: '削除する',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await deleteComment(comment.id);
-            setCommentsByReview(prev => ({
-              ...prev,
-              [reviewId]: (prev[reviewId] ?? []).filter(c => c.id !== comment.id),
-            }));
-          } catch {
-            Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
-          }
-        },
+    confirm({
+      kind: 'danger',
+      title: 'コメントを削除しますか？',
+      target: comment.body,
+      message: '元に戻せません。',
+      confirmText: '削除する',
+      onConfirm: async () => {
+        try {
+          await deleteComment(comment.id);
+          setCommentsByReview(prev => ({
+            ...prev,
+            [reviewId]: (prev[reviewId] ?? []).filter(c => c.id !== comment.id),
+          }));
+        } catch {
+          Alert.alert('お知らせ', '削除できませんでした。もう一度お試しください');
+        }
       },
-    ]);
-  }, []);
+    });
+  }, [confirm]);
+
+  // 평가·댓글 작성자 차단 확인 (kind·id 로 서버가 작성자를 찾는다)
+  const confirmBlock = useCallback((kind, id, message) => {
+    confirm({
+      kind: 'normal',
+      icon: 'person-remove-outline',
+      title: 'このユーザーをブロックしますか？',
+      message: `${message}マイページからいつでも解除できます。`,
+      confirmText: 'ブロック',
+      onConfirm: async () => {
+        const r = await blockAuthor(kind, id);
+        if (r.ok) { Alert.alert('ブロックしました'); fetchReviews(); }
+        else Alert.alert('お知らせ', 'ブロックできませんでした');
+      },
+    });
+  }, [confirm, fetchReviews]);
 
   // 남의 댓글 ⋯ 메뉴 — 통보·차단. 평가 쪽 메뉴와 같은 구성으로 맞춘다.
   const handleCommentReportMenu = useCallback((comment) => {
@@ -216,18 +230,10 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
         { text: '誹謗中傷', onPress: report('defamation') },
         { text: 'キャンセル', style: 'cancel' },
       ]) },
-      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => Alert.alert(
-        'ユーザーをブロック', 'このユーザーのコメントが表示されなくなります。', [
-          { text: 'キャンセル', style: 'cancel' },
-          { text: 'ブロック', style: 'destructive', onPress: async () => {
-            const r = await blockAuthor('review_comment', comment.id);
-            if (r.ok) { Alert.alert('ブロックしました'); fetchReviews(); }
-            else Alert.alert('お知らせ', 'ブロックできませんでした');
-          } },
-        ]) },
+      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlock('review_comment', comment.id, 'このユーザーのコメントが表示されなくなります。') },
       { text: 'キャンセル', style: 'cancel' },
     ]);
-  }, [fetchReviews]);
+  }, [confirmBlock]);
 
   const handleReviewReportMenu = useCallback((review) => {
     const report = (reason) => async () => {
@@ -243,18 +249,10 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
         { text: '誹謗中傷', onPress: report('defamation') },
         { text: 'キャンセル', style: 'cancel' },
       ]) },
-      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => Alert.alert(
-        'ユーザーをブロック', 'このユーザーの評価が表示されなくなります。', [
-          { text: 'キャンセル', style: 'cancel' },
-          { text: 'ブロック', style: 'destructive', onPress: async () => {
-            const r = await blockAuthor('review', review.id);
-            if (r.ok) { Alert.alert('ブロックしました'); fetchReviews(); }
-            else Alert.alert('お知らせ', 'ブロックできませんでした');
-          } },
-        ]) },
+      { text: 'このユーザーをブロック', style: 'destructive', onPress: () => confirmBlock('review', review.id, 'このユーザーの評価が表示されなくなります。') },
       { text: 'キャンセル', style: 'cancel' },
     ]);
-  }, [fetchReviews]);
+  }, [confirmBlock]);
 
   useEffect(() => {
     fetchReviews();
@@ -455,6 +453,7 @@ export default function CourseReviewDetailScreen({ navigation, route }) {
       >
         <Text style={styles.fabText}>＋ 評価を書く</Text>
       </TouchableOpacity>
+      {confirmElement}
     </SafeAreaView>
   );
 }
@@ -590,7 +589,7 @@ const styles = StyleSheet.create({
   },
   tagText: {
     ...typography.small,
-    color: pastel.sky.accent,
+    color: pastel.sky.text,
     fontWeight: '600',
   },
 
