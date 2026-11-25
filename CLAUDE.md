@@ -85,7 +85,7 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 # ⚠️ 배포 규칙 (반드시 지킬 것)
 
 - **순서:** ① 마이그레이션 → ② Edge Function → ③ 앱 OTA. 역순이면 통지 유실·없는 칸 오류
-- **`supabase/functions/_shared/` 수정 시** 그걸 쓰는 함수 전부 재배포 (현재 `mail-inbound`·`summarize-notice`·`send-test-push`·`push-retry-worker`·`deadline-reminder`)
+- **`supabase/functions/_shared/` 수정 시** 그걸 쓰는 함수 전부 재배포 (현재 `mail-inbound`·`summarize-notice`·`send-test-push`·`push-retry-worker`·`deadline-reminder`, `cronAuth.ts`는 `deadline-reminder`·`expo-receipt-poller`·`push-cleanup`·`push-retry-worker`)
 - `mail-inbound`는 `verify_jwt: false` 유지 (Cloudflare 워커가 공유 비밀값으로 호출)
 - 새 manaba 학교는 `mail-inbound`의 `ALLOWED_SENDERS`에 발신 도메인 추가
 - 배포·커밋·push는 사용자 승인 후. 커밋은 파일 지정 add (`git add -A` 금지 — 다른 세션 파일이 섞인 사고 있음)
