@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
+import InfoNote from '../../components/InfoNote';
 import { colors } from '../../constants/colors';
 import { typography } from '../../constants/typography';
 
@@ -38,13 +39,11 @@ export default function DuplicateAlertGuideModal({ visible, onClose }) {
         </View>
 
         <ScrollView contentContainerStyle={styles.body}>
-          <View style={styles.infoBox}>
-            <Text style={styles.infoText}>
-              UniOneと連携すると、manabaの新着通知はUniOneからプッシュ通知で届きます。
-              {'\n\n'}
-              Outlookアプリの通知をオフにすることで、同じ通知が2回届くのを防げます。
-            </Text>
-          </View>
+          <InfoNote>
+            UniOneと連携すると、manabaの新着通知はUniOneからプッシュ通知で届きます。
+            {'\n\n'}
+            Outlookアプリの通知をオフにすることで、同じ通知が2回届くのを防げます。
+          </InfoNote>
 
           <Text style={styles.sectionTitle}>
             {platformLabel}でOutlookの通知をオフにする手順
@@ -59,11 +58,9 @@ export default function DuplicateAlertGuideModal({ visible, onClose }) {
             </View>
           ))}
 
-          <View style={styles.noteBox}>
-            <Text style={styles.noteText}>
-              ※ manabaのメールはOutlookのメール受信トレイに引き続き保存されます。通知だけをオフにします。
-            </Text>
-          </View>
+          <InfoNote>
+            manabaのメールはOutlookのメール受信トレイに引き続き保存されます。通知だけをオフにします。
+          </InfoNote>
         </ScrollView>
       </View>
     </Modal>
@@ -103,16 +100,6 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 20,
   },
-  infoBox: {
-    backgroundColor: colors.primaryLight || '#EBF4FF',
-    borderRadius: 12,
-    padding: 16,
-  },
-  infoText: {
-    fontSize: 14,
-    color: colors.textPrimary,
-    lineHeight: 22,
-  },
   sectionTitle: {
     fontSize: 15,
     fontWeight: '600',
@@ -143,15 +130,5 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     lineHeight: 22,
     paddingTop: 3,
-  },
-  noteBox: {
-    backgroundColor: colors.backgroundSecondary || '#F8F9FA',
-    borderRadius: 10,
-    padding: 14,
-  },
-  noteText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 18,
   },
 });

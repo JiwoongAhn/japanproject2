@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ScrollView,
   View,
@@ -6,7 +6,9 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import BottomSheet from '../../components/BottomSheet';
 import { colors } from '../../constants/colors';
 import { spacing, radius, shadow } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
@@ -68,17 +70,22 @@ function AttendanceRow({ label, count, accent, onMinus, onPlus }) {
 //                            (kaede-i 학교: MY時間割 WebView에서 해당 과목 링크를 자동 클릭)
 //   onAddAssignment(course) — 이 수업 이름이 채워진 과제 추가 화면 열기
 export default function CourseDetailModal({
-  course, onClose, onDelete, onEdit, onAttendanceChange, syllabusUrl, onOpenSyllabus, onAddAssignment,
+  course: selected, onClose, onDelete, onEdit, onAttendanceChange, syllabusUrl, onOpenSyllabus, onAddAssignment,
 }) {
+  // 닫히는 동안(selected=null)에도 내용이 보이도록 마지막 수업을 기억해 둔다
+  const lastCourse = useRef(selected);
+  if (selected) lastCourse.current = selected;
+  const course = selected ?? lastCourse.current;
+
   // 삭제 확인 단계 (true면 "정말 삭제?" UI 표시)
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   // 다른 수업으로 교체될 때 confirmDelete 상태 초기화
   useEffect(() => {
-    if (course) {
+    if (selected) {
       setConfirmDelete(false);
     }
-  }, [course]);
+  }, [selected]);
 
   if (!course) return null;
 
@@ -119,19 +126,8 @@ export default function CourseDetailModal({
   };
 
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="box-none">
-      {/* 반투명 배경 — 탭하면 닫힘 */}
-      <TouchableOpacity
-        style={styles.backdrop}
-        activeOpacity={1}
-        onPress={handleClose}
-      />
-
-      {/* 하단 시트 */}
-      <View style={styles.sheet}>
-        {/* 드래그 핸들 바 */}
-        <View style={styles.handle} />
-
+    // inline: OS 모달이 아니라 화면 위에 겹친다 → 課題 추가(modal 화면)·시라바스로 바로 넘어가도 창이 부딪히지 않음
+    <BottomSheet visible={!!selected} onClose={handleClose} inline scrollable style={styles.sheet}>
         {/* 작은 화면(SE 등)에서 시트가 화면보다 길어지면 정보·출결 부분만 스크롤 (핸들·버튼은 고정) */}
         <ScrollView
           style={styles.sheetScroll}
@@ -239,7 +235,8 @@ export default function CourseDetailModal({
                 onPress={handleEditPress}
                 activeOpacity={0.85}
               >
-                <Text style={styles.buttonPrimaryText}>✏️ 編集する</Text>
+                <Ionicons name="create-outline" size={18} color={colors.white} />
+                <Text style={styles.buttonPrimaryText}>編集する</Text>
               </TouchableOpacity>
               {syllabusUrl || onOpenSyllabus ? (
                 <TouchableOpacity
@@ -247,7 +244,8 @@ export default function CourseDetailModal({
                   onPress={handleSyllabusPress}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.buttonSecondaryText}>📖 シラバス</Text>
+                  <Ionicons name="book-outline" size={18} color={colors.gray700} />
+                  <Text style={styles.buttonSecondaryText}>シラバス</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -258,14 +256,16 @@ export default function CourseDetailModal({
                 onPress={handleAddAssignmentPress}
                 activeOpacity={0.85}
               >
-                <Text style={styles.buttonSecondaryText}>📝 課題を追加</Text>
+                <Ionicons name="add" size={18} color={colors.gray700} />
+                <Text style={styles.buttonSecondaryText}>課題を追加</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.button, styles.buttonOutlineDanger, styles.buttonHalf]}
+                style={[styles.button, styles.buttonHalf]}
                 onPress={handleDeletePress}
                 activeOpacity={0.8}
               >
-                <Text style={styles.buttonOutlineDangerText}>削除する</Text>
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                <Text style={styles.buttonDeleteText}>削除する</Text>
               </TouchableOpacity>
             </View>
             <TouchableOpacity
@@ -278,30 +278,14 @@ export default function CourseDetailModal({
           </>
         )}
         </View>
-      </View>
-    </View>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-
-  // 하단 시트 — radius.xxl 적용 (토스 바텀시트)
+  // 아래 여백은 버튼 블록(actions)이 갖는다
   sheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    maxHeight: '88%', // 세로가 짧은 기기에서 시트가 화면 위로 넘치지 않게
-    ...shadow.card,
+    paddingBottom: 0,
   },
   sheetScroll: {
     flexShrink: 1, // maxHeight 안에서 버튼 블록 높이를 뺀 만큼만 차지
@@ -312,15 +296,6 @@ const styles = StyleSheet.create({
   actions: {
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
-  },
-
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: colors.gray200,
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: spacing.xl,
   },
 
   // ── 과목명 행 ──
@@ -441,6 +416,8 @@ const styles = StyleSheet.create({
 
   // ── 버튼 공통 ──
   button: {
+    flexDirection: 'row',
+    gap: 6,
     borderRadius: radius.md,
     paddingVertical: spacing.lg,
     alignItems: 'center',
@@ -459,13 +436,13 @@ const styles = StyleSheet.create({
   buttonPrimary: {
     backgroundColor: colors.primary,
   },
-  // 연한 파랑 배경의 보조 버튼 (シラバス·課題追加)
+  // 회색 보조 버튼 (シラバス·課題追加) — 색이 있는 버튼은 주 행동 하나뿐
   buttonSecondary: {
-    backgroundColor: colors.primaryLight,
+    backgroundColor: colors.gray100,
   },
   buttonSecondaryText: {
     ...typography.subtitle,
-    color: colors.primary,
+    color: colors.gray700,
     fontWeight: '700',
   },
   buttonPrimaryText: {
@@ -473,12 +450,8 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: '700',
   },
-  buttonOutlineDanger: {
-    borderWidth: 1,
-    borderColor: colors.dangerSoft,
-    backgroundColor: colors.dangerSoft,
-  },
-  buttonOutlineDangerText: {
+  // 삭제 = 빨간 글씨 + 휴지통. 빨강으로 꽉 찬 버튼은 마지막 확인에서만
+  buttonDeleteText: {
     ...typography.subtitle,
     color: colors.danger,
   },

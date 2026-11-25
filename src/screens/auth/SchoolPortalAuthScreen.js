@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AppTextInput from '../../components/AppTextInput';
 import { supabase } from '../../lib/supabase';
+import InfoNote from '../../components/InfoNote';
 import { colors } from '../../constants/colors';
 import LoadingDots from '../../components/LoadingDots';
 import { spacing, radius } from '../../constants/spacing';
@@ -156,13 +157,10 @@ export default function SchoolPortalAuthScreen({ navigation, route }) {
           </View>
 
           {/* 안내 박스 */}
-          <View style={styles.infoBox}>
-            <Text style={styles.infoIcon}>📧</Text>
-            <Text style={styles.infoText}>
-              学校メールに6桁の認証コードをお送りします。{'\n'}
-              はじめての方は自動でアカウントが作成されます。
-            </Text>
-          </View>
+          <InfoNote style={styles.infoNote}>
+            学校メールに6桁の認証コードをお送りします。{'\n'}
+            はじめての方は自動でアカウントが作成されます。
+          </InfoNote>
 
           {/* 발송 버튼 */}
           <TouchableOpacity
@@ -255,22 +253,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  infoBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.md,
-    padding: spacing.md,
-    gap: spacing.sm,
+  infoNote: {
     marginBottom: spacing.xxl,
-  },
-  infoIcon: {
-    fontSize: 16,
-  },
-  infoText: {
-    flex: 1,
-    ...typography.caption,
-    color: colors.primary,
   },
 
   button: {

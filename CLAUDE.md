@@ -39,7 +39,7 @@ japanproject/
 │   │   ├── manaba/        ManabaLogin·ManabaNoticeList/Detail·ManabaReminderSetup
 │   │   ├── notice/        NoticePreviewModal·DuplicateAlertGuideModal
 │   │   └── assignment/    AssignmentAdd
-│   ├── components/        공용 부품 (Card·Button·AppTextInput·KeyboardAwareScrollView·AiImportSheet·UpdateBanner…)
+│   ├── components/        공용 부품 (Card·Button·BottomSheet·InfoNote·HomeBanner·AppTextInput·KeyboardAwareScrollView…)
 │   ├── hooks/             useAppUpdate·useAutoRelogin·useAiTimetableImport
 │   ├── utils/             순수 함수 (Jest 대상)
 │   ├── constants/         colors·spacing·typography·universities·universityLinks…
@@ -78,6 +78,8 @@ UniversitySelect → SchoolPortalAuth(이메일+OTP발송) → OtpVerification(�
 
 - 변수명: camelCase 영어 / 주석: 한국어 / 순수 함수는 `src/utils/`
 - 화면 문구는 일본어
+- **디자인 규칙(2026-11-25 확정):** 색 있는 버튼은 주 행동 하나(파랑), 나머지 회색, 삭제는 빨간 글씨+🗑(빨강으로 꽉 찬 버튼은 마지막 확인에서만). 안내문은 배경 없이 `InfoNote`(ⓘ+회색 글씨), 색 상자는 버튼만. 아래에서 올라오는 창은 `BottomSheet`, 움직임 속도는 `constants/motion.js`
+- 시트를 닫은 직후 다른 창(모달·사진첩·Alert)을 열 때는 `setTimeout(…, motion.afterClose)` — iOS는 창이 겹치면 안 열린다
 - 화면·훅 수정 후 보고 전: Jest + `check:bundle` + no-undef 검사, UI 변경은 시뮬 실화면까지 확인
 
 ---

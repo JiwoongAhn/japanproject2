@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import BottomSheet from './BottomSheet';
 import { colors } from '../constants/colors';
 import { typography } from '../constants/typography';
 import { spacing, radius } from '../constants/spacing';
@@ -14,13 +15,10 @@ import { SETUP_STEP_LABELS } from '../utils/manabaSetupStatus';
  * 「あとで」로 닫을 수 있다 — 강제하지 않는다. 언제 뜨는지는 shouldPromptSetup (새로 켰을 때 / 30분 이상 비웠다 돌아왔을 때).
  */
 export default function SetupPromptSheet({ visible, copy, onAction, onLater }) {
-  if (!copy) return null;
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onLater}>
-      <View style={styles.backdrop}>
-        <Pressable style={styles.backdropTouch} onPress={onLater} accessibilityLabel="閉じる" />
-        <View style={styles.sheet}>
-          <View style={styles.grab} />
+    <BottomSheet visible={!!visible && !!copy} onClose={onLater}>
+      {copy ? (
+        <>
           <View style={styles.iconBox}>
             <Text style={styles.icon}>{copy.icon}</Text>
           </View>
@@ -56,24 +54,13 @@ export default function SetupPromptSheet({ visible, copy, onAction, onLater }) {
           <TouchableOpacity style={styles.later} onPress={onLater}>
             <Text style={styles.laterText}>あとで</Text>
           </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
+        </>
+      ) : null}
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  backdropTouch: { flex: 1 },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.huge,
-  },
-  grab: { width: 38, height: 5, borderRadius: 3, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.lg },
   iconBox: {
     width: 56, height: 56, borderRadius: radius.lg, backgroundColor: colors.primaryLight,
     alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md,

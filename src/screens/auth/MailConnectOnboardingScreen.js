@@ -610,11 +610,8 @@ const guide = StyleSheet.create({
     lineHeight: 25,
     marginBottom: spacing.md,
   },
-  // 안심 문구 카드
+  // 안심 문구 (누를 수 없는 안내라 색 배경 없음)
   safeCard: {
-    backgroundColor: colors.primaryLight,
-    borderRadius: radius.lg,
-    padding: spacing.md,
     gap: spacing.sm,
     marginBottom: spacing.xl,
   },

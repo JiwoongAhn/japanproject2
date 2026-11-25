@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useRef } from 'react';
 import { Animated } from 'react-native';
+import { motion } from '../constants/motion';
 
 // 하단 탭바가 각 화면의 스크롤 방향을 알 수 있게 공유하는 Context.
 // collapse: 0 = 확장(아이콘+라벨) / 1 = 축소(아이콘만). 커스텀 탭바가 이 값으로 크기·라벨을 보간한다.
@@ -13,7 +14,7 @@ export function TabBarScrollProvider({ children }) {
   const animateTo = (to) => {
     Animated.timing(collapse, {
       toValue: to,
-      duration: 180,
+      duration: motion.close,
       useNativeDriver: false, // height 등 레이아웃 값을 애니메이션하므로 false
     }).start();
   };

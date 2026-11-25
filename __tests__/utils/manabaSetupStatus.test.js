@@ -63,10 +63,10 @@ describe('shouldShowSetupBanner', () => {
 });
 
 describe('getSetupBannerCopy', () => {
-  it('pending 문구에는 "통지가 도착하지 않는다"는 사실이 들어간다', () => {
+  it('pending 문구는 「manaba에 추가하면 통지가 온다」를 짧게 알려준다', () => {
     const copy = getSetupBannerCopy('pending');
     expect(copy.title).toContain('あと1ステップ');
-    expect(copy.body).toContain('通知は届きません');
+    expect(copy.body).toContain('manabaに追加すると、通知が届きます');
     expect(copy.action).toBeTruthy();
   });
 

@@ -37,6 +37,8 @@ import SetupPromptSheet from '../components/SetupPromptSheet';
 import { registerPushToken, getPushPermission } from '../lib/notifications';
 import { DEMO_EMAIL } from '../constants/demo';
 import { useAppUpdate } from '../hooks/useAppUpdate';
+import HomeBanner from '../components/HomeBanner';
+import { motion } from '../constants/motion';
 import UpdateBanner from '../components/UpdateBanner';
 import StoreUpdateModal from '../components/StoreUpdateModal';
 import { universities } from '../constants/universities';
@@ -335,7 +337,6 @@ export default function HomeScreen({ navigation }) {
   //   none → 메일 연결 온보딩(처음부터) / pending → 주소·설정 가이드 / no-push → 허용 팝업 또는 설정 앱
   //   (예전 no-push 배너는 마이페이지로만 가서, 알림을 켤 방법이 없었다)
   const handleSetupAction = async () => {
-    setSetupSheetVisible(false);
     if (setupStage === 'none') {
       navigation.navigate('MailConnectOnboarding');
     } else if (setupStage === 'pending') {
@@ -348,6 +349,12 @@ export default function HomeScreen({ navigation }) {
       await tryRegisterPush(pushAction === 'ask');
       fetchAll();
     }
+  };
+
+  // 안내 시트에서 누른 경우: 시트가 다 닫힌 뒤에 다음 화면·허용 팝업을 연다 (iOS 는 창이 겹치면 안 열린다)
+  const handleSetupSheetAction = () => {
+    setSetupSheetVisible(false);
+    setTimeout(handleSetupAction, motion.afterClose);
   };
 
   // 課題: 마감 임박 과제 수 + 가장 가까운 1개의 D-day
@@ -404,20 +411,14 @@ export default function HomeScreen({ navigation }) {
 
         {/* ── ⚠️ manaba 통지 설정 미완료 배너 ── */}
         {setupBanner && (
-          <TouchableOpacity
-            style={styles.setupBanner}
-            activeOpacity={0.85}
-            onPress={handleSetupAction}
-          >
-            <View style={styles.setupBannerIcon}>
-              <Ionicons name="alert-circle" size={22} color={colors.warning ?? '#F59E0B'} />
-            </View>
-            <View style={styles.setupBannerBody}>
-              <Text style={styles.setupBannerTitle}>{setupBanner.title}</Text>
-              <Text style={styles.setupBannerText}>{setupBanner.body}</Text>
-              <Text style={styles.setupBannerAction}>{setupBanner.action} →</Text>
-            </View>
-          </TouchableOpacity>
+          <HomeBanner
+            icon="alert-circle-outline"
+            iconColor={colors.warning}
+            title={setupBanner.title}
+            text={setupBanner.body}
+            action={setupBanner.action}
+            onAction={handleSetupAction}
+          />
         )}
 
         {/* ── ★ 요약 히어로 카드 (今日のまとめ) ── */}
@@ -613,13 +614,14 @@ export default function HomeScreen({ navigation }) {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* ── 📦 네이티브 업데이트 모달 (App Store 로 이동) ── */}
+      {/* 앱을 열 때 올라오는 설정 안내 시트 */}
       <SetupPromptSheet
         visible={setupSheetVisible}
         copy={setupSheetCopy}
-        onAction={handleSetupAction}
+        onAction={handleSetupSheetAction}
         onLater={() => setSetupSheetVisible(false)}
       />
+      {/* ── 📦 네이티브 업데이트 모달 (App Store 로 이동) ── */}
       <StoreUpdateModal
         visible={updateKind === 'store'}
         storeVersion={storeVersion}
@@ -695,41 +697,6 @@ const styles = StyleSheet.create({
   heroTermNote: {
     ...typography.caption,
     color: colors.textSecondary,
-  },
-  // ⚠️ manaba 통지 설정 미완료 배너
-  setupBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.warningSoft,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    marginBottom: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.warning,
-  },
-  setupBannerIcon: {
-    marginRight: spacing.sm,
-    marginTop: 1,
-  },
-  setupBannerBody: {
-    flex: 1,
-  },
-  setupBannerTitle: {
-    ...typography.body1,
-    fontWeight: '700',
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  setupBannerText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  setupBannerAction: {
-    ...typography.caption,
-    color: colors.warning,
-    fontWeight: '700',
-    marginTop: spacing.sm,
   },
   heroCard: {
     backgroundColor: colors.surface,

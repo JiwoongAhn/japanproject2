@@ -6,8 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Modal,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,6 +23,8 @@ import { useAuth } from '../../lib/AuthProvider';
 import { getUniversityInfo, getUniversityLinks } from '../../utils/university';
 import { useTabBarScroll } from '../../navigation/TabBarScrollContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import BottomSheet from '../../components/BottomSheet';
+import { motion } from '../../constants/motion';
 import AiImportSheet from '../../components/AiImportSheet';
 import AiConsentModal from '../../components/AiConsentModal';
 import AiReadingOverlay from '../../components/AiReadingOverlay';
@@ -135,8 +135,10 @@ export default function TimetableScreen({ navigation }) {
       // 읽기 실패 = 미동의로 취급 (안내를 한 번 더 보여줄 뿐)
     }
     // 시트가 닫히는 애니메이션이 끝난 뒤 다음 화면(사진첩 등)을 연다 — iOS 는 모달이 겹치면 열리지 않는다
-    if (agreed) setTimeout(action, 400);
-    else setPendingAiAction(() => action);
+    setTimeout(() => {
+      if (agreed) action();
+      else setPendingAiAction(() => action);
+    }, motion.afterClose);
   };
   const handleAiConsentAgree = async () => {
     const action = pendingAiAction;
@@ -146,7 +148,7 @@ export default function TimetableScreen({ navigation }) {
     } catch {
       // 저장 실패해도 진행 (다음에 안내가 한 번 더 나올 뿐)
     }
-    if (action) setTimeout(action, 400);
+    if (action) setTimeout(action, motion.afterClose);
   };
 
   const openAiSite = () =>
@@ -275,7 +277,7 @@ export default function TimetableScreen({ navigation }) {
   //   (iOS는 모달이 닫히는 도중 Alert를 띄우면 창이 안 뜨거나 화면이 굳는 경우가 있어 잠깐 기다린다)
   const handleClearAllFromSheet = () => {
     setSettingsVisible(false);
-    setTimeout(handleClearAll, 350);
+    setTimeout(handleClearAll, motion.afterClose);
   };
 
   // 실제 삭제 실행 — 2단계 확인을 모두 통과했을 때만 호출된다
@@ -568,20 +570,11 @@ export default function TimetableScreen({ navigation }) {
         })}
       />
       {/* 「時間割の設定」 시트 — 색 규칙: 위험(되돌릴 수 없음)=빨강+🗑 / 취소=회색 */}
-      <Modal
-        visible={settingsVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSettingsVisible(false)}
-      >
-        <View style={styles.sheetBackdrop}>
-          <Pressable style={styles.sheetBackdropTouch} onPress={() => setSettingsVisible(false)} accessibilityLabel="閉じる" />
-          <View style={styles.sheet}>
-            <View style={styles.sheetGrab} />
+      <BottomSheet visible={settingsVisible} onClose={() => setSettingsVisible(false)}>
             <Text style={styles.sheetTitle}>時間割の設定</Text>
 
             <TouchableOpacity
-              style={[styles.sheetItem, courses.length === 0 && styles.sheetItemDisabled]}
+              style={styles.sheetItem}
               onPress={handleClearAllFromSheet}
               disabled={courses.length === 0}
               activeOpacity={0.7}
@@ -601,9 +594,7 @@ export default function TimetableScreen({ navigation }) {
             <TouchableOpacity style={styles.sheetCancel} onPress={() => setSettingsVisible(false)} activeOpacity={0.7}>
               <Text style={styles.sheetCancelText}>キャンセル</Text>
             </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      </BottomSheet>
       <AiImportSheet
         visible={aiSheetVisible}
         siteLabel={links.aiTimetableLabel ?? null}
@@ -710,29 +701,14 @@ const styles = StyleSheet.create({
   settingsButton: {
     padding: spacing.xs,
   },
-  // 「時間割の設定」 바텀시트 — 모양은 SetupPromptSheet 와 같은 기준(모서리 xxl·손잡이)
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheetBackdropTouch: { flex: 1 },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.xxl,
-    borderTopRightRadius: radius.xxl,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.huge,
-  },
-  sheetGrab: { width: 38, height: 5, borderRadius: 3, backgroundColor: colors.border, alignSelf: 'center', marginBottom: spacing.lg },
+  // 「時間割の設定」 바텀시트
   sheetTitle: { ...typography.title3, color: colors.textPrimary, marginBottom: spacing.md },
   sheetItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.dangerSoft,
   },
-  sheetItemDisabled: { backgroundColor: colors.background },
   sheetItemTextBox: { flex: 1 },
   sheetDangerText: { ...typography.body1, fontWeight: '600', color: colors.danger },
   sheetDisabledText: { color: colors.textDisabled },

@@ -6,10 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Modal,
   TextInput,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
@@ -17,6 +14,7 @@ import { WebView } from 'react-native-webview';
 import { colors, pastel } from '../../constants/colors';
 import { spacing, radius } from '../../constants/spacing';
 import { typography } from '../../constants/typography';
+import BottomSheet from '../../components/BottomSheet';
 import Card from '../../components/Card';
 import LoadingDots from '../../components/LoadingDots';
 import AppTextInput from '../../components/AppTextInput';
@@ -518,22 +516,19 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
       ) : null}
 
       {/* ── 편집/추가 모달 ── */}
-      <Modal
-        visible={editing !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={closeEdit}
-      >
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+      {/* 입력 중 실수로 닫히지 않게 바깥을 눌러도 닫지 않는다 */}
+      <BottomSheet visible={editing !== null} onClose={closeEdit} dismissOnBackdrop={false} avoidKeyboard scrollable>
             <Text style={styles.modalTitle}>
               {editing?.index === -1 ? '授業を追加' : '授業を編集'}
             </Text>
 
+            {/* 키보드가 올라와 좁아지면 입력 부분만 스크롤 (버튼은 항상 보이게) */}
+            <ScrollView
+              style={styles.modalScroll}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
             <Text style={styles.modalLabel}>科目名</Text>
             <AppTextInput
               style={styles.modalInput}
@@ -592,6 +587,8 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
               })}
             </View>
 
+            </ScrollView>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancelBtn} onPress={closeEdit} activeOpacity={0.8}>
                 <Text style={styles.modalCancelText}>キャンセル</Text>
@@ -600,10 +597,7 @@ export default function BulkAddPreviewScreen({ navigation, route }) {
                 <Text style={styles.modalSaveText}>保存</Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -870,24 +864,12 @@ const styles = StyleSheet.create({
   },
 
   // ── 편집 모달 ──
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.xl,
-    paddingBottom: spacing.huge,
-  },
   modalTitle: {
-    ...typography.subtitle,
+    ...typography.title3,
     color: colors.textPrimary,
-    marginBottom: spacing.md,
-    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
+  modalScroll: { flexGrow: 0, flexShrink: 1 },
   modalLabel: {
     ...typography.captionStrong,
     color: colors.textSecondary,

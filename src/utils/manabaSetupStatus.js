@@ -61,14 +61,14 @@ export function getSetupBannerCopy(stage) {
   if (stage === 'pending') {
     return {
       title: 'manaba通知の設定があと1ステップ',
-      body: 'manabaのリマインダ設定に、発行されたアドレスを追加してください。完了するまで通知は届きません。',
+      body: '発行されたアドレスをmanabaに追加すると、通知が届きます。',
       action: '設定をつづける',
     };
   }
   if (stage === 'no-push') {
     return {
       title: '通知がオフになっています',
-      body: 'manabaの設定は完了していますが、端末の通知が許可されていないためお届けできません。',
+      body: '端末の通知を許可すると、新しいお知らせが届きます。',
       action: '通知をオンにする',
     };
   }
