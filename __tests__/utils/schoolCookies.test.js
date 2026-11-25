@@ -5,6 +5,7 @@ jest.mock('@react-native-cookies/cookies', () => ({
   get: jest.fn(),
   getAll: jest.fn(),
   set: jest.fn(),
+  setFromResponse: jest.fn(),
   clearByName: jest.fn(),
 }));
 
@@ -167,6 +168,41 @@ describe('restoreCookies (CookieManager.set 직접 주입)', () => {
     const r = await restoreCookies(KAEDE, cookieKeyForUrl(KAEDE));
     expect(r).toBeNull();
     expect(CookieManager.set).not.toHaveBeenCalled();
+  });
+});
+
+// 2026-11-26: 세션이 만료된 뒤 「manabaで詳しく見る」를 누르면 로그인에 성공하고도 다시 로그인 화면이 떴다(Android).
+//   domain 이 붙은 쿠키와 서버가 준 호스트 전용 쿠키가 이름만 같은 채 둘 다 전송된 것이 원인
+describe('Android 쿠키는 호스트 전용 하나만', () => {
+  const { Platform } = require('react-native');
+  const original = Platform.OS;
+  const URL_ = 'https://kokushikan.manaba.jp/ct/login';
+  beforeEach(() => { Platform.OS = 'android'; jest.clearAllMocks(); });
+  afterEach(() => { Platform.OS = original; });
+
+  it('SC-A1 복원: 예전 domain 쿠키를 지우고 domain 없는 쿠키를 넣는다 (CookieManager.set 은 쓰지 않는다)', async () => {
+    const key = cookieKeyForUrl(URL_);
+    CookieManager.getAll.mockRejectedValue(new Error('not supported'));
+    CookieManager.get.mockResolvedValue({ sessionid: { name: 'sessionid', value: 'abc' } });
+    await saveCookies(URL_, key);
+    await restoreCookies(URL_, key);
+    expect(CookieManager.set).not.toHaveBeenCalled();
+    const calls = CookieManager.setFromResponse.mock.calls.map((c) => c[1]);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toMatch(/^sessionid=; domain=kokushikan\.manaba\.jp; .*expires=Thu, 01 Jan 1970/);
+    expect(calls[1]).toMatch(/^sessionid=abc; path=\/; expires=/);
+    expect(calls[1]).not.toContain('domain=');
+    expect(calls[1]).toContain('secure');
+  });
+
+  it('SC-A2 로그아웃: domain 쿠키와 호스트 전용 쿠키를 둘 다 만료시킨다', async () => {
+    CookieManager.getAll.mockRejectedValue(new Error('not supported'));
+    CookieManager.get.mockResolvedValue({ sessionid: { name: 'sessionid', value: 'abc' } });
+    await clearCookies(URL_, cookieKeyForUrl(URL_));
+    const calls = CookieManager.setFromResponse.mock.calls.map((c) => c[1]);
+    expect(calls).toHaveLength(2);
+    calls.forEach((c) => expect(c).toContain('expires=Thu, 01 Jan 1970'));
+    expect(calls.filter((c) => c.includes('domain='))).toHaveLength(1);
   });
 });
 

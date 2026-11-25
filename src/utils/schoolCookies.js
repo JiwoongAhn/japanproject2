@@ -108,6 +108,21 @@ export async function getSavedCookieHeader(key) {
   }
 }
 
+// Android: 쿠키 하나를 「이 호스트 전용」으로 넣는다 (value=null 이면 삭제)
+//   CookieManager.set 은 항상 domain 을 붙여 저장한다. 그러면 학교 서버가 준 쿠키(호스트 전용)와 이름만 같은
+//   "다른 쿠키"가 되어 둘 다 전송되고, 서버가 옛 것을 먼저 읽어 로그인에 성공해도 다시 로그인 화면이 뜬다
+//   (2026-11-26 가짜 manaba 서버로 재현: 세션 만료 뒤 「自動ログインに失敗しました」).
+//   → 예전에 넣어 둔 domain 쿠키를 먼저 지우고, 서버와 같은 모양(호스트 전용)으로 넣는다.
+const EXPIRED = 'Thu, 01 Jan 1970 00:00:00 GMT';
+async function setAndroidCookie(url, name, value, expires) {
+  const secure = /^https:/.test(url) ? '; secure' : '';
+  await CookieManager.setFromResponse(url, `${name}=; domain=${hostOf(url)}; path=/; expires=${EXPIRED}${secure}`);
+  await CookieManager.setFromResponse(
+    url,
+    `${name}=${value ?? ''}; path=/; expires=${value == null ? EXPIRED : expires.toUTCString()}${secure}`
+  );
+}
+
 // 저장된 쿠키를 WKWebView 쿠키 저장소(WKHTTPCookieStore)에 직접 주입.
 // iOS는 source.headers.Cookie가 불안정해서 CookieManager.set(useWebKit)으로 복원한다.
 // 세션 쿠키가 앱 종료 시 사라지지 않도록 expires를 미래로 부여(영속화).
@@ -117,9 +132,14 @@ export async function restoreCookies(url, key) {
   if (!header) return null;
   const map = parseCookieHeader(header);
   const host = hostOf(url);
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const expires = expiresAt.toISOString();
   for (const name of Object.keys(map)) {
     try {
+      if (Platform.OS === 'android') {
+        await setAndroidCookie(url, name, map[name], expiresAt);
+        continue;
+      }
       await CookieManager.set(
         url,
         { name, value: map[name], domain: host, path: '/', expires },
@@ -144,11 +164,11 @@ export async function clearCookies(url, key) {
         await CookieManager.clearByName(url, all[n].name, true);
       }
     }
-    // Android 는 getAll·clearByName 이 없다 → 이 사이트의 쿠키를 「이미 만료된 쿠키」로 덮어써서 지운다
+    // Android 는 getAll·clearByName 이 없다 → 이 사이트의 쿠키를 하나씩 만료시켜 지운다
     if (Platform.OS === 'android') {
       const got = await CookieManager.get(url).catch(() => ({}));
       for (const n of Object.keys(got || {})) {
-        await CookieManager.set(url, { name: n, value: '', path: '/', expires: '2000-01-01T00:00:00.000Z' });
+        await setAndroidCookie(url, n, null);
       }
     }
   } catch (_) {}
