@@ -18,7 +18,7 @@ const { normalizeAiCourses } = require('../src/utils/aiTimetable');
 
 const SUPABASE_URL = 'https://rexnpusrxezuztxmkaex.supabase.co';
 const TEST_USER_EMAIL = 'e2etest@kokushikan.ac.jp';
-const TEST_USER_PASSWORD = 'Unipas-E2E-2024!';
+const TEST_USER_PASSWORD = process.env.E2E_TEST_PASSWORD; // .env 에만 보관 (공개 저장소라 코드에 적지 않는다)
 const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 
 // 비교용 정규화 — 표기 차이(공백, 괄호, 로마숫자, 전각)는 오답으로 치지 않는다

@@ -6,6 +6,7 @@
  *
  * 필요한 환경변수 (.env):
  *   E2E_SUPABASE_SERVICE_ROLE_KEY  — Supabase 대시보드 > Settings > API > service_role
+ *   E2E_TEST_PASSWORD              — 테스트 계정 비밀번호 (.env 에만 보관)
  *   EXPO_PUBLIC_SUPABASE_ANON_KEY  — 이미 설정되어 있음
  */
 
@@ -15,7 +16,7 @@ const SUPABASE_URL = 'https://rexnpusrxezuztxmkaex.supabase.co';
 const SERVICE_ROLE_KEY = process.env.E2E_SUPABASE_SERVICE_ROLE_KEY;
 
 const TEST_USER_EMAIL    = 'e2etest@kokushikan.ac.jp';
-const TEST_USER_PASSWORD = 'Unipas-E2E-2024!';
+const TEST_USER_PASSWORD = process.env.E2E_TEST_PASSWORD; // ⚠️ 코드에 적지 말 것 — 공개 저장소라 누구나 로그인할 수 있게 된다 (2026-11-25 교체)
 const TEST_UNIVERSITY    = '国士舘大学'; // ⚠️ 舘(이체자) — 館 로 쓰면 RLS 의 "같은 학교" 조건에 걸려 글·평가가 하나도 안 보인다
 const TEST_NICKNAME      = 'e2eテスター';
 
@@ -35,6 +36,8 @@ function getAdminClient() {
  * 테스트 유저 + 프로필 확보 (없으면 생성, 있으면 비밀번호 동기화)
  */
 async function ensureTestUser() {
+  // 비어 있으면 비밀번호가 빈 값으로 덮이기 전에 멈춘다
+  if (!TEST_USER_PASSWORD) throw new Error('E2E_TEST_PASSWORD 환경변수가 없습니다. .env 파일에 추가하세요.');
   const admin = getAdminClient();
 
   const { data: { users } } = await admin.auth.admin.listUsers({ perPage: 1000 });

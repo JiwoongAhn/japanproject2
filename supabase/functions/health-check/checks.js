@@ -220,6 +220,19 @@ export const CHECKS = [
     },
   },
   {
+    id: 'e2e-signin',
+    title: '테스트 계정 로그인',
+    since: '2026-11-25 — 테스트 계정 비밀번호가 공개 저장소에 적혀 있었다 (교체 후 .env 로 이동)',
+    run(snap) {
+      if (snap.e2e_signin_24h == null) return ok('확인 불가 (snapshot 에 칸 없음)');
+      if (num(snap.e2e_signin_24h) === 0) return ok('최근 24시간 로그인 없음');
+      return {
+        level: 'warn',
+        message: '최근 24시간 안에 새 로그인 있음 — 어제 앱 테스트를 했다면 정상, 안 했다면 비밀번호 유출 의심(.env E2E_TEST_PASSWORD 교체)',
+      };
+    },
+  },
+  {
     id: 'manaba-setup-funnel',
     title: 'manaba 통지 설정 단계',
     since: '2026-10-30 — 10/29 OTA 「まだ終わっていない設定」 안내 창의 효과를 매일 본다 (manaba 학교 실사용자)',

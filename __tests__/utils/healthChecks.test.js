@@ -138,6 +138,10 @@ describe('푸시·신고·용량·만료일', () => {
     expect(levelOf(healthy(), 'profile-pii')).toBe('ok');
     expect(levelOf(healthy({ profile_pii: 1 }), 'profile-pii')).toBe('critical');
   });
+  test('HC-57 테스트 계정이 24시간 안에 로그인했으면 🟠 (비밀번호 공개 사고 재발 방지)', () => {
+    expect(levelOf(healthy({ e2e_signin_24h: 0 }), 'e2e-signin')).toBe('ok');
+    expect(levelOf(healthy({ e2e_signin_24h: 1 }), 'e2e-signin')).toBe('warn');
+  });
   test('HC-55 manaba 통지 설정 단계: 10/29 대비 증감을 참고로 보여준다', () => {
     const r = runChecks(healthy({ manaba_setup_stages: { none: 5, pending: 6, no_push: 3, ready: 11 } }), { now: NOW })
       .results.find((x) => x.id === 'manaba-setup-funnel');
