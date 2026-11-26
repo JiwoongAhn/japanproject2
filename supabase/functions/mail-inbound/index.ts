@@ -2,6 +2,7 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { summarizeNotice } from '../_shared/noticeSummary.ts';
 import { buildNoticePushMessage } from '../_shared/noticePush.ts';
 import { syncAssignmentFromMail } from '../_shared/manabaAssignment.js';
+import { isAllowedSender, extractManabaUrl } from '../_shared/manabaSender.js';
 
 // 메일전달 방식 푸시의 수신 엔드포인트.
 // Cloudflare Email Worker가 학생의 manaba 알림 메일을 파싱한 뒤 이 함수를 호출한다.
@@ -9,12 +10,7 @@ import { syncAssignmentFromMail } from '../_shared/manabaAssignment.js';
 //   흐름: forward_token으로 학생 식별 → manaba_notices 저장(중복 차단) → Expo 푸시
 // 기존 ms-graph-webhook의 sendExpoPush/extractManabaUrl 로직을 그대로 이식.
 
-// manaba 알림 메일 허용 발신자 도메인 (src/constants/universities.js 학교 추가 시 함께 추가)
-const ALLOWED_SENDERS = [
-  'kokushikan.manaba.jp',
-  'manaba.jp',        // daito.manaba.jp / asia-u.manaba.jp 등 manaba.jp 계열 전부
-  'ace.toyo.ac.jp',   // 東洋大 ToyoNet-ACE (manaba 자체 호스팅, www.ace.toyo.ac.jp) — 실제 발신 도메인은 재학생 확인 필요
-];
+// manaba 알림 메일 허용 발신자·링크 판정은 _shared/manabaSender.js (학교 추가 시 그쪽에 도메인 추가)
 
 // ── manaba 시스템 메일(인증코드 / 인증완료) 판별 규칙 ──
 // 국사관 manaba는 새 알림주소(携帯メールアドレス) 등록 시 "인증 링크"가 아니라
@@ -66,7 +62,7 @@ Deno.serve(async (req: Request) => {
     // ③ 발신자 도메인 재검증 — manaba 외 메일은 무시 (가짜 푸시 차단)
     const senderEmail = (fromAddress ?? '').toLowerCase();
     const senderDomain = senderEmail.split('@')[1] ?? '';
-    if (!ALLOWED_SENDERS.some((d) => senderDomain.endsWith(d))) {
+    if (!isAllowedSender(senderEmail)) {
       console.warn('[mail-inbound] 비허용 발신자 — 무시:', senderDomain);
       return new Response('sender not allowed', { status: 204 });
     }
@@ -221,11 +217,6 @@ async function sendAuthCodePush(supabase: any, userId: string, code: string) {
   }
 }
 
-/** 본문 HTML에서 manaba 공지 URL 추출 (manaba.jp 계열 + 東洋 ToyoNet-ACE 자체 호스팅) */
-function extractManabaUrl(html: string): string | null {
-  const match = html.match(/https?:\/\/(?:[a-zA-Z0-9.-]*manaba\.jp|www\.ace\.toyo\.ac\.jp)[^\s"'<>]*/);
-  return match ? match[0] : null;
-}
 
 /**
  * 인증코드 메일 본문에서 6자리 숫자 코드를 추출한다.

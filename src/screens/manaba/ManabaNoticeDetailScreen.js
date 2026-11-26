@@ -143,7 +143,8 @@ export default function ManabaNoticeDetailScreen({ route, navigation }) {
           {ready && (
           <WebView
             ref={webViewRef}
-            source={{ uri: url, headers: cookieHeader ? { Cookie: cookieHeader } : undefined }}
+            // 로그인 쿠키는 학교 manaba 주소일 때만 붙인다 (다른 사이트로 새지 않게)
+            source={{ uri: url, headers: cookieHeader && hostOf(url) === hostOf(manabaUrls?.origin) ? { Cookie: cookieHeader } : undefined }}
             style={styles.webView}
             applicationNameForUserAgent={UNIPAS_USER_AGENT}
             injectedJavaScriptBeforeContentLoaded={DISABLE_AUTOCAPS_JS}

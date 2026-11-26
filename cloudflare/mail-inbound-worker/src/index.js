@@ -11,7 +11,9 @@ import PostalMime from 'postal-mime';
 //   SUPABASE_FUNC_URL   = https://<project>.supabase.co/functions/v1/mail-inbound
 //   MAIL_INBOUND_SECRET = Supabase 함수와 동일한 공유 비밀값
 
-const ALLOWED_SENDERS = ['kokushikan.manaba.jp', 'manaba.jp'];
+// 끝 글자만 보면 fakemanaba.jp 도 통과하므로 점(.) 단위로 본다 (서버 _shared/manabaSender.js 와 같은 규칙)
+const ALLOWED_SENDERS = ['manaba.jp', 'ace.toyo.ac.jp'];
+const isAllowedDomain = (domain) => ALLOWED_SENDERS.some((d) => domain === d || domain.endsWith('.' + d));
 
 export default {
   async email(message, env, ctx) {
@@ -33,7 +35,7 @@ export default {
 
       // ③ 발신자 도메인 검증 — manaba 외 메일은 무시 (서버에서도 재검증함)
       const senderDomain = fromAddress.split('@')[1] || '';
-      if (!ALLOWED_SENDERS.some((d) => senderDomain.endsWith(d))) {
+      if (!isAllowedDomain(senderDomain)) {
         console.warn('[worker] 비허용 발신자 — 무시:', senderDomain);
         return;
       }
